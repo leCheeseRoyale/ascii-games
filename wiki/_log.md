@@ -16,3 +16,10 @@
   - References (1): utility-reference
   - Guides (1): asteroid-field-game
 - Updated _index.md with all 23 pages
+
+## [2026-04-07] update | Physics, Animation, and Entity Parenting
+- Added 3 new wiki pages: physics-system, animation-system, entity-parenting
+- Updated component-reference with 6 new component types: Physics, Animation, AnimationFrame, Parent, Child, ImageComponent
+- Updated engine-overview with new built-in systems, frame lifecycle, and API methods
+- Updated system-runner with built-in system execution order
+- Updated _index.md (total pages: 23 → 26)

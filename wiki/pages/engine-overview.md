@@ -44,8 +44,11 @@ export class Engine {
   readonly camera: Camera          // pan, zoom, shake
   readonly keyboard: Keyboard      // keyboard input
   readonly mouse: Mouse            // mouse input
+  readonly particles: ParticlePool // object-pooled particle system
+  readonly scheduler: Scheduler    // timer scheduling (after, every, sequence)
+  readonly transition: Transition  // scene transition effects
 
-  private loop: GameLoop           // RAF fixed-timestep loop
+  private loop: GameLoop            // RAF fixed-timestep loop
 }
 ```
 
@@ -71,12 +74,16 @@ RAF Loop (60fps)                    React (render cycle)
 Every frame follows this exact sequence inside `Engine.update(dt)` and `Engine.render()`:
 
 ```
-1. keyboard.update()    — promote pressed/released to justPressed/justReleased
-2. mouse.update()       — same for mouse state
-3. systems.update()     — run all registered systems in order
-4. scene.update()       — run the current scene's per-frame update
-5. camera.update(dt)    — smooth pan/zoom/shake interpolation
-6. renderer.render()    — clear → camera transform → text blocks → ascii entities → restore
+1. keyboard.update()
+2. mouse.update()
+3. systems.update()    — parent → physics → tween → animation → user systems
+4. scene.update()
+5. scheduler.update()  — timers (after, every, sequence)
+6. particles.update()
+7. transition.update()
+8. camera.update()
+9. renderer.render()   — layers → images → ascii → sprites → text → particles
+10. transition.render() — overlay if active
 ```
 
 The corresponding code:
@@ -121,6 +128,14 @@ The engine also supports `pause()` / `resume()`. When paused, the game loop cont
 | `start(sceneName)` | Load scene + start loop |
 | `stop()` | Full shutdown |
 | `pause()` / `resume()` | Toggle update processing |
+| `tweenEntity(entity, prop, from, to, dur, ease)` | Declarative property animation |
+| `playAnimation(entity, frames, dur, loop)` | Start frame animation |
+| `stopAnimation(entity)` | Pause frame animation |
+| `attachChild(parent, child, ox, oy)` | Parent-child hierarchy |
+| `detachChild(child)` | Remove from parent |
+| `destroyWithChildren(entity)` | Recursive entity removal |
+| `after(sec, fn)` / `every(sec, fn)` | Timer scheduling |
+| `loadImage(src)` / `preloadImages(srcs)` | Image loading |
 
 ## Related Pages
 
@@ -130,3 +145,7 @@ The engine also supports `pause()` / `resume()`. When paused, the game loop cont
 - [[scene-lifecycle]] — Scene interface and SceneManager transitions
 - [[react-bridge]] — Zustand store as the engine↔UI boundary
 - [[camera]] — Pan, zoom, follow, shake
+- [[physics-system]] — Built-in physics system
+- [[animation-system]] — Frame-by-frame animation system
+- [[entity-parenting]] — Parent-child entity hierarchy
+- [[system-runner]] — System execution order including built-ins

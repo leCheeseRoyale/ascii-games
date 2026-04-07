@@ -109,6 +109,21 @@ Systems run in **registration order** — the order they were added via `engine.
 
 If system A must run before system B, add A first in your scene's `setup()`.
 
+## Built-in Systems
+
+The engine auto-registers 4 built-in systems on every scene load, before any user systems. They always run first, in this order:
+
+```
+1. _parent     — sync child positions to parents
+2. _physics    — gravity, friction, drag, bounce, velocity integration
+3. _tween      — declarative property animation
+4. _animation  — frame-by-frame sprite/ascii cycling
+```
+
+These use underscore-prefixed names to avoid collision with user system names.
+
+User systems added in scene `setup()` run **after** these built-in systems. So by the time your system runs, physics has already been applied, tweens have been updated, and child positions have been synced.
+
 ## Adding and Removing Systems
 
 Systems are typically added in a scene's `setup` and cleared automatically on scene transition:
@@ -142,3 +157,6 @@ Every system gets the full `engine` reference and the fixed `dt`. This means sys
 - [[scene-lifecycle]] — Scenes add/remove systems during their lifecycle
 - [[movement-system]] — Example system implementation
 - [[engine-overview]] — Where systems fit in the frame lifecycle
+- [[physics-system]] — Built-in physics system details
+- [[animation-system]] — Built-in animation system details
+- [[entity-parenting]] — Parent system and child position syncing

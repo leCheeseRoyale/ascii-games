@@ -23,6 +23,7 @@ export interface Entity {
   velocity: Velocity
   acceleration: Acceleration
   ascii: Ascii
+  sprite: Sprite
   textBlock: TextBlock
   collider: Collider
   health: Health
@@ -30,7 +31,13 @@ export interface Entity {
   player: Player
   obstacle: Obstacle
   emitter: ParticleEmitter
+  physics: Physics
   tags: Tags
+  tween: Tween
+  animation: Animation
+  image: ImageComponent
+  parent: Parent
+  child: Child
 }
 ```
 
@@ -96,6 +103,7 @@ export interface Ascii {
   glow?: string
   opacity?: number
   scale?: number
+  layer?: number
 }
 ```
 
@@ -109,6 +117,7 @@ Single-character rendering component. Entities with `position` + `ascii` are aut
 | `glow` | string | undefined | Shadow color for glow effect |
 | `opacity` | number | 1.0 | Transparency (0-1) |
 | `scale` | number | 1.0 | Size multiplier |
+| `layer` | number | 0 | Render layer ordering |
 
 **Used by:** Renderer
 
@@ -242,6 +251,137 @@ export interface Tags { values: Set<string> }
 | `values` | Set\<string\> | Arbitrary string tags for categorization |
 
 **Used by:** Any system via `entity.tags.values.has('enemy')`, query filtering with `.where()`
+
+### Physics
+
+```typescript
+export interface Physics {
+  gravity?: number
+  friction?: number
+  drag?: number
+  bounce?: number
+  maxSpeed?: number
+  mass?: number
+  grounded?: boolean
+}
+```
+
+Per-entity physics configuration. All fields optional, defaults to 0/off. The built-in physics system reads this to apply forces. `grounded` is set by the system, not by user code.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| gravity | number | 0 | Downward acceleration in px/s² |
+| friction | number | 0 | Ground friction on vx (0-1) |
+| drag | number | 0 | Air resistance on both axes (0-1) |
+| bounce | number | 0 | Velocity retention on wall bounce (0-1) |
+| maxSpeed | number | none | Speed clamp magnitude |
+| mass | number | 1 | For future collision response |
+| grounded | boolean | false | Set by physics system when on ground |
+
+**Used by:** Physics system (see [[physics-system]])
+
+### Animation
+
+```typescript
+export interface AnimationFrame {
+  char?: string
+  lines?: string[]
+  color?: string
+  duration?: number
+}
+
+export interface Animation {
+  frames: AnimationFrame[]
+  frameDuration: number
+  currentFrame: number
+  elapsed: number
+  loop?: boolean
+  playing?: boolean
+  onComplete?: 'destroy' | 'stop'
+}
+```
+
+Frame-by-frame animation. Works with ascii (char) or sprite (lines). The system auto-advances frames and applies char/lines/color to the entity.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| frames | AnimationFrame[] | required | Array of frames |
+| frameDuration | number | required | Default seconds per frame |
+| currentFrame | number | 0 | Current index (managed by system) |
+| elapsed | number | 0 | Time on current frame (managed) |
+| loop | boolean | true | Restart when reaching end |
+| playing | boolean | true | Pause/resume animation |
+| onComplete | string | none | 'destroy' or 'stop' when non-looping ends |
+
+**Used by:** Animation system (see [[animation-system]])
+
+### Parent
+
+```typescript
+export interface Parent {
+  children: Partial<Entity>[]
+}
+```
+
+Tracks child entities. Set up automatically by engine.attachChild().
+
+| Field | Type | Description |
+|-------|------|-------------|
+| children | Partial<Entity>[] | Array of attached child entities |
+
+**Used by:** Parent system, engine.destroyWithChildren() (see [[entity-parenting]])
+
+### Child
+
+```typescript
+export interface Child {
+  parent: Partial<Entity>
+  offsetX: number
+  offsetY: number
+  inheritRotation?: boolean
+}
+```
+
+Marks an entity as a child. Position is auto-synced to parent + offset each frame.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| parent | Partial<Entity> | Reference to parent entity |
+| offsetX | number | X offset from parent |
+| offsetY | number | Y offset from parent |
+| inheritRotation | boolean | Future: inherit parent rotation |
+
+**Used by:** Parent system (see [[entity-parenting]])
+
+### ImageComponent
+
+```typescript
+export interface ImageComponent {
+  image: HTMLImageElement
+  width: number
+  height: number
+  opacity?: number
+  layer?: number
+  anchor?: 'center' | 'topLeft'
+  rotation?: number
+  tint?: string
+}
+```
+
+Attach a loaded image. Renders at entity position respecting camera and layers. Use engine.loadImage() to get the HTMLImageElement.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| image | HTMLImageElement | required | Loaded image element |
+| width | number | natural | Render width in px |
+| height | number | natural | Render height in px |
+| opacity | number | 1 | Transparency 0-1 |
+| layer | number | 0 | Render layer |
+| anchor | string | 'center' | 'center' or 'topLeft' |
+| rotation | number | 0 | Rotation in radians |
+| tint | string | none | Available for game logic |
+
+**Used by:** Renderer (see [[renderer]])
 
 ## Related Engine Types
 

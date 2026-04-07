@@ -1,7 +1,7 @@
 # ASCII Game Engine Wiki — Index
 
 > Content catalog. Every wiki page listed under its type with a one-line summary.
-> Last updated: 2026-04-07 | Total pages: 23
+> Last updated: 2026-04-07 | Total pages: 26
 
 ## Architecture
 
@@ -12,12 +12,13 @@
 - [[system-runner]] — System interface, ordered execution, init/cleanup hooks
 - [[renderer]] — AsciiRenderer: Canvas 2D pipeline, DPR resize, render order, auto-rendering
 - [[camera]] — 2D camera: moveTo, panTo, follow, setZoom, shake with lerp interpolation
+- [[entity-parenting]] — Parent-child entity hierarchy: offset-based positioning, attach/detach/destroyWithChildren
 - [[react-bridge]] — Hard boundary between game loop and React; zustand as the only bridge
 - [[design-decisions]] — Key architectural choices and rationale (miniplex, zustand, Pretext, etc.)
 
 ## Components
 
-- [[component-reference]] — All 12 ECS component types with fields, descriptions, and usage
+- [[component-reference]] — All 18 ECS component types with fields, descriptions, and usage
 - [[pretext-integration]] — @chenglou/pretext wrapper: caching, measureHeight, layout, shrinkwrap
 - [[text-flow-pattern]] — Text flowing around circular obstacles via per-line variable-width layout
 - [[particles]] — ParticlePool: flat array, object pooling, burst/update/render, manual render warning
@@ -30,6 +31,8 @@
 
 - [[player-input-system]] — WASD/arrows movement, Space to shoot, screen wrapping, Cooldown
 - [[collision-system]] — Bullet×asteroid and player×asteroid detection, particles, score, health, death
+- [[physics-system]] — Built-in physics: gravity, friction, drag, bounce, maxSpeed, grounded detection
+- [[animation-system]] — Frame-by-frame animation for ascii/sprite entities: loop, onComplete, play/stop
 
 ## Patterns
 
