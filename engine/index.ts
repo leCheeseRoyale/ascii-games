@@ -38,19 +38,28 @@ export { overlaps, overlapAll, type Collidable } from './physics/collision'
 // Audio
 export { beep, sfx } from './audio/audio'
 
-// Utils
+// Utils — Math
 export {
   vec2, add, sub, scale, len, normalize, dist, dot,
   lerp, clamp, rng, rngInt, pick, chance,
   type Vec2,
 } from './utils/math'
+
+// Utils — Timer & Scheduler
 export { Cooldown, tween, easeOut } from './utils/timer'
+export { Scheduler } from './utils/scheduler'
+
+// Utils — Color
 export { hsl, hsla, rainbow, lerpColor } from './utils/color'
+
+// Utils — Grid
+export { GridMap, gridToWorld, worldToGrid, gridDistance } from './utils/grid'
 
 // Re-export shared types
 export type {
-  Entity, Position, Velocity, Acceleration, Ascii, TextBlock,
+  Entity, Position, Velocity, Acceleration, Ascii, Sprite, TextBlock,
   Collider, Health, Lifetime, Player, Obstacle, ParticleEmitter, Tags,
+  Tween, TweenEntry,
   GameTime, InputState, EngineConfig,
 } from '@shared/types'
 export { DEFAULT_CONFIG } from '@shared/types'

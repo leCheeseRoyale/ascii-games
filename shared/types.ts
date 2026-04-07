@@ -15,6 +15,20 @@ export interface Ascii {
   glow?: string
   opacity?: number
   scale?: number
+  /** Render layer. Lower = behind, higher = in front. Default 0. */
+  layer?: number
+}
+
+/** Multi-line ASCII art. Alternative to Ascii for richer visuals. */
+export interface Sprite {
+  /** Array of strings, one per line. Rendered centered on position. */
+  lines: string[]
+  font: string
+  color: string
+  glow?: string
+  opacity?: number
+  /** Render layer. Default 0. */
+  layer?: number
 }
 
 export interface TextBlock {
@@ -23,6 +37,8 @@ export interface TextBlock {
   maxWidth: number
   lineHeight: number
   color: string
+  /** Render layer. Default 0. */
+  layer?: number
 }
 
 export interface Collider {
@@ -49,6 +65,23 @@ export interface ParticleEmitter {
 
 export interface Tags { values: Set<string> }
 
+/** Declarative animation. Engine auto-processes and removes when done. */
+export interface Tween {
+  tweens: TweenEntry[]
+}
+
+export interface TweenEntry {
+  /** Dot-path to the property, e.g. 'position.x' or 'ascii.opacity' */
+  property: string
+  from: number
+  to: number
+  duration: number
+  elapsed: number
+  ease: 'linear' | 'easeOut' | 'easeIn' | 'easeInOut'
+  /** If true, remove the entity when this tween completes */
+  destroyOnComplete?: boolean
+}
+
 // ── Entity: union of all components ──────────────────────────────
 
 export interface Entity {
@@ -56,6 +89,7 @@ export interface Entity {
   velocity: Velocity
   acceleration: Acceleration
   ascii: Ascii
+  sprite: Sprite
   textBlock: TextBlock
   collider: Collider
   health: Health
@@ -64,6 +98,7 @@ export interface Entity {
   obstacle: Obstacle
   emitter: ParticleEmitter
   tags: Tags
+  tween: Tween
 }
 
 // ── Engine types ─────────────────────────────────────────────────

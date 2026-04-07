@@ -1,8 +1,5 @@
-import { defineScene, FONTS, COLORS, ParticlePool } from '@engine'
+import { defineScene, FONTS, COLORS } from '@engine'
 import { useStore } from '@ui/store'
-import { particles } from '../systems/collision'
-
-const deathParticles = new ParticlePool()
 
 export const gameOverScene = defineScene({
   name: 'game-over',
@@ -13,9 +10,8 @@ export const gameOverScene = defineScene({
     const cx = engine.width / 2
     const cy = engine.height / 2
 
-    // Big death explosion at center
-    deathParticles.clear()
-    deathParticles.burst({
+    // Big death explosion at center (uses engine-owned particles)
+    engine.particles.burst({
       x: cx,
       y: cy,
       count: 60,
@@ -24,7 +20,7 @@ export const gameOverScene = defineScene({
       speed: 250,
       lifetime: 2.5,
     })
-    deathParticles.burst({
+    engine.particles.burst({
       x: cx,
       y: cy,
       count: 30,
@@ -78,21 +74,8 @@ export const gameOverScene = defineScene({
   },
 
   update(engine, dt) {
-    deathParticles.update(dt)
-    // Also keep rendering any lingering collision particles
-    particles.update(dt)
-
-    const ctx = engine.renderer.ctx
-    deathParticles.render(ctx)
-    particles.render(ctx)
-
     if (engine.keyboard.pressed('Space')) {
       engine.loadScene('play')
     }
-  },
-
-  cleanup() {
-    deathParticles.clear()
-    particles.clear()
   },
 })

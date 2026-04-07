@@ -1,18 +1,18 @@
 /**
  * Engine — the main orchestrator.
  *
- * Owns: ECS world, renderer, input, camera, game loop, scene manager.
+ * Owns: ECS world, renderer, input, camera, particles, scheduler, game loop, scenes.
  * Exposes a clean API for scenes and systems to use.
  *
  * Lifecycle:
  *   1. new Engine(canvas, config)
  *   2. engine.registerScene(scene)
- *   3. engine.start('title')  — loads the scene and starts the loop
- *   4. Per frame: input.update → systems.update → scene.update → render
- *   5. engine.stop() — cleanup
+ *   3. engine.start('title')
+ *   4. Per frame: input → systems → tweens → scene.update → timers → camera → render
+ *   5. engine.stop()
  */
 
-import type { Entity, EngineConfig, GameTime } from '@shared/types'
+import type { Entity, EngineConfig, GameTime, TweenEntry } from '@shared/types'
 import { DEFAULT_CONFIG } from '@shared/types'
 import { events } from '@shared/events'
 import { createWorld, type GameWorld } from '../ecs/world'
@@ -21,11 +21,14 @@ import { GameLoop } from './game-loop'
 import { SceneManager, type Scene } from './scene'
 import { AsciiRenderer } from '../render/ascii-renderer'
 import { Camera } from '../render/camera'
+import { ParticlePool } from '../render/particles'
 import { Keyboard } from '../input/keyboard'
 import { Mouse } from '../input/mouse'
+import { Scheduler } from '../utils/scheduler'
+import { tweenSystem } from '../ecs/tween-system'
 
 export class Engine {
-  // ── Public API (what scenes and systems use) ──────────────────
+  // ── Public API ────────────────────────────────────────────────
   readonly config: EngineConfig
   readonly world: GameWorld
   readonly systems: SystemRunner
@@ -34,8 +37,9 @@ export class Engine {
   readonly camera: Camera
   readonly keyboard: Keyboard
   readonly mouse: Mouse
+  readonly particles: ParticlePool
+  readonly scheduler: Scheduler
 
-  /** Current frame timing info. */
   get time(): GameTime {
     return {
       dt: this.loop.fixedDt,
@@ -45,7 +49,6 @@ export class Engine {
     }
   }
 
-  /** Canvas dimensions. */
   get width(): number { return this.renderer.width }
   get height(): number { return this.renderer.height }
 
@@ -61,6 +64,8 @@ export class Engine {
     this.camera = new Camera()
     this.keyboard = new Keyboard()
     this.mouse = new Mouse(canvas)
+    this.particles = new ParticlePool()
+    this.scheduler = new Scheduler()
 
     this.loop = new GameLoop(
       {
@@ -70,79 +75,118 @@ export class Engine {
       this.config.targetFps,
     )
 
-    // Resize on mount + window resize
     this.renderer.resize()
-    const onResize = () => this.renderer.resize()
+    const onResize = () => {
+      this.renderer.resize()
+      this.camera.viewWidth = this.renderer.width
+      this.camera.viewHeight = this.renderer.height
+    }
     window.addEventListener('resize', onResize)
-
-    // Store cleanup ref
+    onResize()
     ;(this as any)._onResize = onResize
   }
 
   // ── Entity helpers ────────────────────────────────────────────
 
-  /** Spawn an entity with the given components. */
   spawn(components: Partial<Entity>) {
     return this.world.add(components as Entity)
   }
 
-  /** Remove an entity. */
   destroy(entity: Entity): void {
     this.world.remove(entity)
   }
 
+  // ── Tween helper ──────────────────────────────────────────────
+
+  /** Add a tween to an entity. Convenience wrapper. */
+  tweenEntity(
+    entity: Partial<Entity>,
+    property: string,
+    from: number,
+    to: number,
+    duration: number,
+    ease: TweenEntry['ease'] = 'easeOut',
+    destroyOnComplete = false,
+  ): void {
+    const e = entity as any
+    if (!e.tween) {
+      e.tween = { tweens: [] }
+    }
+    e.tween.tweens.push({ property, from, to, duration, elapsed: 0, ease, destroyOnComplete })
+  }
+
+  // ── Timer helpers (delegate to scheduler) ─────────────────────
+
+  /** Schedule a one-shot callback after `seconds`. Returns cancel ID. */
+  after(seconds: number, callback: () => void): number {
+    return this.scheduler.after(seconds, callback)
+  }
+
+  /** Schedule a repeating callback every `seconds`. Returns cancel ID. */
+  every(seconds: number, callback: () => void): number {
+    return this.scheduler.every(seconds, callback)
+  }
+
+  /** Chain a sequence of delayed callbacks. Returns cancel ID. */
+  sequence(steps: { delay: number; fn: () => void }[]): number {
+    return this.scheduler.sequence(steps)
+  }
+
+  /** Cancel a scheduled timer. */
+  cancelTimer(id: number): void {
+    this.scheduler.cancel(id)
+  }
+
   // ── System helpers ────────────────────────────────────────────
 
-  /** Add a system to the update loop. */
   addSystem(system: System): void {
     this.systems.add(system, this)
   }
 
-  /** Remove a system by name. */
   removeSystem(name: string): void {
     this.systems.remove(name, this)
   }
 
   // ── Scene helpers ─────────────────────────────────────────────
 
-  /** Register a scene (does not load it). */
   registerScene(scene: Scene): void {
     this.scenes.register(scene)
   }
 
-  /** Load a scene by name. Cleans up the current scene first. */
   async loadScene(name: string): Promise<void> {
+    // Clear timers and particles on scene change
+    this.scheduler.clear()
+    this.particles.clear()
     await this.scenes.load(name, this)
+    // Always have the tween system active
+    this.systems.add(tweenSystem, this)
     events.emit('scene:loaded', name)
   }
 
   // ── Lifecycle ─────────────────────────────────────────────────
 
-  /** Start the engine with the given scene. */
   async start(sceneName: string): Promise<void> {
     await this.loadScene(sceneName)
     this.loop.start()
     events.emit('engine:started')
   }
 
-  /** Stop the engine. */
   stop(): void {
     this.loop.stop()
     this.scenes.current?.cleanup?.(this)
     this.systems.clear(this)
+    this.scheduler.clear()
     this.keyboard.destroy()
     this.mouse.destroy()
     window.removeEventListener('resize', (this as any)._onResize)
     events.emit('engine:stopped')
   }
 
-  /** Pause the game loop (rendering continues, updates stop). */
   pause(): void {
     this.loop.pause()
     events.emit('engine:paused')
   }
 
-  /** Resume from pause. */
   resume(): void {
     this.loop.resume()
     events.emit('engine:resumed')
@@ -153,21 +197,16 @@ export class Engine {
   // ── Frame lifecycle (private) ─────────────────────────────────
 
   private update(dt: number): void {
-    // 1. Input
     this.keyboard.update()
     this.mouse.update()
-
-    // 2. Systems
-    this.systems.update(this, dt)
-
-    // 3. Scene update
+    this.systems.update(this, dt)     // includes tweenSystem
     this.scenes.update(this, dt)
-
-    // 4. Camera
+    this.scheduler.update(dt)
+    this.particles.update(dt)
     this.camera.update(dt)
   }
 
   private render(): void {
-    this.renderer.render(this.world, this.config, this.camera)
+    this.renderer.render(this.world, this.config, this.camera, this.particles)
   }
 }

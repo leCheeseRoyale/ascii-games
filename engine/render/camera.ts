@@ -1,8 +1,8 @@
 /**
- * 2D Camera — pan, zoom, follow, shake.
+ * 2D Camera — pan, zoom, follow, shake, coordinate conversion.
  */
 
-import { lerp, clamp, rng } from '../utils/math'
+import { lerp, clamp, rng, type Vec2 } from '../utils/math'
 
 export class Camera {
   x = 0
@@ -10,6 +10,10 @@ export class Camera {
   zoom = 1
   shakeX = 0
   shakeY = 0
+
+  /** Viewport size — set by the renderer. */
+  viewWidth = 0
+  viewHeight = 0
 
   private targetX = 0
   private targetY = 0
@@ -46,6 +50,26 @@ export class Camera {
   /** Trigger screen shake. */
   shake(magnitude = 5): void {
     this.shakeMagnitude = magnitude
+  }
+
+  /** Convert screen (mouse) coordinates to world coordinates. */
+  screenToWorld(sx: number, sy: number): Vec2 {
+    const cx = this.viewWidth / 2
+    const cy = this.viewHeight / 2
+    return {
+      x: (sx - cx - this.shakeX) / this.zoom + this.x,
+      y: (sy - cy - this.shakeY) / this.zoom + this.y,
+    }
+  }
+
+  /** Convert world coordinates to screen coordinates. */
+  worldToScreen(wx: number, wy: number): Vec2 {
+    const cx = this.viewWidth / 2
+    const cy = this.viewHeight / 2
+    return {
+      x: (wx - this.x) * this.zoom + cx + this.shakeX,
+      y: (wy - this.y) * this.zoom + cy + this.shakeY,
+    }
   }
 
   /** Call once per frame. */

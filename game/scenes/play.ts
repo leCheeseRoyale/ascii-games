@@ -5,7 +5,7 @@ import { createPlayer } from '../entities/player'
 import { playerInputSystem } from '../systems/player-input'
 import { movementSystem } from '../systems/movement'
 import { asteroidSpawnerSystem } from '../systems/asteroid-spawner'
-import { collisionSystem, particles, resetScore } from '../systems/collision'
+import { collisionSystem, resetScore } from '../systems/collision'
 import { lifetimeSystem } from '../systems/lifetime'
 
 export const playScene = defineScene({
@@ -27,18 +27,12 @@ export const playScene = defineScene({
     engine.addSystem(asteroidSpawnerSystem)
     engine.addSystem(collisionSystem)
     engine.addSystem(lifetimeSystem)
-
-    particles.clear()
   },
 
   update(engine, dt) {
     // Sync store with debug info
     const entities = [...engine.world.with('position')].length
     useStore.getState().setDebugInfo(Math.round(engine.time.fps), entities)
-
-    // Render particles on top of everything
-    const ctx = engine.renderer.ctx
-    particles.render(ctx)
 
     // Pause on Escape
     if (engine.keyboard.pressed('Escape')) {

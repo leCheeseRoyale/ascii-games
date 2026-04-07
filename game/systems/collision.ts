@@ -1,9 +1,6 @@
-import { defineSystem, overlaps, sfx, ParticlePool, pick } from '@engine'
+import { defineSystem, overlaps, sfx } from '@engine'
 import { GAME } from '../config'
 import { useStore } from '@ui/store'
-
-// Shared particle pool for explosions — accessed by play scene for rendering
-export const particles = new ParticlePool()
 
 let score = 0
 let invincibleTimer = 0
@@ -21,7 +18,6 @@ export const collisionSystem = defineSystem({
 
   update(engine, dt) {
     invincibleTimer = Math.max(0, invincibleTimer - dt)
-    particles.update(dt)
 
     const bullets = [...engine.world.with('position', 'collider', 'tags')]
       .filter(e => e.tags.values.has('bullet'))
@@ -33,9 +29,8 @@ export const collisionSystem = defineSystem({
     for (const bullet of bullets) {
       for (const asteroid of asteroids) {
         if (overlaps(bullet, asteroid)) {
-          // Explosion particles
           const color = asteroid.ascii?.color ?? '#ffaa22'
-          particles.burst({
+          engine.particles.burst({
             x: asteroid.position.x,
             y: asteroid.position.y,
             count: 12,
@@ -52,7 +47,7 @@ export const collisionSystem = defineSystem({
           engine.destroy(asteroid)
           sfx.hit()
           engine.camera.shake(3)
-          break // bullet is gone, stop checking
+          break
         }
       }
     }
@@ -61,15 +56,13 @@ export const collisionSystem = defineSystem({
     for (const player of players) {
       if (invincibleTimer > 0) break
       for (const asteroid of asteroids) {
-        // Skip already-destroyed asteroids
         if (!asteroid.position) continue
         if (overlaps(player, asteroid)) {
           player.health.current -= 1
           useStore.getState().setHealth(player.health.current, player.health.max)
           invincibleTimer = GAME.player.invincibleTime
 
-          // Explosion + shake
-          particles.burst({
+          engine.particles.burst({
             x: player.position.x,
             y: player.position.y,
             count: 20,
@@ -85,8 +78,7 @@ export const collisionSystem = defineSystem({
 
           if (player.health.current <= 0) {
             sfx.death()
-            // Big death explosion
-            particles.burst({
+            engine.particles.burst({
               x: player.position.x,
               y: player.position.y,
               count: 40,
@@ -103,7 +95,7 @@ export const collisionSystem = defineSystem({
       }
     }
 
-    // Clean up off-screen asteroids (with margin)
+    // Clean up off-screen asteroids
     const margin = 100
     const w = engine.width
     const h = engine.height
