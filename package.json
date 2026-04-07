@@ -1,0 +1,31 @@
+{
+  "name": "ascii-game-engine",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bunx vite",
+    "build": "bunx vite build",
+    "preview": "bunx vite preview",
+    "check": "bunx tsc --noEmit",
+    "new:scene": "bun run scripts/new-scene.ts",
+    "new:system": "bun run scripts/new-system.ts",
+    "new:entity": "bun run scripts/new-entity.ts",
+    "init:game": "bun run scripts/init-game.ts"
+  },
+  "dependencies": {
+    "@chenglou/pretext": "^0.0.4",
+    "@vitejs/plugin-react": "^4.5.2",
+    "miniplex": "^2.0.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "rot-js": "^2.2.1",
+    "vite": "^6.3.1",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.9.3"
+  }
+}
