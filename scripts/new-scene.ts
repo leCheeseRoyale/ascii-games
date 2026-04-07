@@ -2,47 +2,45 @@
 /**
  * Scaffold a new scene.
  * Usage: bun run new:scene <name>
- * Example: bun run new:scene title  →  game/scenes/title.ts
+ * Example: bun run new:scene boss-fight  →  game/scenes/boss-fight.ts
  */
 
 const name = process.argv[2]
 
 if (!name) {
   console.error('Usage: bun run new:scene <name>')
-  console.error('Example: bun run new:scene title')
+  console.error('Example: bun run new:scene boss-fight')
   process.exit(1)
 }
 
-// Convert to kebab-case for filename, camelCase for scene name
 const kebab = name.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()
 const label = kebab.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+const camel = kebab.replace(/-(\w)/g, (_m, c) => c.toUpperCase())
 
 const path = `game/scenes/${kebab}.ts`
-const file = Bun.file(path)
-
-if (await file.exists()) {
-  console.error(`✗ File already exists: ${path}`)
-  console.error('  Delete it first or pick a different name.')
+if (await Bun.file(path).exists()) {
+  console.error(`✗ Already exists: ${path}`)
   process.exit(1)
 }
 
-const template = `import { defineScene, type Engine } from '@engine'
+const template = `import { defineScene, FONTS, COLORS } from '@engine'
+import type { Engine } from '@engine'
+import { useStore } from '@ui/store'
 
 /**
  * ${label} Scene
- *
- * setup()   — runs once when the scene starts (spawn entities, add systems)
- * update()  — runs every frame (scene-level logic, input checks, transitions)
- * cleanup() — runs when leaving the scene (remove entities, reset state)
  */
-export default defineScene({
+export const ${camel}Scene = defineScene({
   name: '${kebab}',
 
   setup(engine: Engine) {
+    // Set UI screen state
+    // useStore.getState().setScreen('playing')
+
     // Spawn entities
-    // engine.world.add({
-    //   position: { x: 400, y: 300 },
-    //   ascii: { char: '@', font: '24px "Fira Code", monospace', color: '#00ff88' },
+    // engine.spawn({
+    //   position: { x: engine.width / 2, y: engine.height / 2 },
+    //   ascii: { char: '@', font: FONTS.large, color: COLORS.accent },
     // })
 
     // Add systems
@@ -50,18 +48,20 @@ export default defineScene({
   },
 
   update(engine: Engine, dt: number) {
-    // Check for scene transitions
-    // if (engine.keyboard.justPressed('Enter')) {
-    //   engine.switchScene('next-scene')
+    // Scene-level per-frame logic
+    // if (engine.keyboard.pressed('Escape')) {
+    //   engine.loadScene('title')
     // }
   },
 
   cleanup(engine: Engine) {
-    // Clean up scene-specific state
+    // Runs when leaving this scene (before next scene's setup)
   },
 })
 `
 
 await Bun.write(path, template)
 console.log(`✓ Created scene: ${path}`)
-console.log(`  Import it in game/index.ts and register with engine.registerScene()`)
+console.log(`  1. Import in game/index.ts:  import { ${camel}Scene } from './scenes/${kebab}'`)
+console.log(`  2. Register:                 engine.registerScene(${camel}Scene)`)
+console.log(`  3. Load from another scene:  engine.loadScene('${kebab}')`)
