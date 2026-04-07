@@ -4,7 +4,7 @@ created: 2026-04-07
 updated: 2026-04-07
 type: reference
 tags: [utilities, math, timer, color, constants]
-sources: [engine/utils/math.ts, engine/utils/timer.ts, engine/utils/color.ts, shared/constants.ts]
+sources: [engine/utils/math.ts, engine/utils/timer.ts, engine/utils/color.ts, engine/utils/grid.ts, engine/core/scheduler.ts, shared/constants.ts]
 ---
 
 # Utility Reference
@@ -228,3 +228,126 @@ export const FONTS = {
 ```
 
 6 pre-defined CSS font strings. All use Fira Code monospace. Use these instead of writing font strings inline — they match the Pretext cache keys.
+
+## Grid Utilities
+
+Source: `engine/utils/grid.ts`
+
+### GridMap
+
+A 2D grid data structure for tile-based game logic:
+
+```typescript
+export class GridMap<T> {
+  readonly cols: number
+  readonly rows: number
+
+  get(col: number, row: number): T | undefined
+  set(col: number, row: number, value: T): void
+  fill(value: T): void
+  clear(): void
+  neighbors4(col: number, row: number): T[]   // cardinal (up/down/left/right)
+  neighbors8(col: number, row: number): T[]   // cardinal + diagonals
+  forEach(fn: (value: T, col: number, row: number) => void): void
+  find(fn: (value: T, col: number, row: number) => boolean): T | undefined
+  count(fn: (value: T) => boolean): number
+  inBounds(col: number, row: number): boolean
+}
+```
+
+| Method | Description |
+|--------|-------------|
+| `get(col, row)` | Get value at grid cell |
+| `set(col, row, value)` | Set value at grid cell |
+| `fill(value)` | Fill entire grid with a value |
+| `clear()` | Clear all cells |
+| `neighbors4(col, row)` | Get 4 cardinal neighbors |
+| `neighbors8(col, row)` | Get 8 neighbors (cardinal + diagonal) |
+| `forEach(fn)` | Iterate all cells with value, col, row |
+| `find(fn)` | Find first cell matching predicate |
+| `count(fn)` | Count cells matching predicate |
+| `inBounds(col, row)` | Check if coordinates are within grid |
+
+### Coordinate Conversion
+
+Convert between grid coordinates and world (pixel) coordinates:
+
+```typescript
+export function gridToWorld(col: number, row: number, cellSize: number, offset?: Vec2): Vec2
+export function worldToGrid(x: number, y: number, cellSize: number, offset?: Vec2): { col: number; row: number }
+export function gridDistance(a: { col: number; row: number }, b: { col: number; row: number }): number
+```
+
+| Function | Description |
+|----------|-------------|
+| `gridToWorld(col, row, cellSize, offset?)` | Convert grid cell to world pixel position |
+| `worldToGrid(x, y, cellSize, offset?)` | Convert world pixel position to grid cell |
+| `gridDistance(a, b)` | Manhattan distance between two grid cells |
+
+Usage example:
+
+```typescript
+const grid = new GridMap<string>(20, 15)
+grid.set(5, 3, 'wall')
+
+// Convert grid position to world coordinates for rendering
+const worldPos = gridToWorld(5, 3, 32)  // { x: 160, y: 96 } with 32px cells
+
+// Convert a click position back to grid coordinates
+const cell = worldToGrid(mouseX, mouseY, 32)
+if (grid.inBounds(cell.col, cell.row)) {
+  grid.set(cell.col, cell.row, 'marker')
+}
+```
+
+## Scheduler
+
+Source: `engine/core/scheduler.ts`
+
+The Scheduler provides timer-based callbacks that integrate with the engine's frame loop. Access via `engine.after()`, `engine.every()`, `engine.sequence()`, and `engine.cancelTimer()`.
+
+```typescript
+export class Scheduler {
+  after(seconds: number, callback: () => void): number    // one-shot timer, returns ID
+  every(seconds: number, callback: () => void): number    // repeating timer, returns ID
+  sequence(steps: Array<[number, () => void]>): number    // chained timed steps, returns ID
+  cancel(id: number): void                                 // cancel a timer by ID
+  update(dt: number): void                                 // called by engine each frame
+  clear(): void                                            // cancel all timers
+  get count(): number                                      // number of active timers
+}
+```
+
+| Method | Description |
+|--------|-------------|
+| `after(sec, fn)` | Run callback once after `sec` seconds. Returns timer ID. |
+| `every(sec, fn)` | Run callback repeatedly every `sec` seconds. Returns timer ID. |
+| `sequence(steps)` | Run a series of `[delay, callback]` pairs in order. Returns timer ID. |
+| `cancel(id)` | Cancel a timer by its ID. |
+| `clear()` | Cancel all active timers (called automatically on scene transition). |
+| `count` | Number of currently active timers. |
+
+Usage examples:
+
+```typescript
+// Delayed action
+engine.after(2, () => engine.loadScene('gameplay'))
+
+// Repeating spawner
+const spawnerId = engine.every(1.5, () => spawnEnemy())
+
+// Cinematic sequence
+engine.sequence([
+  [0, () => showText('Ready...')],
+  [1, () => showText('Set...')],
+  [1, () => showText('GO!')],
+  [0.5, () => startGameplay()],
+])
+
+// Cancel a timer
+engine.cancelTimer(spawnerId)
+```
+
+The scheduler is automatically updated by the engine each frame and cleared on scene transitions. Use these instead of `setTimeout`/`setInterval` — they respect pause state and scene boundaries.
+
+See also: [[engine-overview]], [[scene-lifecycle]]

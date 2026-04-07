@@ -16,21 +16,45 @@ sources:
 
 # Renderer
 
-The `AsciiRenderer` draws the entire game world as text on an HTML Canvas 2D context. Every visible entity is rendered as a text character or text block — there are no sprites or images.
+The `AsciiRenderer` draws the entire game world on an HTML Canvas 2D context. It supports four renderable types: single ASCII characters, multi-line sprites, text blocks, and images.
+
+## Renderable Types
+
+The renderer collects entities with any of these component pairs:
+
+| Query | Renderable Type |
+|-------|----------------|
+| `position` + `ascii` | Single character (with font, color, glow, opacity, scale) |
+| `position` + `sprite` | Multi-line ASCII art (centered on position) |
+| `position` + `textBlock` | Reflowable text region (with obstacle avoidance) |
+| `position` + `image` | Loaded image (with rotation, anchor, opacity) |
+
+All renderables are sorted by their `layer` field before drawing, enabling front-to-back ordering.
 
 ## Render Pipeline
 
-Each frame, `renderer.render(world, config, camera)` executes this exact sequence:
+Each frame, `renderer.render(world, config, camera, particles?)` executes this exact sequence:
 
 ```
 1. Clear canvas (fill with bgColor)
 2. Save context state
 3. Apply camera transform (translate, shake, zoom)
-4. Collect obstacles for text flow
-5. Render text blocks (with/without obstacle flow-around)
-6. Render ASCII entities (single characters)
-7. Restore context state
+4. Collect all renderables from ECS queries (ascii, sprite, textBlock, image)
+5. Sort renderables by layer (ascending)
+6. Draw each renderable by type (drawAscii, drawSprite, drawTextBlock, drawImage)
+7. Render particles (if passed — engine auto-passes them)
+8. Restore context state
 ```
+
+## Layered Rendering
+
+Every renderable entity can have a `layer` numeric field. Before drawing, the renderer collects all renderables and sorts them:
+
+```ts
+renderables.sort((a, b) => a.layer - b.layer)
+```
+
+Lower layer values draw first (behind). Higher values draw on top. Entities without a `layer` default to 0. This allows precise control over draw order across all renderable types.
 
 ## DPR-Aware Resize
 
@@ -69,6 +93,41 @@ if (camera.zoom !== 1) {
 ```
 
 The camera position is centered in the viewport. Zoom scales around the camera's focus point. See [[camera]] for the Camera class internals.
+
+## Sprite Rendering
+
+Entities with `position` + `sprite` are drawn as multi-line ASCII art. The sprite's `lines` array is drawn centered on the entity's position:
+
+```ts
+// engine/render/ascii-renderer.ts — drawSprite
+ctx.save()
+ctx.globalAlpha = sprite.opacity ?? 1
+ctx.font = sprite.font
+if (sprite.glow) {
+  ctx.shadowColor = sprite.glow
+  ctx.shadowBlur = 8
+}
+ctx.fillStyle = sprite.color
+ctx.textBaseline = 'middle'
+ctx.textAlign = 'center'
+// Lines are drawn centered on (x, y)
+for (let i = 0; i < lines.length; i++) {
+  ctx.fillText(lines[i], x, y + (i - lines.length / 2) * lineHeight)
+}
+ctx.restore()
+```
+
+Sprites support the same visual properties as ASCII entities: font, color, glow, and opacity.
+
+## Image Rendering
+
+Entities with `position` + `image` render loaded HTML images onto the canvas. The `drawImage` method supports:
+
+- **rotation** — rotates the image around its anchor point
+- **anchor** — `'center'` (default) or `'topLeft'`
+- **opacity** — global alpha (0-1)
+
+Use `engine.loadImage(src)` or `engine.preloadImages(srcs)` to load images before rendering.
 
 ## Text Blocks
 
@@ -129,9 +188,25 @@ Each ASCII entity supports these visual properties:
 
 Text is drawn centered on the entity's position (`textAlign: 'center'`, `textBaseline: 'middle'`), so `position` represents the center of the character.
 
+## Particle Auto-Rendering
+
+The engine automatically passes its `ParticlePool` to the renderer. Particles are drawn after all entities, so they appear on top. You do NOT need to manually call `particles.render()` — the engine handles this in its render loop:
+
+```ts
+// engine/core/engine.ts
+private render(): void {
+  this.renderer.render(this.world, this.config, this.camera, this.particles)
+  if (this.transition.active) {
+    this.transition.render(this.renderer.ctx, this.width, this.height)
+  }
+}
+```
+
+See [[particles]] for the ParticlePool API.
+
 ## Auto-Rendering
 
-A key design principle: **entities render automatically.** You never call a draw function. The renderer queries the ECS world each frame and draws everything it finds. To make something visible, give it `position` + `ascii`. To hide it, remove the `ascii` component. To make it invisible, set `opacity: 0`.
+A key design principle: **entities render automatically.** You never call a draw function. The renderer queries the ECS world each frame and draws everything it finds. To make something visible, give it `position` + one of `ascii`, `sprite`, `textBlock`, or `image`. To hide it, remove the visual component. To make it invisible, set `opacity: 0`.
 
 ## Related Pages
 

@@ -27,7 +27,8 @@ scripts/  — Bun scaffolding scripts.
 ## ECS (Entity Component System)
 
 - **World**: miniplex `World<Entity>`. Access via `engine.world`.
-- **Entity**: plain object with optional components (`position`, `velocity`, `ascii`, `collider`, `health`, `lifetime`, `tags`, `textBlock`, etc).
+- **Entity**: plain object with optional components (`position`, `velocity`, `acceleration`, `ascii`, `sprite`, `textBlock`, `collider`, `health`, `lifetime`, `physics`, `tween`, `animation`, `image`, `parent`, `child`, `emitter`, `tags`).
+- **Built-in systems**: `_parent`, `_physics`, `_tween`, `_animation` — auto-registered on every scene load. No need to add them manually.
 - **Components**: plain TypeScript objects — no classes, no decorators.
 - **Systems**: functions that receive `(engine: Engine, dt: number)` and iterate over entities.
 
@@ -121,10 +122,13 @@ export function createBullet(x: number, y: number): Partial<Entity> {
 
 ## Rendering
 
-The engine auto-renders any entity that has `position` + `ascii` (single character) or `position` + `textBlock` (multi-line text).
+The engine auto-renders any entity that has `position` + (`ascii` | `textBlock` | `sprite` | `image`).
 
 - **ascii**: `{ char, font, color }` — single glyph rendered at position.
 - **textBlock**: `{ text, font, color, align }` — text block with Pretext layout.
+- **sprite**: multi-frame ASCII art with named animations. Play with `engine.playAnimation(entity, 'name')`.
+- **image**: render loaded images. Load with `engine.loadImage(url)`.
+- **Layering**: set `position.z` or component layer for draw order.
 
 ### Pretext rules
 
@@ -167,6 +171,20 @@ engine.mouse.isDown(0)                // left button
 ```ts
 import { rng, rngInt, pick, chance, clamp, lerp, vec2, dist, Cooldown, sfx, COLORS, FONTS } from '@engine'
 
+// Timers & scheduling
+engine.after(1.0, () => { /* runs once after 1s */ })
+engine.every(0.5, () => { /* runs every 0.5s */ })
+engine.sequence([{ delay: 1, fn: step1 }, { delay: 2, fn: step2 }])
+
+// Tweening
+engine.tweenEntity(entity, { props: { 'position.x': 200 }, duration: 0.5, easing: 'easeOut' })
+
+// Images
+engine.loadImage('url') // async, returns image for `image` component
+
+// Spatial grid
+GridMap // broad-phase spatial queries
+
 rng()              // 0..1
 rngInt(1, 6)       // 1..6 inclusive
 pick(['a','b'])    // random element
@@ -199,6 +217,30 @@ const spawnTimer = new Cooldown(1.0)
 if (spawnTimer.ready(dt)) {
   engine.world.add(createEnemy(rng() * 800, -20))
 }
+```
+
+### Physics
+
+Add a `physics` component for automatic gravity, friction, and drag:
+```ts
+engine.world.add({
+  position: { x: 100, y: 100 },
+  velocity: { vx: 0, vy: 0 },
+  physics: { gravity: 800, friction: 0.9, drag: 0.01 },
+})
+```
+
+### Animation
+
+```ts
+engine.playAnimation(entity, 'walk') // plays named animation on sprite component
+```
+
+### Parenting (hierarchical transforms)
+
+```ts
+engine.attachChild(parentEntity, childEntity)
+engine.detachChild(parentEntity, childEntity)
 ```
 
 ### Screen-wrap

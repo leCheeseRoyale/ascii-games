@@ -42,7 +42,9 @@ Each frame, the system queries all entities that have an `animation` component. 
 
 ## Per-Frame Duration Override
 
-The global `frameDuration` on the Animation component sets the default time (in milliseconds) each frame is displayed. Individual frames can override this by setting their own `duration` field, allowing variable-speed animations like a slow windup followed by a fast strike.
+The global `frameDuration` on the Animation component sets the default time **in seconds** each frame is displayed. For example, `0.1` means 100ms per frame. Individual frames can override this by setting their own `duration` field (also in seconds), allowing variable-speed animations like a slow windup followed by a fast strike.
+
+The system accumulates elapsed time each frame: `anim.elapsed += dt` (where `dt` is in seconds). When `elapsed >= frameDuration`, it advances to the next frame.
 
 ## Loop and Playback Control
 
@@ -63,7 +65,15 @@ If `onComplete` is not specified, the animation simply stops advancing.
 Sets up the animation component on the given entity and begins playback. The first frame is applied immediately so there is no single-frame delay before the animation is visible.
 
 **`engine.stopAnimation(entity)`**
-Stops playback and removes the animation component from the entity, leaving it on whatever frame was last displayed.
+Stops playback by setting `playing = false` on the animation component. The component is **not** removed — the entity keeps its current frame displayed. You can resume by setting `entity.animation.playing = true`.
+
+```ts
+// engine/core/engine.ts
+stopAnimation(entity: Partial<Entity>): void {
+  const e = entity as any
+  if (e.animation) e.animation.playing = false
+}
+```
 
 ## Execution Order
 
@@ -78,15 +88,15 @@ engine.playAnimation(player, [
   { char: '/' },
   { char: '|' },
   { char: '\\' }
-], 150, true)
+], 0.15, true)
 ```
 
 **Blinking cursor:**
 ```ts
 engine.playAnimation(cursor, [
-  { char: '_', duration: 500 },
-  { char: ' ', duration: 500 }
-], 500, true)
+  { char: '_', duration: 0.5 },
+  { char: ' ', duration: 0.5 }
+], 0.5, true)
 ```
 
 **Explosion that self-destructs:**
@@ -102,7 +112,7 @@ engine.spawn({
       { char: '*', color: 'darkred' },
       { char: '.', color: 'gray' }
     ],
-    frameDuration: 80,
+    frameDuration: 0.08,
     currentFrame: 0,
     elapsed: 0,
     loop: false,

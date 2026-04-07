@@ -95,11 +95,17 @@ private update(dt: number): void {
   this.mouse.update()
   this.systems.update(this, dt)
   this.scenes.update(this, dt)
+  this.scheduler.update(dt)
+  this.particles.update(dt)
+  this.transition.update(dt)
   this.camera.update(dt)
 }
 
 private render(): void {
-  this.renderer.render(this.world, this.config, this.camera)
+  this.renderer.render(this.world, this.config, this.camera, this.particles)
+  if (this.transition.active) {
+    this.transition.render(this.renderer.ctx, this.width, this.height)
+  }
 }
 ```
 
@@ -135,7 +141,12 @@ The engine also supports `pause()` / `resume()`. When paused, the game loop cont
 | `detachChild(child)` | Remove from parent |
 | `destroyWithChildren(entity)` | Recursive entity removal |
 | `after(sec, fn)` / `every(sec, fn)` | Timer scheduling |
+| `sequence(steps)` | Run a sequence of timed callbacks |
+| `cancelTimer(id)` | Cancel a scheduled timer |
 | `loadImage(src)` / `preloadImages(srcs)` | Image loading |
+| `get time` | Elapsed time since engine start |
+| `get width` / `get height` | Canvas dimensions |
+| `get isPaused` | Whether engine is paused |
 
 ## Related Pages
 

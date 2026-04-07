@@ -18,7 +18,8 @@
 ## ECS
 
 - miniplex World at `engine.world`
-- Entities are plain objects with optional components: `position`, `velocity`, `ascii`, `textBlock`, `collider`, `health`, `lifetime`, `tags`
+- Entities are plain objects with optional components: `position`, `velocity`, `acceleration`, `ascii`, `sprite`, `textBlock`, `collider`, `health`, `lifetime`, `physics`, `tween`, `animation`, `image`, `parent`, `child`, `emitter`, `tags`
+- Built-in systems (`_parent`, `_physics`, `_tween`, `_animation`) auto-registered on scene load
 - Query: `engine.world.with('position', 'velocity')`, `.without()`, `.where()`, `.first`
 - Spawn: `engine.world.add({ position: {x,y}, ascii: {char,font,color} })`
 - Remove: `engine.world.remove(entity)`
@@ -30,6 +31,10 @@
 **Entity factory:** `function createX(x,y): Partial<Entity> { return { position, ascii, ... } }`
 **Scene switch:** `engine.switchScene('name')`
 **Input:** `engine.keyboard.isDown('ArrowLeft')`, `engine.keyboard.justPressed('Enter')`
+**Physics:** add `physics: { gravity, friction, drag }` component — built-in system applies forces
+**Animation:** `engine.playAnimation(entity, 'name')` — cycles sprite/ascii frames
+**Tweens:** `engine.tweenEntity(entity, { props, duration, easing })` — animate component values
+**Parenting:** `engine.attachChild(parent, child)` / `engine.detachChild(parent, child)` — hierarchical transforms
 
 ## React Boundary
 
@@ -39,13 +44,20 @@
 
 ## Rendering
 
-- Entities auto-render if they have `position` + `ascii` or `position` + `textBlock`
+- Entities auto-render if they have `position` + (`ascii` | `textBlock` | `sprite` | `image`)
+- `sprite`: multi-frame ASCII art with named animations
+- `image`: render loaded images via `engine.loadImage(url)`
+- Layering: set `position.z` or component layer for draw order
 - Pretext `prepare()` is cached — never re-prepare same text+font
 - Engine handles all rendering; just set component data
 
 ## Utils
 
 `rng, rngInt, pick, chance, clamp, lerp, vec2, dist, Cooldown, overlaps, overlapAll, COLORS, FONTS, sfx`
+`engine.after(sec, fn)`, `engine.every(sec, fn)`, `engine.sequence([...])` — timers
+`engine.loadImage(url)` — async image load for `image` component
+`engine.tweenEntity(entity, opts)` — property tweening
+`GridMap` — spatial grid for broad-phase queries
 
 ## Don'ts
 

@@ -104,6 +104,38 @@ shake(magnitude = 5): void {
 
 Each frame, random offsets are generated from `-magnitude` to `+magnitude`, and the magnitude decays by multiplying with `shakeDecay` (0.9). The shake stops when magnitude drops below 0.1.
 
+### screenToWorld(sx, sy) — Screen to World Coordinates
+
+Converts screen (pixel) coordinates to world coordinates, accounting for camera position and zoom:
+
+```ts
+screenToWorld(sx: number, sy: number): { x: number; y: number }
+```
+
+Use this to convert mouse click positions to world-space positions:
+
+```ts
+const worldPos = engine.camera.screenToWorld(engine.mouse.x, engine.mouse.y)
+// worldPos.x and worldPos.y are now in world coordinates
+```
+
+### worldToScreen(wx, wy) — World to Screen Coordinates
+
+Converts world coordinates to screen (pixel) coordinates:
+
+```ts
+worldToScreen(wx: number, wy: number): { x: number; y: number }
+```
+
+Use this to position UI elements or HTML overlays at a world entity's screen location:
+
+```ts
+const screenPos = engine.camera.worldToScreen(entity.position.x, entity.position.y)
+// screenPos.x and screenPos.y are pixel positions on the canvas
+```
+
+Both methods account for the camera's current position, zoom level, and viewport centering.
+
 ## Update Loop
 
 The camera's `update(dt)` is called once per frame, after systems and scene update (see [[engine-overview]]):

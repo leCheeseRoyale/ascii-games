@@ -23,3 +23,11 @@
 - Updated engine-overview with new built-in systems, frame lifecycle, and API methods
 - Updated system-runner with built-in system execution order
 - Updated _index.md (total pages: 23 → 26)
+
+## [2026-04-07] update | Image System, Transitions, and Tween System
+- Added 3 new wiki pages: image-system, transitions, tween-system
+- image-system: ImageComponent interface, image-loader API (loadImage, preloadImages, getCachedImage, clearImageCache), layer-sorted rendering
+- transitions: TransitionType enum, Transition class lifecycle, engine.loadScene integration with midpoint callback
+- tween-system: Tween/TweenEntry interfaces, dot-path targeting, 4 easing functions, destroyOnComplete, engine.tweenEntity helper
+- Updated _index.md (total pages: 26 → 29)
+- Cleared _queue.md (no pending updates)

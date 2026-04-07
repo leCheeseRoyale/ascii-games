@@ -11,7 +11,7 @@ sources: [engine/physics/collision.ts, shared/types.ts]
 
 Simple overlap checks for game entities. This is **not** a physics engine — there is no collision response, no impulse resolution, no continuous detection. Just boolean "are these two things overlapping?"
 
-See also: [[component-reference]], [[collision-system]]
+See also: [[component-reference]], [[collision-system]], [[physics-system]]
 
 ## Collidable Interface
 
@@ -140,9 +140,9 @@ for (const enemy of hits) {
 
 ## What This Doesn't Do
 
-- No physics response (bouncing, pushing, sliding)
+- No physics response (bouncing, pushing, sliding) — see [[physics-system]] for that
 - No continuous collision detection (fast objects can tunnel through)
 - No spatial partitioning (checks are brute-force O(n))
 - No collision layers or masks
 
-For most ASCII games, this is sufficient. For physics, the engine plans a future Rapier2D plugin.
+For most ASCII games, this is sufficient. The engine now includes a built-in [[physics-system]] that handles velocity integration, bounce/response off boundaries, and friction. That system uses these detection functions internally but adds actual physics response on top. This module (`collision.ts`) remains purely detection — it answers "are these overlapping?" but does not move or separate entities.

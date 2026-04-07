@@ -1,7 +1,7 @@
 # ASCII Game Engine Wiki — Index
 
 > Content catalog. Every wiki page listed under its type with a one-line summary.
-> Last updated: 2026-04-07 | Total pages: 26
+> Last updated: 2026-04-07 | Total pages: 29
 
 ## Architecture
 
@@ -26,6 +26,8 @@
 - [[collision-detection]] — overlaps() and overlapAll(): circle-circle, rect-rect, mixed detection
 - [[audio-system]] — Procedural oscillator beeps: beep(), sfx presets, Web Audio auto-unlock
 - [[zustand-store]] — GameStore shape, actions, GameScreen type, getState vs hook patterns
+- [[image-system]] — ImageComponent, async image loading with caching, layer-sorted bitmap rendering
+- [[transitions]] — Scene transition overlays: fade, fadeWhite, wipe with midpoint scene swap
 
 ## Systems
 
@@ -33,6 +35,7 @@
 - [[collision-system]] — Bullet×asteroid and player×asteroid detection, particles, score, health, death
 - [[physics-system]] — Built-in physics: gravity, friction, drag, bounce, maxSpeed, grounded detection
 - [[animation-system]] — Frame-by-frame animation for ascii/sprite entities: loop, onComplete, play/stop
+- [[tween-system]] — Continuous numeric property interpolation: dot-path targeting, 4 easings, auto-cleanup
 
 ## Patterns
 

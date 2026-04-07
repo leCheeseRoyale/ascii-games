@@ -11,7 +11,7 @@ sources: [engine/render/particles.ts]
 
 ASCII particle effects — bursts of characters with velocity, lifetime, color, and fade. Particles are lightweight objects managed in a flat array, completely separate from the ECS.
 
-See also: [[renderer]], [[collision-system]]
+See also: [[renderer]], [[engine-overview]], [[scene-lifecycle]]
 
 ## Architecture: Not ECS Entities
 
@@ -148,26 +148,32 @@ clear(): void {
 }
 ```
 
-## IMPORTANT: Manual Rendering Required
+## Auto-Rendering by the Engine
 
-Particles are **NOT** auto-rendered by the engine. You must call `particles.render(ctx)` manually in your scene's update function. This gives you control over render order (particles behind or in front of entities).
+The engine automatically updates and renders particles each frame. You do **not** need to manually call `update()` or `render()` — the engine handles both:
 
-```typescript
-// In your scene update:
-update(engine, dt) {
-  myParticles.update(dt)
-  // ... other game logic ...
-  myParticles.render(engine.ctx)  // You must call this!
+```ts
+// engine/core/engine.ts
+private update(dt: number): void {
+  // ...
+  this.particles.update(dt)    // auto-updated
+  // ...
+}
+
+private render(): void {
+  this.renderer.render(this.world, this.config, this.camera, this.particles)  // auto-rendered
 }
 ```
+
+Particles are drawn after all entities, so they appear on top. The engine's `ParticlePool` is accessible as `engine.particles` — just call `engine.particles.burst(...)` and everything else is automatic.
+
+Particles are also automatically cleared on scene transitions.
 
 ## Usage Example
 
 ```typescript
-const particles = new ParticlePool()
-
-// Explosion effect
-particles.burst({
+// Explosion effect — just burst, engine handles update + render
+engine.particles.burst({
   x: enemy.position.x,
   y: enemy.position.y,
   count: 20,

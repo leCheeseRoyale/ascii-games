@@ -39,7 +39,7 @@ The world is accessible as `engine.world` from any system or scene.
 
 ## The Entity Type
 
-The `Entity` interface is a union of all possible components. Every property is optional when spawning — an entity only has the components you give it:
+The `Entity` interface is a union of all possible components (currently 18). Every property is optional when spawning — an entity only has the components you give it:
 
 ```ts
 // shared/types.ts
@@ -48,6 +48,8 @@ export interface Entity {
   velocity: Velocity       // { x, y }
   acceleration: Acceleration // { x, y }
   ascii: Ascii             // { char, font, color, glow?, opacity?, scale? }
+  sprite: Sprite           // { lines, font, color, glow?, opacity? }
+  image: ImageComponent    // { src, width, height, rotation?, anchor?, opacity? }
   textBlock: TextBlock     // { text, font, color, maxWidth, lineHeight }
   collider: Collider       // { width, height, layer, onCollide? }
   health: Health           // { current, max }
@@ -56,6 +58,12 @@ export interface Entity {
   obstacle: Obstacle       // { width, height }
   emitter: ParticleEmitter // particle system config
   tags: Tags               // { values: Set<string> }
+  animation: Animation     // { frames, frameDuration, currentFrame, elapsed, loop?, playing? }
+  tween: Tween             // { property, from, to, duration, elapsed, ease?, destroyOnComplete? }
+  parent: Parent           // { children: Entity[] }
+  child: Child             // { parent: Entity, offsetX, offsetY }
+  layer: number            // render order (lower = behind)
+  physics: Physics         // { bounce?, friction?, mass? }
 }
 ```
 
@@ -152,3 +160,6 @@ This keeps entity definitions reusable and testable.
 - [[system-runner]] — How systems query and operate on entities
 - [[entity-factory-pattern]] — Reusable entity constructors
 - [[engine-overview]] — How ECS fits into the overall architecture
+- [[renderer]] — How renderable components (ascii, sprite, image, textBlock) are drawn
+- [[animation-system]] — The animation component and system
+- [[physics-system]] — The physics component and system
