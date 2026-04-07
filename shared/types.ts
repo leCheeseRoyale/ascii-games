@@ -63,7 +63,31 @@ export interface ParticleEmitter {
   _acc: number
 }
 
+export interface Physics {
+  gravity?: number      // pixels/s^2 added to vy each frame (default 0)
+  friction?: number     // 0-1, ground friction multiplier on vx (default 0)
+  drag?: number         // 0-1, air resistance on both axes (default 0)
+  bounce?: number       // 0-1, velocity retention on bounce (0 = no bounce, 1 = perfect)
+  maxSpeed?: number     // max velocity magnitude
+  mass?: number         // for future collision response (default 1)
+  grounded?: boolean    // set by system when entity is on ground (world bottom)
+}
+
 export interface Tags { values: Set<string> }
+
+/** Parent-child relationship. Children's positions are offsets from parent. */
+export interface Parent {
+  children: Partial<Entity>[]
+}
+
+export interface Child {
+  parent: Partial<Entity>
+  /** Offset from parent position */
+  offsetX: number
+  offsetY: number
+  /** If true, child inherits parent's rotation (future) */
+  inheritRotation?: boolean
+}
 
 /**
  * Image component — attach a loaded image to an entity.
@@ -87,6 +111,33 @@ export interface ImageComponent {
   rotation?: number
   /** Tint — not applied directly, but available for game logic */
   tint?: string
+}
+
+export interface AnimationFrame {
+  /** For ascii entities: the character(s) to display */
+  char?: string
+  /** For sprite entities: the lines to display */
+  lines?: string[]
+  /** Optional color override per frame */
+  color?: string
+  /** Duration of this frame in seconds. If omitted, uses animation.frameDuration */
+  duration?: number
+}
+
+export interface Animation {
+  frames: AnimationFrame[]
+  /** Default duration per frame in seconds */
+  frameDuration: number
+  /** Current frame index (managed by system) */
+  currentFrame: number
+  /** Time accumulated on current frame (managed by system) */
+  elapsed: number
+  /** Loop the animation? Default true */
+  loop?: boolean
+  /** Is the animation playing? Default true */
+  playing?: boolean
+  /** Callback name/event when animation completes (non-looping) */
+  onComplete?: 'destroy' | 'stop'
 }
 
 /** Declarative animation. Engine auto-processes and removes when done. */
@@ -121,9 +172,13 @@ export interface Entity {
   player: Player
   obstacle: Obstacle
   emitter: ParticleEmitter
+  physics: Physics
   tags: Tags
   tween: Tween
+  animation: Animation
   image: ImageComponent
+  parent: Parent
+  child: Child
 }
 
 // ── Engine types ─────────────────────────────────────────────────

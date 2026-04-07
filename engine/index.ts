@@ -13,6 +13,8 @@ export { defineScene, SceneManager, type Scene } from './core/scene'
 // ECS
 export { createWorld, type GameWorld, type GameEntity } from './ecs/world'
 export { defineSystem, SystemRunner, type System } from './ecs/systems'
+export { animationSystem } from './ecs/animation-system'
+export { parentSystem } from './ecs/parent-system'
 
 // Rendering
 export { AsciiRenderer } from './render/ascii-renderer'
@@ -40,6 +42,7 @@ export { Mouse } from './input/mouse'
 
 // Physics
 export { overlaps, overlapAll, type Collidable } from './physics/collision'
+export { physicsSystem } from './physics/physics-system'
 
 // Audio
 export { beep, sfx } from './audio/audio'
@@ -64,8 +67,9 @@ export { GridMap, gridToWorld, worldToGrid, gridDistance } from './utils/grid'
 // Re-export shared types
 export type {
   Entity, Position, Velocity, Acceleration, Ascii, Sprite, TextBlock, ImageComponent,
-  Collider, Health, Lifetime, Player, Obstacle, ParticleEmitter, Tags,
-  Tween, TweenEntry,
+  Collider, Health, Lifetime, Player, Obstacle, ParticleEmitter, Physics, Tags,
+  Parent, Child,
+  Tween, TweenEntry, Animation, AnimationFrame,
   GameTime, InputState, EngineConfig,
 } from '@shared/types'
 export { DEFAULT_CONFIG } from '@shared/types'

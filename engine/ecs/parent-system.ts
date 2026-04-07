@@ -1,0 +1,27 @@
+/**
+ * Parent-child hierarchy system.
+ *
+ * Syncs child entity positions to parent positions each frame.
+ * Children's positions are calculated as: parent.position + child.offset
+ *
+ * Should run BEFORE other systems so collision/rendering see correct positions.
+ */
+
+import type { Engine } from '../core/engine'
+import type { System } from './systems'
+import type { Entity } from '@shared/types'
+
+export const parentSystem: System = {
+  name: '_parent',
+  update(engine: Engine, _dt: number) {
+    // Process all children: set their world position based on parent + offset
+    for (const entity of engine.world.with('child', 'position')) {
+      const child = entity.child
+      const parent = child.parent as Partial<Entity>
+      if (parent && (parent as any).position) {
+        entity.position.x = (parent as any).position.x + child.offsetX
+        entity.position.y = (parent as any).position.y + child.offsetY
+      }
+    }
+  },
+}
