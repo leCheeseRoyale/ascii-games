@@ -26,6 +26,8 @@ import { Keyboard } from '../input/keyboard'
 import { Mouse } from '../input/mouse'
 import { Scheduler } from '../utils/scheduler'
 import { tweenSystem } from '../ecs/tween-system'
+import { loadImage, preloadImages } from '../render/image-loader'
+import { Transition, type TransitionType } from '../render/transitions'
 
 export class Engine {
   // ── Public API ────────────────────────────────────────────────
@@ -39,6 +41,7 @@ export class Engine {
   readonly mouse: Mouse
   readonly particles: ParticlePool
   readonly scheduler: Scheduler
+  readonly transition: Transition
 
   get time(): GameTime {
     return {
@@ -66,6 +69,7 @@ export class Engine {
     this.mouse = new Mouse(canvas)
     this.particles = new ParticlePool()
     this.scheduler = new Scheduler()
+    this.transition = new Transition()
 
     this.loop = new GameLoop(
       {
@@ -137,6 +141,21 @@ export class Engine {
     this.scheduler.cancel(id)
   }
 
+  // ── Image helpers ──────────────────────────────────────────────
+
+  /**
+   * Load an image by URL. Cached — subsequent calls return instantly.
+   * Place images in public/ and reference as '/myimage.png'.
+   */
+  loadImage(src: string): Promise<HTMLImageElement> {
+    return loadImage(src)
+  }
+
+  /** Preload multiple images in parallel. Use in scene setup(). */
+  preloadImages(srcs: string[]): Promise<HTMLImageElement[]> {
+    return preloadImages(srcs)
+  }
+
   // ── System helpers ────────────────────────────────────────────
 
   addSystem(system: System): void {
@@ -153,14 +172,31 @@ export class Engine {
     this.scenes.register(scene)
   }
 
-  async loadScene(name: string): Promise<void> {
-    // Clear timers and particles on scene change
-    this.scheduler.clear()
-    this.particles.clear()
-    await this.scenes.load(name, this)
-    // Always have the tween system active
-    this.systems.add(tweenSystem, this)
-    events.emit('scene:loaded', name)
+  /**
+   * Load a scene. Optionally with a transition effect.
+   *
+   *   engine.loadScene('play')                              // instant
+   *   engine.loadScene('play', { transition: 'fade' })      // 0.5s fade to black and back
+   *   engine.loadScene('play', { transition: 'fadeWhite', duration: 0.3 })
+   */
+  async loadScene(name: string, opts?: { transition?: TransitionType; duration?: number }): Promise<void> {
+    if (opts?.transition && opts.transition !== 'none') {
+      this.transition.type = opts.transition
+      this.transition.duration = opts.duration ?? 0.4
+      this.transition.start(async () => {
+        this.scheduler.clear()
+        this.particles.clear()
+        await this.scenes.load(name, this)
+        this.systems.add(tweenSystem, this)
+        events.emit('scene:loaded', name)
+      })
+    } else {
+      this.scheduler.clear()
+      this.particles.clear()
+      await this.scenes.load(name, this)
+      this.systems.add(tweenSystem, this)
+      events.emit('scene:loaded', name)
+    }
   }
 
   // ── Lifecycle ─────────────────────────────────────────────────
@@ -203,10 +239,15 @@ export class Engine {
     this.scenes.update(this, dt)
     this.scheduler.update(dt)
     this.particles.update(dt)
+    this.transition.update(dt)
     this.camera.update(dt)
   }
 
   private render(): void {
     this.renderer.render(this.world, this.config, this.camera, this.particles)
+    // Transition overlay renders on top of everything
+    if (this.transition.active) {
+      this.transition.render(this.renderer.ctx, this.width, this.height)
+    }
   }
 }

@@ -24,7 +24,7 @@ import { layoutTextBlock, layoutTextAroundObstacles } from './text-layout'
 interface Renderable {
   entity: Partial<Entity>
   layer: number
-  type: 'ascii' | 'sprite' | 'textBlock'
+  type: 'ascii' | 'sprite' | 'textBlock' | 'image'
 }
 
 export class AsciiRenderer {
@@ -82,6 +82,9 @@ export class AsciiRenderer {
     for (const e of world.with('position', 'textBlock')) {
       renderables.push({ entity: e, layer: e.textBlock.layer ?? 0, type: 'textBlock' })
     }
+    for (const e of world.with('position', 'image')) {
+      renderables.push({ entity: e, layer: e.image.layer ?? 0, type: 'image' })
+    }
 
     renderables.sort((a, b) => a.layer - b.layer)
 
@@ -94,6 +97,7 @@ export class AsciiRenderer {
     // 4. Draw each renderable
     for (const r of renderables) {
       switch (r.type) {
+        case 'image': this.drawImage(r.entity); break
         case 'ascii': this.drawAscii(r.entity); break
         case 'sprite': this.drawSprite(r.entity); break
         case 'textBlock': this.drawTextBlock(r.entity, obstacles); break
@@ -106,6 +110,36 @@ export class AsciiRenderer {
     }
 
     // 6. Restore
+    ctx.restore()
+  }
+
+  private drawImage(entity: Partial<Entity>): void {
+    const { ctx } = this
+    const { x, y } = entity.position!
+    const img = entity.image!
+
+    const w = img.width || img.image.naturalWidth
+    const h = img.height || img.image.naturalHeight
+
+    ctx.save()
+    ctx.globalAlpha = img.opacity ?? 1
+
+    if (img.rotation) {
+      ctx.translate(x, y)
+      ctx.rotate(img.rotation)
+      if (img.anchor === 'topLeft') {
+        ctx.drawImage(img.image, 0, 0, w, h)
+      } else {
+        ctx.drawImage(img.image, -w / 2, -h / 2, w, h)
+      }
+    } else {
+      if (img.anchor === 'topLeft') {
+        ctx.drawImage(img.image, x, y, w, h)
+      } else {
+        ctx.drawImage(img.image, x - w / 2, y - h / 2, w, h)
+      }
+    }
+
     ctx.restore()
   }
 

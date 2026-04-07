@@ -28,6 +28,12 @@ export {
   type RenderedLine,
 } from './render/text-layout'
 
+// Images
+export { loadImage, preloadImages, getCachedImage, clearImageCache } from './render/image-loader'
+
+// Transitions
+export { Transition, type TransitionType } from './render/transitions'
+
 // Input
 export { Keyboard } from './input/keyboard'
 export { Mouse } from './input/mouse'
@@ -57,7 +63,7 @@ export { GridMap, gridToWorld, worldToGrid, gridDistance } from './utils/grid'
 
 // Re-export shared types
 export type {
-  Entity, Position, Velocity, Acceleration, Ascii, Sprite, TextBlock,
+  Entity, Position, Velocity, Acceleration, Ascii, Sprite, TextBlock, ImageComponent,
   Collider, Health, Lifetime, Player, Obstacle, ParticleEmitter, Tags,
   Tween, TweenEntry,
   GameTime, InputState, EngineConfig,

@@ -65,6 +65,30 @@ export interface ParticleEmitter {
 
 export interface Tags { values: Set<string> }
 
+/**
+ * Image component — attach a loaded image to an entity.
+ * The image renders at the entity's position, respecting camera and layers.
+ * Can be combined with ascii/sprite to overlay text on images.
+ */
+export interface ImageComponent {
+  /** The loaded HTMLImageElement (use engine.loadImage() to get one) */
+  image: HTMLImageElement
+  /** Render width in px. If 0, uses natural width. */
+  width: number
+  /** Render height in px. If 0, uses natural height. */
+  height: number
+  /** Opacity 0-1 */
+  opacity?: number
+  /** Render layer (same system as ascii/sprite) */
+  layer?: number
+  /** Anchor point: 'center' (default) or 'topLeft' */
+  anchor?: 'center' | 'topLeft'
+  /** Optional rotation in radians */
+  rotation?: number
+  /** Tint — not applied directly, but available for game logic */
+  tint?: string
+}
+
 /** Declarative animation. Engine auto-processes and removes when done. */
 export interface Tween {
   tweens: TweenEntry[]
@@ -99,6 +123,7 @@ export interface Entity {
   emitter: ParticleEmitter
   tags: Tags
   tween: Tween
+  image: ImageComponent
 }
 
 // ── Engine types ─────────────────────────────────────────────────
