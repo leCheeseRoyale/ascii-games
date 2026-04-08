@@ -12,59 +12,72 @@
  */
 
 interface ScheduledTimer {
-  remaining: number
-  interval: number  // 0 = one-shot, >0 = repeating
-  callback: () => void
-  id: number
+  remaining: number;
+  interval: number; // 0 = one-shot, >0 = repeating
+  callback: () => void;
+  id: number;
+  group?: number;
 }
 
-let nextId = 0
+let nextId = 0;
 
 export class Scheduler {
-  private timers: ScheduledTimer[] = []
+  private timers: ScheduledTimer[] = [];
 
   /** One-shot: fire callback after `seconds`. Returns cancel ID. */
   after(seconds: number, callback: () => void): number {
-    const id = nextId++
-    this.timers.push({ remaining: seconds, interval: 0, callback, id })
-    return id
+    const id = nextId++;
+    this.timers.push({ remaining: seconds, interval: 0, callback, id });
+    return id;
   }
 
   /** Repeating: fire callback every `seconds`. Returns cancel ID. */
   every(seconds: number, callback: () => void): number {
-    const id = nextId++
-    this.timers.push({ remaining: seconds, interval: seconds, callback, id })
-    return id
+    const id = nextId++;
+    this.timers.push({ remaining: seconds, interval: seconds, callback, id });
+    return id;
   }
 
   /** Sequence: chain delays and callbacks. Returns cancel ID for the whole sequence. */
   sequence(steps: { delay: number; fn: () => void }[]): number {
-    let accumulated = 0
-    const ids: number[] = []
+    let accumulated = 0;
+    const groupId = nextId++;
+    const ids: number[] = [];
     for (const step of steps) {
-      accumulated += step.delay
-      ids.push(this.after(accumulated, step.fn))
+      accumulated += step.delay;
+      const id = this.after(accumulated, step.fn);
+      // Tag the timer with the group so cancel removes all steps
+      const timer = this.timers.find((t) => t.id === id);
+      if (timer) timer.group = groupId;
+      ids.push(id);
     }
-    return ids[0] // return first ID (cancel clears all)
+    return ids[0];
   }
 
-  /** Cancel a scheduled timer by ID. */
+  /** Cancel a scheduled timer by ID. If it belongs to a group, cancels all timers in that group. */
   cancel(id: number): void {
-    const idx = this.timers.findIndex(t => t.id === id)
-    if (idx >= 0) this.timers.splice(idx, 1)
+    const timer = this.timers.find((t) => t.id === id);
+    if (!timer) return;
+    if (timer.group != null) {
+      const group = timer.group;
+      this.timers = this.timers.filter((t) => t.group !== group);
+    } else {
+      const idx = this.timers.indexOf(timer);
+      if (idx >= 0) this.timers.splice(idx, 1);
+    }
   }
 
   /** Tick all timers. Call once per frame. */
   update(dt: number): void {
     for (let i = this.timers.length - 1; i >= 0; i--) {
-      const t = this.timers[i]
-      t.remaining -= dt
+      const t = this.timers[i];
+      t.remaining -= dt;
       if (t.remaining <= 0) {
-        t.callback()
+        t.callback();
         if (t.interval > 0) {
-          t.remaining += t.interval  // preserve leftover for accuracy
+          t.remaining += t.interval; // preserve leftover for accuracy
         } else {
-          this.timers.splice(i, 1)
+          this.timers.splice(i, 1);
         }
       }
     }
@@ -72,8 +85,10 @@ export class Scheduler {
 
   /** Remove all timers. Called on scene change. */
   clear(): void {
-    this.timers.length = 0
+    this.timers.length = 0;
   }
 
-  get count(): number { return this.timers.length }
+  get count(): number {
+    return this.timers.length;
+  }
 }

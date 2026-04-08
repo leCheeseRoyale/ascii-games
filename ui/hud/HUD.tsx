@@ -1,9 +1,9 @@
-import { Score } from './Score'
-import { HealthBar } from './HealthBar'
-import { Debug } from './Debug'
+import { Debug } from "./Debug";
+import { HealthBar } from "./HealthBar";
+import { Score } from "./Score";
 
 interface HUDProps {
-  debug?: boolean
+  debug?: boolean;
 }
 
 export function HUD({ debug = false }: HUDProps) {
@@ -11,15 +11,15 @@ export function HUD({ debug = false }: HUDProps) {
     <>
       <div
         style={{
-          position: 'absolute',
+          position: "absolute",
           top: 0,
           left: 0,
           right: 0,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '12px 20px',
-          pointerEvents: 'none',
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "12px 20px",
+          pointerEvents: "none",
           zIndex: 10,
         }}
       >
@@ -28,5 +28,5 @@ export function HUD({ debug = false }: HUDProps) {
       </div>
       {debug && <Debug />}
     </>
-  )
+  );
 }

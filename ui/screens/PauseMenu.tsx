@@ -1,34 +1,34 @@
-import { useEffect } from 'react'
-import { useStore } from '@ui/store'
-import { events } from '@shared/events'
-import { COLORS } from '@shared/constants'
-import { AsciiText } from '@ui/shared/AsciiText'
+import { COLORS } from "@shared/constants";
+import { events } from "@shared/events";
+import { AsciiText } from "@ui/shared/AsciiText";
+import { useStore } from "@ui/store";
+import { useEffect } from "react";
 
 export function PauseMenu() {
-  const setScreen = useStore((s) => s.setScreen)
+  const setScreen = useStore((s) => s.setScreen);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.code === 'Escape') {
-        e.preventDefault()
-        events.emit('game:resume')
-        setScreen('playing')
+      if (e.code === "Escape") {
+        e.preventDefault();
+        events.emit("game:resume");
+        setScreen("playing");
       }
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [setScreen])
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [setScreen]);
 
   return (
     <div
       style={{
-        position: 'absolute',
+        position: "absolute",
         inset: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'rgba(10, 10, 10, 0.85)',
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "rgba(10, 10, 10, 0.85)",
         zIndex: 30,
       }}
     >
@@ -36,11 +36,11 @@ export function PauseMenu() {
         PAUSED
       </AsciiText>
 
-      <div style={{ marginTop: '32px' }}>
+      <div style={{ marginTop: "32px" }}>
         <AsciiText size="md" color={COLORS.dim} blink>
           [ Press ESC to resume ]
         </AsciiText>
       </div>
     </div>
-  )
+  );
 }

@@ -1,6 +1,6 @@
-import type { Entity } from '@shared/types'
-import { FONTS } from '@shared/constants'
-import { GAME } from '../config'
+import { FONTS } from "@shared/constants";
+import type { Entity } from "@shared/types";
+import { GAME } from "../config";
 
 export function createBullet(x: number, y: number, vx: number, vy: number): Partial<Entity> {
   return {
@@ -12,8 +12,8 @@ export function createBullet(x: number, y: number, vx: number, vy: number): Part
       color: GAME.bullet.color,
       glow: GAME.bullet.glow,
     },
-    collider: { type: 'circle', width: GAME.bullet.size, height: GAME.bullet.size },
+    collider: { type: "circle", width: GAME.bullet.size, height: GAME.bullet.size },
     lifetime: { remaining: GAME.bullet.lifetime },
-    tags: { values: new Set(['bullet']) },
-  }
+    tags: { values: new Set(["bullet"]) },
+  };
 }

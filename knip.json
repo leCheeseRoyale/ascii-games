@@ -1,0 +1,14 @@
+{
+  "entry": [
+    "engine/index.ts",
+    "game/index.ts"
+  ],
+  "project": [
+    "engine/**/*.ts",
+    "game/**/*.ts",
+    "ui/**/*.tsx",
+    "ui/**/*.ts",
+    "shared/**/*.ts",
+    "src/**/*.tsx"
+  ]
+}

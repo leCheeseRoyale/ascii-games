@@ -5,73 +5,93 @@
  *   import { Engine, defineScene, defineSystem, ... } from '@engine'
  */
 
-// Core
-export { Engine } from './core/engine'
-export { GameLoop } from './core/game-loop'
-export { defineScene, SceneManager, type Scene } from './core/scene'
-
-// ECS
-export { createWorld, type GameWorld, type GameEntity } from './ecs/world'
-export { defineSystem, SystemRunner, type System } from './ecs/systems'
-export { animationSystem } from './ecs/animation-system'
-export { parentSystem } from './ecs/parent-system'
-
-// Rendering
-export { AsciiRenderer } from './render/ascii-renderer'
-export { Camera } from './render/camera'
-export { ParticlePool, type Particle } from './render/particles'
-export {
-  layoutTextBlock,
-  layoutTextAroundObstacles,
-  measureHeight,
-  getLineCount,
-  shrinkwrap,
-  clearTextCache,
-  type RenderedLine,
-} from './render/text-layout'
-
-// Images
-export { loadImage, preloadImages, getCachedImage, clearImageCache } from './render/image-loader'
-
-// Transitions
-export { Transition, type TransitionType } from './render/transitions'
-
-// Input
-export { Keyboard } from './input/keyboard'
-export { Mouse } from './input/mouse'
-
-// Physics
-export { overlaps, overlapAll, type Collidable } from './physics/collision'
-export { physicsSystem } from './physics/physics-system'
-
-// Audio
-export { beep, sfx } from './audio/audio'
-
-// Utils — Math
-export {
-  vec2, add, sub, scale, len, normalize, dist, dot,
-  lerp, clamp, rng, rngInt, pick, chance,
-  type Vec2,
-} from './utils/math'
-
-// Utils — Timer & Scheduler
-export { Cooldown, tween, easeOut } from './utils/timer'
-export { Scheduler } from './utils/scheduler'
-
-// Utils — Color
-export { hsl, hsla, rainbow, lerpColor } from './utils/color'
-
-// Utils — Grid
-export { GridMap, gridToWorld, worldToGrid, gridDistance } from './utils/grid'
-
+export { COLORS, FONTS } from "@shared/constants";
+export { events } from "@shared/events";
 // Re-export shared types
 export type {
-  Entity, Position, Velocity, Acceleration, Ascii, Sprite, TextBlock, ImageComponent,
-  Collider, Health, Lifetime, Player, Obstacle, ParticleEmitter, Physics, Tags,
-  Parent, Child,
-  Tween, TweenEntry, Animation, AnimationFrame,
-  GameTime, InputState, EngineConfig,
-} from '@shared/types'
-export { DEFAULT_CONFIG } from '@shared/types'
-export { events } from '@shared/events'
-export { COLORS, FONTS } from '@shared/constants'
+  Acceleration,
+  Animation,
+  AnimationFrame,
+  Ascii,
+  Child,
+  Collider,
+  EngineConfig,
+  Entity,
+  GameTime,
+  Health,
+  ImageComponent,
+  InputState,
+  Lifetime,
+  Obstacle,
+  Parent,
+  ParticleEmitter,
+  Physics,
+  Player,
+  Position,
+  Sprite,
+  Tags,
+  TextBlock,
+  Tween,
+  TweenEntry,
+  Velocity,
+} from "@shared/types";
+export { DEFAULT_CONFIG } from "@shared/types";
+// Audio
+export { beep, sfx } from "./audio/audio";
+// Core
+export { Engine } from "./core/engine";
+export { GameLoop } from "./core/game-loop";
+export { defineScene, type Scene, SceneManager } from "./core/scene";
+export { animationSystem } from "./ecs/animation-system";
+export { parentSystem } from "./ecs/parent-system";
+export { defineSystem, type System, SystemRunner } from "./ecs/systems";
+// ECS
+export { createWorld, type GameEntity, type GameWorld } from "./ecs/world";
+// Input
+export { Keyboard } from "./input/keyboard";
+export { Mouse } from "./input/mouse";
+// Physics
+export { type Collidable, overlapAll, overlaps } from "./physics/collision";
+export { physicsSystem } from "./physics/physics-system";
+// Rendering
+export { AsciiRenderer } from "./render/ascii-renderer";
+export { Camera } from "./render/camera";
+// Images
+export { clearImageCache, getCachedImage, loadImage, preloadImages } from "./render/image-loader";
+export { type Particle, ParticlePool } from "./render/particles";
+export {
+  clearTextCache,
+  getLineCount,
+  layoutTextAroundObstacles,
+  layoutTextBlock,
+  measureHeight,
+  type RenderedLine,
+  shrinkwrap,
+} from "./render/text-layout";
+// Transitions
+export { Transition, type TransitionType } from "./render/transitions";
+// Utils — Color
+export { hsl, hsla, lerpColor, rainbow } from "./utils/color";
+// Utils — Grid
+export { GridMap, gridDistance, gridToWorld, worldToGrid } from "./utils/grid";
+// Utils — Math
+export {
+  add,
+  chance,
+  clamp,
+  dist,
+  dot,
+  len,
+  lerp,
+  normalize,
+  pick,
+  rng,
+  rngInt,
+  scale,
+  sub,
+  type Vec2,
+  vec2,
+} from "./utils/math";
+export { Scheduler } from "./utils/scheduler";
+// Utils — Timer & Scheduler
+export { Cooldown, easeOut, tween } from "./utils/timer";

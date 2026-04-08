@@ -12,39 +12,39 @@
  *   5. engine.stop()
  */
 
-import type { Entity, EngineConfig, GameTime, TweenEntry, AnimationFrame } from '@shared/types'
-import { DEFAULT_CONFIG } from '@shared/types'
-import { events } from '@shared/events'
-import { createWorld, type GameWorld } from '../ecs/world'
-import { SystemRunner, type System } from '../ecs/systems'
-import { GameLoop } from './game-loop'
-import { SceneManager, type Scene } from './scene'
-import { AsciiRenderer } from '../render/ascii-renderer'
-import { Camera } from '../render/camera'
-import { ParticlePool } from '../render/particles'
-import { Keyboard } from '../input/keyboard'
-import { Mouse } from '../input/mouse'
-import { Scheduler } from '../utils/scheduler'
-import { tweenSystem } from '../ecs/tween-system'
-import { physicsSystem } from '../physics/physics-system'
-import { animationSystem } from '../ecs/animation-system'
-import { parentSystem } from '../ecs/parent-system'
-import { loadImage, preloadImages } from '../render/image-loader'
-import { Transition, type TransitionType } from '../render/transitions'
+import { events } from "@shared/events";
+import type { AnimationFrame, EngineConfig, Entity, GameTime, TweenEntry } from "@shared/types";
+import { DEFAULT_CONFIG } from "@shared/types";
+import { animationSystem } from "../ecs/animation-system";
+import { parentSystem } from "../ecs/parent-system";
+import { type System, SystemRunner } from "../ecs/systems";
+import { tweenSystem } from "../ecs/tween-system";
+import { createWorld, type GameWorld } from "../ecs/world";
+import { Keyboard } from "../input/keyboard";
+import { Mouse } from "../input/mouse";
+import { physicsSystem } from "../physics/physics-system";
+import { AsciiRenderer } from "../render/ascii-renderer";
+import { Camera } from "../render/camera";
+import { loadImage, preloadImages } from "../render/image-loader";
+import { ParticlePool } from "../render/particles";
+import { Transition, type TransitionType } from "../render/transitions";
+import { Scheduler } from "../utils/scheduler";
+import { GameLoop } from "./game-loop";
+import { type Scene, SceneManager } from "./scene";
 
 export class Engine {
   // ── Public API ────────────────────────────────────────────────
-  readonly config: EngineConfig
-  readonly world: GameWorld
-  readonly systems: SystemRunner
-  readonly scenes: SceneManager
-  readonly renderer: AsciiRenderer
-  readonly camera: Camera
-  readonly keyboard: Keyboard
-  readonly mouse: Mouse
-  readonly particles: ParticlePool
-  readonly scheduler: Scheduler
-  readonly transition: Transition
+  readonly config: EngineConfig;
+  readonly world: GameWorld;
+  readonly systems: SystemRunner;
+  readonly scenes: SceneManager;
+  readonly renderer: AsciiRenderer;
+  readonly camera: Camera;
+  readonly keyboard: Keyboard;
+  readonly mouse: Mouse;
+  readonly particles: ParticlePool;
+  readonly scheduler: Scheduler;
+  readonly transition: Transition;
 
   get time(): GameTime {
     return {
@@ -52,27 +52,32 @@ export class Engine {
       elapsed: this.loop.elapsed,
       frame: this.loop.frame,
       fps: this.loop.fps,
-    }
+    };
   }
 
-  get width(): number { return this.renderer.width }
-  get height(): number { return this.renderer.height }
+  get width(): number {
+    return this.renderer.width;
+  }
+  get height(): number {
+    return this.renderer.height;
+  }
 
   // ── Private ───────────────────────────────────────────────────
-  private loop: GameLoop
+  private loop: GameLoop;
+  private _onResize: (() => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement, config: Partial<EngineConfig> = {}) {
-    this.config = { ...DEFAULT_CONFIG, ...config }
-    this.world = createWorld()
-    this.systems = new SystemRunner()
-    this.scenes = new SceneManager()
-    this.renderer = new AsciiRenderer(canvas)
-    this.camera = new Camera()
-    this.keyboard = new Keyboard()
-    this.mouse = new Mouse(canvas)
-    this.particles = new ParticlePool()
-    this.scheduler = new Scheduler()
-    this.transition = new Transition()
+    this.config = { ...DEFAULT_CONFIG, ...config };
+    this.world = createWorld();
+    this.systems = new SystemRunner();
+    this.scenes = new SceneManager();
+    this.renderer = new AsciiRenderer(canvas);
+    this.camera = new Camera();
+    this.keyboard = new Keyboard();
+    this.mouse = new Mouse(canvas);
+    this.particles = new ParticlePool();
+    this.scheduler = new Scheduler();
+    this.transition = new Transition();
 
     this.loop = new GameLoop(
       {
@@ -80,27 +85,27 @@ export class Engine {
         render: () => this.render(),
       },
       this.config.targetFps,
-    )
+    );
 
-    this.renderer.resize()
+    this.renderer.resize();
     const onResize = () => {
-      this.renderer.resize()
-      this.camera.viewWidth = this.renderer.width
-      this.camera.viewHeight = this.renderer.height
-    }
-    window.addEventListener('resize', onResize)
-    onResize()
-    ;(this as any)._onResize = onResize
+      this.renderer.resize();
+      this.camera.viewWidth = this.renderer.width;
+      this.camera.viewHeight = this.renderer.height;
+    };
+    window.addEventListener("resize", onResize);
+    onResize();
+    this._onResize = onResize;
   }
 
   // ── Entity helpers ────────────────────────────────────────────
 
   spawn(components: Partial<Entity>) {
-    return this.world.add(components as Entity)
+    return this.world.add(components as Entity);
   }
 
   destroy(entity: Entity): void {
-    this.world.remove(entity)
+    this.world.remove(entity);
   }
 
   // ── Tween helper ──────────────────────────────────────────────
@@ -112,58 +117,63 @@ export class Engine {
     from: number,
     to: number,
     duration: number,
-    ease: TweenEntry['ease'] = 'easeOut',
+    ease: TweenEntry["ease"] = "easeOut",
     destroyOnComplete = false,
   ): void {
-    const e = entity as any
+    const e = entity as any;
     if (!e.tween) {
-      e.tween = { tweens: [] }
+      e.tween = { tweens: [] };
     }
-    e.tween.tweens.push({ property, from, to, duration, elapsed: 0, ease, destroyOnComplete })
+    e.tween.tweens.push({ property, from, to, duration, elapsed: 0, ease, destroyOnComplete });
   }
 
   // ── Animation helpers ────────────────────────────────────────────
 
   /** Play a named animation on an entity. */
-  playAnimation(entity: Partial<Entity>, frames: AnimationFrame[], frameDuration = 0.1, loop = true): void {
-    const e = entity as any
-    e.animation = { frames, frameDuration, currentFrame: 0, elapsed: 0, loop, playing: true }
+  playAnimation(
+    entity: Partial<Entity>,
+    frames: AnimationFrame[],
+    frameDuration = 0.1,
+    loop = true,
+  ): void {
+    const e = entity as any;
+    e.animation = { frames, frameDuration, currentFrame: 0, elapsed: 0, loop, playing: true };
     // Apply first frame immediately
-    const first = frames[0]
-    if (first.char && e.ascii) e.ascii.char = first.char
-    if (first.lines && e.sprite) e.sprite.lines = first.lines
+    const first = frames[0];
+    if (first.char && e.ascii) e.ascii.char = first.char;
+    if (first.lines && e.sprite) e.sprite.lines = first.lines;
     if (first.color) {
-      if (e.ascii) e.ascii.color = first.color
-      if (e.sprite) e.sprite.color = first.color
+      if (e.ascii) e.ascii.color = first.color;
+      if (e.sprite) e.sprite.color = first.color;
     }
   }
 
   /** Stop animation on an entity. */
   stopAnimation(entity: Partial<Entity>): void {
-    const e = entity as any
-    if (e.animation) e.animation.playing = false
+    const e = entity as any;
+    if (e.animation) e.animation.playing = false;
   }
 
   // ── Timer helpers (delegate to scheduler) ─────────────────────
 
   /** Schedule a one-shot callback after `seconds`. Returns cancel ID. */
   after(seconds: number, callback: () => void): number {
-    return this.scheduler.after(seconds, callback)
+    return this.scheduler.after(seconds, callback);
   }
 
   /** Schedule a repeating callback every `seconds`. Returns cancel ID. */
   every(seconds: number, callback: () => void): number {
-    return this.scheduler.every(seconds, callback)
+    return this.scheduler.every(seconds, callback);
   }
 
   /** Chain a sequence of delayed callbacks. Returns cancel ID. */
   sequence(steps: { delay: number; fn: () => void }[]): number {
-    return this.scheduler.sequence(steps)
+    return this.scheduler.sequence(steps);
   }
 
   /** Cancel a scheduled timer. */
   cancelTimer(id: number): void {
-    this.scheduler.cancel(id)
+    this.scheduler.cancel(id);
   }
 
   // ── Image helpers ──────────────────────────────────────────────
@@ -173,78 +183,83 @@ export class Engine {
    * Place images in public/ and reference as '/myimage.png'.
    */
   loadImage(src: string): Promise<HTMLImageElement> {
-    return loadImage(src)
+    return loadImage(src);
   }
 
   /** Preload multiple images in parallel. Use in scene setup(). */
   preloadImages(srcs: string[]): Promise<HTMLImageElement[]> {
-    return preloadImages(srcs)
+    return preloadImages(srcs);
   }
 
   // ── System helpers ────────────────────────────────────────────
 
   addSystem(system: System): void {
-    this.systems.add(system, this)
+    this.systems.add(system, this);
   }
 
   removeSystem(name: string): void {
-    this.systems.remove(name, this)
+    this.systems.remove(name, this);
   }
 
   // ── Parent-child helpers ──────────────────────────────────────
 
   /** Attach a child entity to a parent. Child position becomes relative offset. */
-  attachChild(parentEntity: Partial<Entity>, childEntity: Partial<Entity>, offsetX = 0, offsetY = 0): void {
-    const p = parentEntity as any
-    const c = childEntity as any
+  attachChild(
+    parentEntity: Partial<Entity>,
+    childEntity: Partial<Entity>,
+    offsetX = 0,
+    offsetY = 0,
+  ): void {
+    const p = parentEntity as any;
+    const c = childEntity as any;
 
     // Set up child component
-    c.child = { parent: parentEntity, offsetX, offsetY }
+    c.child = { parent: parentEntity, offsetX, offsetY };
 
     // Set up parent tracking
-    if (!p.parent) p.parent = { children: [] }
+    if (!p.parent) p.parent = { children: [] };
     if (!p.parent.children.includes(childEntity)) {
-      p.parent.children.push(childEntity)
+      p.parent.children.push(childEntity);
     }
 
     // Immediately sync position
     if (p.position && c.position) {
-      c.position.x = p.position.x + offsetX
-      c.position.y = p.position.y + offsetY
+      c.position.x = p.position.x + offsetX;
+      c.position.y = p.position.y + offsetY;
     }
   }
 
   /** Detach a child from its parent. Position stays at current world position. */
   detachChild(childEntity: Partial<Entity>): void {
-    const c = childEntity as any
-    if (!c.child) return
+    const c = childEntity as any;
+    if (!c.child) return;
 
-    const parentEntity = c.child.parent as any
+    const parentEntity = c.child.parent as any;
     if (parentEntity?.parent?.children) {
-      const idx = parentEntity.parent.children.indexOf(childEntity)
-      if (idx >= 0) parentEntity.parent.children.splice(idx, 1)
+      const idx = parentEntity.parent.children.indexOf(childEntity);
+      if (idx >= 0) parentEntity.parent.children.splice(idx, 1);
     }
 
-    delete c.child
+    delete c.child;
   }
 
   /** Destroy an entity and all its children recursively. */
   destroyWithChildren(entity: Partial<Entity>): void {
-    const p = entity as any
+    const p = entity as any;
     if (p.parent?.children) {
       for (const child of [...p.parent.children]) {
-        this.destroyWithChildren(child)
+        this.destroyWithChildren(child);
       }
     }
     // Detach from own parent if any
-    this.detachChild(entity)
-    this.world.remove(entity as Entity)
+    this.detachChild(entity);
+    this.world.remove(entity as Entity);
   }
 
   // ── Scene helpers ─────────────────────────────────────────────
 
   registerScene(scene: Scene): void {
-    this.scenes.register(scene)
+    this.scenes.register(scene);
   }
 
   /**
@@ -254,81 +269,88 @@ export class Engine {
    *   engine.loadScene('play', { transition: 'fade' })      // 0.5s fade to black and back
    *   engine.loadScene('play', { transition: 'fadeWhite', duration: 0.3 })
    */
-  async loadScene(name: string, opts?: { transition?: TransitionType; duration?: number }): Promise<void> {
-    if (opts?.transition && opts.transition !== 'none') {
-      this.transition.type = opts.transition
-      this.transition.duration = opts.duration ?? 0.4
+  async loadScene(
+    name: string,
+    opts?: { transition?: TransitionType; duration?: number },
+  ): Promise<void> {
+    if (opts?.transition && opts.transition !== "none") {
+      this.transition.type = opts.transition;
+      this.transition.duration = opts.duration ?? 0.4;
       this.transition.start(async () => {
-        this.scheduler.clear()
-        this.particles.clear()
-        await this.scenes.load(name, this)
-        this.systems.add(parentSystem, this)
-        this.systems.add(physicsSystem, this)
-        this.systems.add(tweenSystem, this)
-        this.systems.add(animationSystem, this)
-        events.emit('scene:loaded', name)
-      })
+        this.scheduler.clear();
+        this.particles.clear();
+        await this.scenes.load(name, this);
+        this.systems.add(parentSystem, this);
+        this.systems.add(physicsSystem, this);
+        this.systems.add(tweenSystem, this);
+        this.systems.add(animationSystem, this);
+        events.emit("scene:loaded", name);
+      });
     } else {
-      this.scheduler.clear()
-      this.particles.clear()
-      await this.scenes.load(name, this)
-      this.systems.add(parentSystem, this)
-      this.systems.add(physicsSystem, this)
-      this.systems.add(tweenSystem, this)
-      this.systems.add(animationSystem, this)
-      events.emit('scene:loaded', name)
+      this.scheduler.clear();
+      this.particles.clear();
+      await this.scenes.load(name, this);
+      this.systems.add(parentSystem, this);
+      this.systems.add(physicsSystem, this);
+      this.systems.add(tweenSystem, this);
+      this.systems.add(animationSystem, this);
+      events.emit("scene:loaded", name);
     }
   }
 
   // ── Lifecycle ─────────────────────────────────────────────────
 
   async start(sceneName: string): Promise<void> {
-    await this.loadScene(sceneName)
-    this.loop.start()
-    events.emit('engine:started')
+    await this.loadScene(sceneName);
+    this.loop.start();
+    events.emit("engine:started");
   }
 
   stop(): void {
-    this.loop.stop()
-    this.scenes.current?.cleanup?.(this)
-    this.systems.clear(this)
-    this.scheduler.clear()
-    this.keyboard.destroy()
-    this.mouse.destroy()
-    window.removeEventListener('resize', (this as any)._onResize)
-    events.emit('engine:stopped')
+    this.loop.stop();
+    this.scenes.current?.cleanup?.(this);
+    this.systems.clear(this);
+    this.scheduler.clear();
+    this.keyboard.destroy();
+    this.mouse.destroy();
+    if (this._onResize) {
+      window.removeEventListener("resize", this._onResize);
+    }
+    events.emit("engine:stopped");
   }
 
   pause(): void {
-    this.loop.pause()
-    events.emit('engine:paused')
+    this.loop.pause();
+    events.emit("engine:paused");
   }
 
   resume(): void {
-    this.loop.resume()
-    events.emit('engine:resumed')
+    this.loop.resume();
+    events.emit("engine:resumed");
   }
 
-  get isPaused(): boolean { return this.loop.isPaused }
+  get isPaused(): boolean {
+    return this.loop.isPaused;
+  }
 
   // ── Frame lifecycle (private) ─────────────────────────────────
 
   private update(dt: number): void {
-    this.keyboard.update()
-    this.mouse.update()
-    this.systems.update(this, dt)     // includes tweenSystem
-    this.scenes.update(this, dt)
-    this.scheduler.update(dt)
-    this.particles.update(dt)
-    this.transition.update(dt)
-    this.camera.update(dt)
+    this.keyboard.update();
+    this.mouse.update();
+    this.systems.update(this, dt); // includes tweenSystem
+    this.scenes.update(this, dt);
+    this.scheduler.update(dt);
+    this.particles.update(dt);
+    this.transition.update(dt);
+    this.camera.update(dt);
   }
 
   private render(): void {
-    this.renderer.render(this.world, this.config, this.camera, this.particles)
+    this.renderer.render(this.world, this.config, this.camera, this.particles);
     // Transition overlay renders on top of everything
     if (this.transition.active) {
-      this.transition.render(this.renderer.ctx, this.width, this.height)
+      this.transition.render(this.renderer.ctx, this.width, this.height);
     }
   }
 }

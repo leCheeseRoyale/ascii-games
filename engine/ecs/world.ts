@@ -9,13 +9,13 @@
  * They're live views — entities appear/disappear automatically.
  */
 
-import { World } from 'miniplex'
-import type { Entity } from '@shared/types'
+import type { Entity } from "@shared/types";
+import { World } from "miniplex";
 
 /** The single ECS world. Created fresh per engine instance. */
 export function createWorld() {
-  return new World<Entity>()
+  return new World<Entity>();
 }
 
-export type GameWorld = ReturnType<typeof createWorld>
-export type GameEntity = Entity
+export type GameWorld = ReturnType<typeof createWorld>;
+export type GameEntity = Entity;

@@ -1,34 +1,34 @@
-import { useStore } from '@ui/store'
-import { GameCanvas } from './GameCanvas'
-import { MainMenu } from './screens/MainMenu'
-import { PauseMenu } from './screens/PauseMenu'
-import { GameOverScreen } from './screens/GameOverScreen'
-import { HUD } from './hud/HUD'
+import { useStore } from "@ui/store";
+import { GameCanvas } from "./GameCanvas";
+import { HUD } from "./hud/HUD";
+import { GameOverScreen } from "./screens/GameOverScreen";
+import { MainMenu } from "./screens/MainMenu";
+import { PauseMenu } from "./screens/PauseMenu";
 
 export function App() {
-  const screen = useStore((s) => s.screen)
+  const screen = useStore((s) => s.screen);
 
   return (
     <div
       style={{
-        position: 'fixed',
+        position: "fixed",
         inset: 0,
-        overflow: 'hidden',
-        backgroundColor: '#0a0a0a',
+        overflow: "hidden",
+        backgroundColor: "#0a0a0a",
       }}
     >
       <GameCanvas />
 
       {/* Screen overlays */}
-      {screen === 'menu' && <MainMenu />}
-      {screen === 'playing' && <HUD debug />}
-      {screen === 'paused' && (
+      {screen === "menu" && <MainMenu />}
+      {screen === "playing" && <HUD debug />}
+      {screen === "paused" && (
         <>
           <HUD />
           <PauseMenu />
         </>
       )}
-      {screen === 'gameOver' && <GameOverScreen />}
+      {screen === "gameOver" && <GameOverScreen />}
     </div>
-  )
+  );
 }

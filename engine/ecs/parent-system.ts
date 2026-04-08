@@ -7,21 +7,21 @@
  * Should run BEFORE other systems so collision/rendering see correct positions.
  */
 
-import type { Engine } from '../core/engine'
-import type { System } from './systems'
-import type { Entity } from '@shared/types'
+import type { Entity } from "@shared/types";
+import type { Engine } from "../core/engine";
+import type { System } from "./systems";
 
 export const parentSystem: System = {
-  name: '_parent',
+  name: "_parent",
   update(engine: Engine, _dt: number) {
     // Process all children: set their world position based on parent + offset
-    for (const entity of engine.world.with('child', 'position')) {
-      const child = entity.child
-      const parent = child.parent as Partial<Entity>
+    for (const entity of engine.world.with("child", "position")) {
+      const child = entity.child;
+      const parent = child.parent as Partial<Entity>;
       if (parent && (parent as any).position) {
-        entity.position.x = (parent as any).position.x + child.offsetX
-        entity.position.y = (parent as any).position.y + child.offsetY
+        entity.position.x = (parent as any).position.x + child.offsetX;
+        entity.position.y = (parent as any).position.y + child.offsetY;
       }
     }
   },
-}
+};
