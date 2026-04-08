@@ -51,6 +51,14 @@ bun run build
 # Preview production build
 bun run preview
 
+# Linting & formatting
+bun run lint                 # Biome check
+bun run lint:fix             # Auto-fix lint issues
+
+# Code quality
+bun run knip                 # Find unused deps/exports/files
+bun run gen:api              # Regenerate docs/API-generated.md from code
+
 # Scaffolding (generate new files)
 bun run new:scene <name>     # e.g., bun run new:scene shop
 bun run new:system <name>    # e.g., bun run new:system gravity
@@ -120,23 +128,31 @@ ascii-game-engine/
 │   │   └── scene.ts                   Scene interface + SceneManager
 │   ├── ecs/
 │   │   ├── world.ts                   miniplex World<Entity> factory
-│   │   └── systems.ts                 System interface + SystemRunner
+│   │   ├── systems.ts                 System interface + SystemRunner
+│   │   ├── animation-system.ts        Built-in _animation system
+│   │   ├── parent-system.ts           Built-in _parent system
+│   │   └── tween-system.ts            Built-in _tween system
 │   ├── render/
 │   │   ├── ascii-renderer.ts          Canvas 2D text renderer (auto-renders entities)
 │   │   ├── text-layout.ts             Pretext integration with caching
 │   │   ├── camera.ts                  2D camera: pan, zoom, follow, shake
-│   │   └── particles.ts              Pooled ASCII particle system
+│   │   ├── particles.ts              Pooled ASCII particle system
+│   │   ├── transitions.ts            Scene transition effects (fade, wipe)
+│   │   └── image-loader.ts           Image loading with caching
 │   ├── input/
 │   │   ├── keyboard.ts               Keyboard state: held/pressed/released
 │   │   └── mouse.ts                  Mouse state: position, clicks
 │   ├── physics/
-│   │   └── collision.ts              AABB + circle overlap detection
+│   │   ├── collision.ts              Circle/rect overlap detection
+│   │   └── physics-system.ts         Built-in _physics system (velocity, gravity, friction)
 │   ├── audio/
-│   │   └── audio.ts                  Oscillator beeps + sfx presets
+│   │   └── audio.ts                  ZzFX procedural audio + sfx presets
 │   ├── utils/
 │   │   ├── math.ts                   Vec2, lerp, clamp, rng, pick, chance
 │   │   ├── timer.ts                  Cooldown, tween, easeOut
-│   │   └── color.ts                  hsl, rainbow, lerpColor
+│   │   ├── color.ts                  hsl, rainbow, lerpColor
+│   │   ├── grid.ts                   GridMap, grid↔world conversion
+│   │   └── scheduler.ts             Game-time scheduler (after, every, sequence)
 │   └── index.ts                     Public API barrel export
 │
 ├── game/                            ← YOUR GAME CODE (edit this!)
@@ -182,14 +198,22 @@ ascii-game-engine/
 │   ├── new-scene.ts
 │   ├── new-system.ts
 │   ├── new-entity.ts
-│   └── init-game.ts
+│   ├── init-game.ts
+│   └── gen-api.ts                   Auto-generate API docs from TypeScript
+│
+├── docs/
+│   ├── API.md                       Hand-written API reference
+│   ├── API-generated.md             Auto-generated from .d.ts (bun run gen:api)
+│   └── DEVELOPER.md                 This file
 │
 ├── src/
 │   └── main.tsx                     React entry point (renders <App />)
 │
 ├── package.json
 ├── tsconfig.json
-└── vite.config.ts                   Path aliases: @engine, @game, @ui, @shared
+├── vite.config.ts                   Path aliases: @engine, @game, @ui, @shared
+├── biome.json                       Biome linter/formatter config
+└── knip.json                        Unused dependency/export detection
 ```
 
 ### Import Aliases
@@ -391,19 +415,20 @@ Systems are named functions that run every frame. They're the core logic units.
 ```typescript
 import { defineSystem } from '@engine'
 
-export const movementSystem = defineSystem({
-  name: 'movement',
+export const enemyAISystem = defineSystem({
+  name: 'enemyAI',
 
-  // Optional: runs once when system is added
+  // Optional: runs once when system is added. Reset module-level state here.
   init(engine) {
     // Set up system-specific state
   },
 
   // Runs every frame (required)
   update(engine, dt) {
-    for (const e of engine.world.with('position', 'velocity')) {
-      e.position.x += e.velocity.vx * dt
-      e.position.y += e.velocity.vy * dt
+    for (const e of engine.world.with('position', 'velocity', 'tags')) {
+      if (e.tags.values.has('enemy')) {
+        // Chase player, etc.
+      }
     }
   },
 
@@ -419,15 +444,14 @@ export const movementSystem = defineSystem({
 Systems run in the order you add them. This matters!
 
 ```typescript
-// In scene setup:
+// In scene setup (built-in _physics handles velocity→position automatically):
 engine.addSystem(playerInputSystem)       // 1. Read input, set velocities
-engine.addSystem(movementSystem)          // 2. Apply velocities to positions
-engine.addSystem(asteroidSpawnerSystem)   // 3. Spawn new asteroids
-engine.addSystem(collisionSystem)         // 4. Check collisions, destroy entities
-engine.addSystem(lifetimeSystem)          // 5. Expire timed entities
+engine.addSystem(asteroidSpawnerSystem)   // 2. Spawn new asteroids
+engine.addSystem(collisionSystem)         // 3. Check collisions, destroy entities
+engine.addSystem(lifetimeSystem)          // 4. Expire timed entities
 ```
 
-Input → Physics → Spawning → Collision → Cleanup is a good default order.
+Input → Spawning → Collision → Cleanup is a good default order. Velocity integration is handled by the built-in `_physics` system — do NOT write a custom system for that.
 
 #### Accessing Engine
 
@@ -760,16 +784,16 @@ for (const bullet of bullets) {
 
 ## 8. Audio
 
-Procedural oscillator beeps — no audio files needed. Matches the ASCII aesthetic.
+Procedural game audio powered by ZzFX — no audio files needed. Tiny synthesized sound effects that match the ASCII aesthetic.
 
 ### beep()
 
 ```typescript
 import { beep } from '@engine'
 
-beep()                                         // Default: 440Hz, 0.1s, square wave
+beep()                                         // Default: 440Hz, 0.1s
 beep({ freq: 880, duration: 0.05 })           // High short beep
-beep({ freq: 110, duration: 0.3, type: 'sawtooth', volume: 0.2 })  // Low rumble
+beep({ freq: 110, duration: 0.3, volume: 0.2 })  // Low rumble
 ```
 
 Options:
@@ -777,7 +801,6 @@ Options:
 |----------|---------|-------------|
 | `freq` | 440 | Frequency in Hz |
 | `duration` | 0.1 | Duration in seconds |
-| `type` | `'square'` | Oscillator type: `'sine'`, `'square'`, `'sawtooth'`, `'triangle'` |
 | `volume` | 0.15 | Volume (0-1) |
 
 ### sfx Presets
@@ -785,19 +808,17 @@ Options:
 ```typescript
 import { sfx } from '@engine'
 
-sfx.shoot()    // 880Hz, 0.05s, square — pew pew
-sfx.hit()      // 220Hz, 0.15s, sawtooth — impact
-sfx.pickup()   // 660Hz, 0.08s, sine — item collected
-sfx.explode()  // 110Hz, 0.3s, sawtooth — boom
-sfx.menu()     // 520Hz, 0.06s, sine — menu blip
-sfx.death()    // Three descending tones — player death
+sfx.shoot()    // laser sound
+sfx.hit()      // impact
+sfx.pickup()   // item collected
+sfx.explode()  // explosion
+sfx.menu()     // menu blip
+sfx.death()    // death sound
 ```
 
-### Audio Context Auto-Unlock
+### Audio Context
 
-Browsers require a user gesture before playing audio. The engine handles this automatically — the `AudioContext` is created lazily on the first `beep()` call and auto-resumed if suspended.
-
-If audio doesn't play, it's usually because no user interaction has happened yet (the game hasn't started). First click/keypress will unlock it.
+ZzFX creates its AudioContext automatically. Browsers require a user gesture before playing audio — the first click/keypress will unlock it.
 
 ---
 
@@ -883,11 +904,12 @@ events.on('game:restart', () => engine.loadScene('play'))
 events.on('game:pause', () => engine.pause())
 ```
 
-The event bus returns an unsubscribe function:
+The event bus uses mitt. Unsubscribe by passing the same handler reference:
 ```typescript
-const off = events.on('game:start', handler)
+const handler = () => { ... }
+events.on('game:start', handler)
 // Later:
-off()  // Stop listening
+events.off('game:start', handler)  // Stop listening
 ```
 
 ### 9d. Screen Management
@@ -1166,7 +1188,6 @@ import { defineScene, rng } from '@engine'
 import { useStore } from '@ui/store'
 import { createPlayer } from '../entities/player'
 import { createCoin } from '../entities/coin'
-import { movementSystem } from '../systems/movement'
 import { playerInputSystem } from '../systems/player-input'
 import { coinCollectorSystem } from '../systems/coin-collector'
 
@@ -1187,8 +1208,8 @@ export const coinsScene = defineScene({
       ))
     }
 
+    // Note: velocity→position is handled by built-in _physics system
     engine.addSystem(playerInputSystem)
-    engine.addSystem(movementSystem)
     engine.addSystem(coinCollectorSystem)
   },
 

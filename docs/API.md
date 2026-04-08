@@ -113,11 +113,14 @@ engine.registerScene(menuScene);
 ```
 
 ```ts
-loadScene(name: string): Promise<void>
+loadScene(name: string, opts?: { transition?: TransitionType; duration?: number }): Promise<void>
 ```
-Transitions to a named scene (cleans up current, calls setup on new).
+Transitions to a named scene (cleans up current, calls setup on new). Optional transition effect.
 ```ts
 await engine.loadScene('gameplay');
+engine.loadScene('play', { transition: 'fade' });
+engine.loadScene('play', { transition: 'fadeWhite', duration: 0.3 });
+engine.loadScene('play', { transition: 'wipe' });
 ```
 
 ```ts
@@ -150,6 +153,59 @@ resume(): void
 Resumes the game loop after pause.
 ```ts
 engine.resume();
+```
+
+### Timer Helpers
+
+```ts
+after(seconds: number, callback: () => void): number
+```
+One-shot timer. Returns cancel ID.
+
+```ts
+every(seconds: number, callback: () => void): number
+```
+Repeating timer. Returns cancel ID.
+
+```ts
+sequence(steps: { delay: number; fn: () => void }[]): number
+```
+Chain delayed callbacks. Delays are cumulative. Returns cancel ID (cancels entire sequence).
+
+```ts
+cancelTimer(id: number): void
+```
+Cancel a timer or entire sequence by ID.
+
+### Tween & Animation Helpers
+
+```ts
+tweenEntity(entity, property: string, from: number, to: number, duration: number, ease?: string, destroyOnComplete?: boolean): void
+```
+Animate a property via dot-path (e.g. `'position.x'`, `'ascii.opacity'`). Ease: `'linear' | 'easeOut' | 'easeIn' | 'easeInOut'`.
+
+```ts
+playAnimation(entity, frames: AnimationFrame[], frameDuration?: number, loop?: boolean): void
+```
+Play frame animation. Each frame: `{ char?, lines?, color?, duration? }`.
+
+```ts
+stopAnimation(entity): void
+```
+
+### Parent-Child Helpers
+
+```ts
+attachChild(parent, child, offsetX?: number, offsetY?: number): void
+detachChild(child): void
+destroyWithChildren(entity): void
+```
+
+### Image Helpers
+
+```ts
+loadImage(src: string): Promise<HTMLImageElement>
+preloadImages(srcs: string[]): Promise<HTMLImageElement[]>
 ```
 
 ---
@@ -269,7 +325,7 @@ class SystemRunner
 ```ts
 add(system: System, engine: Engine): void
 ```
-Adds a system and calls its `init()` if defined.
+Adds a system and calls its `init()` if defined. Duplicate names are silently ignored.
 ```ts
 runner.add(movementSystem, engine);
 ```
@@ -374,38 +430,52 @@ for (const e of world.with('position', 'velocity')) {
 ### Entity
 
 ```ts
-type Entity = Partial<{
+interface Entity {
   position: Position;
   velocity: Velocity;
   acceleration: Acceleration;
   ascii: Ascii;
+  sprite: Sprite;
   textBlock: TextBlock;
   collider: Collider;
   health: Health;
   lifetime: Lifetime;
   player: Player;
   obstacle: Obstacle;
-  particleEmitter: ParticleEmitter;
+  emitter: ParticleEmitter;
+  physics: Physics;
   tags: Tags;
-}>
+  tween: Tween;
+  animation: Animation;
+  image: ImageComponent;
+  parent: Parent;
+  child: Child;
+}
 ```
 
 ### Component Types
 
 | Component | Shape | Description |
 |-----------|-------|-------------|
-| `Position` | `{ x: number, y: number }` | World position |
-| `Velocity` | `{ vx: number, vy: number }` | Velocity vector |
-| `Acceleration` | `{ ax: number, ay: number }` | Acceleration vector |
-| `Ascii` | `{ char: string, font: string, color: string, glow?: string, opacity?: number, scale?: number }` | Visual representation |
-| `TextBlock` | `{ text: string, font: string, maxWidth: number, lineHeight: number, color: string }` | Multi-line text block |
-| `Collider` | `{ type: 'circle' \| 'rect', width: number, height: number, sensor?: boolean }` | Collision shape |
-| `Health` | `{ current: number, max: number }` | Hit points |
-| `Lifetime` | `{ remaining: number }` | Auto-destroy timer (seconds) |
-| `Player` | `{ index: number }` | Player identifier |
-| `Obstacle` | `{ radius: number }` | Text-flow obstacle radius |
-| `ParticleEmitter` | `{ rate: number, spread: number, speed: number, lifetime: number, char: string, color: string, _acc: number }` | Particle spawning config |
+| `Position` | `{ x, y }` | World position |
+| `Velocity` | `{ vx, vy }` | Velocity (integrated by `_physics`) |
+| `Acceleration` | `{ ax, ay }` | Acceleration (integrated by `_physics`) |
+| `Ascii` | `{ char, font, color, glow?, opacity?, scale?, layer? }` | Single character/string visual |
+| `Sprite` | `{ lines, font, color, glow?, opacity?, layer? }` | Multi-line ASCII art |
+| `TextBlock` | `{ text, font, maxWidth, lineHeight, color, layer? }` | Word-wrapped text block (Pretext) |
+| `Collider` | `{ type: 'circle'\|'rect', width, height, sensor? }` | Collision shape |
+| `Health` | `{ current, max }` | Hit points |
+| `Lifetime` | `{ remaining }` | Auto-destroy timer (needs lifetime system in scene) |
+| `Player` | `{ index }` | Player identifier |
+| `Obstacle` | `{ radius }` | Text-flow obstacle radius |
+| `Physics` | `{ gravity?, friction?, drag?, bounce?, maxSpeed?, mass?, grounded? }` | Physics forces (processed by `_physics`) |
 | `Tags` | `{ values: Set<string> }` | Arbitrary string tags |
+| `Tween` | `{ tweens: TweenEntry[] }` | Active property tweens (processed by `_tween`) |
+| `Animation` | `{ frames, frameDuration, currentFrame, elapsed, loop?, playing?, onComplete? }` | Frame animation (processed by `_animation`) |
+| `ImageComponent` | `{ image, width, height, opacity?, layer?, anchor?, rotation?, tint? }` | HTML image rendering |
+| `ParticleEmitter` | `{ rate, spread, speed, lifetime, char, color, _acc }` | Particle spawning config |
+| `Parent` | `{ children: Partial<Entity>[] }` | Parent in hierarchy |
+| `Child` | `{ parent, offsetX, offsetY, inheritRotation? }` | Child in hierarchy (processed by `_parent`) |
 
 ### Supporting Types
 
@@ -820,7 +890,7 @@ interface Collidable {
 ```ts
 overlaps(a: Collidable, b: Collidable): boolean
 ```
-Tests if two collidable entities overlap. Supports circle-circle, rect-rect, and circle-rect combinations.
+Tests if two collidable entities overlap. Supports circle-circle, rect-rect, and proper circle-rect intersection.
 ```ts
 if (overlaps(player, enemy)) {
   player.health.current -= 1;
@@ -840,29 +910,20 @@ for (const hit of hits) engine.destroy(hit);
 
 ---
 
-## 11. Audio
+## 11. Audio (ZzFX)
 
-`import { beep, sfx } from 'engine/audio/audio'`
+`import { beep, sfx } from '@engine'`
 
-### ToneOpts
-
-```ts
-interface ToneOpts {
-  freq?: number;
-  duration?: number;
-  type?: OscillatorType;  // 'sine' | 'square' | 'sawtooth' | 'triangle'
-  volume?: number;
-}
-```
+Procedural game audio powered by ZzFX. No audio files needed.
 
 ### beep()
 
 ```ts
-beep(opts?: ToneOpts): void
+beep(opts?: { freq?: number; duration?: number; volume?: number }): void
 ```
-Plays a short synthesized tone using Web Audio oscillators.
+Plays a simple synthesized tone.
 ```ts
-beep({ freq: 440, duration: 0.1, type: 'square', volume: 0.3 });
+beep({ freq: 440, duration: 0.1, volume: 0.3 });
 ```
 
 ### sfx
@@ -1000,9 +1061,9 @@ const dmg = rngInt(1, 10);
 ```
 
 ```ts
-pick<T>(arr: T[]): T
+pick<T>(arr: readonly T[]): T
 ```
-Returns a random element from an array.
+Returns a random element from an array (accepts readonly arrays).
 ```ts
 const char = pick(['*', '+', '.', 'o']);
 ```
@@ -1108,7 +1169,7 @@ entity.ascii.color = rainbow(engine.time.elapsed, 2, 100, 60);
 ```ts
 lerpColor(a: string, b: string, t: number): string
 ```
-Interpolates between two color strings by t (0–1).
+Interpolates between two 6-digit hex colors by t (0–1). Only supports `#rrggbb` format.
 ```ts
 const c = lerpColor('#ff0000', '#00ff00', 0.5);
 ```
@@ -1167,50 +1228,31 @@ useStore.getState().reset();
 
 ---
 
-## 14. Events
+## 14. Events (mitt)
 
-`import { events } from 'shared/events'`
+`import { events } from '@shared/events'`
 
-### EventBus (singleton: `events`)
-
-```ts
-events.on<T>(event: string, fn: (data: T) => void): () => void
-```
-Subscribes to an event. Returns an unsubscribe function.
-```ts
-const unsub = events.on<{ damage: number }>('playerHit', (data) => {
-  console.log('Took', data.damage, 'damage');
-});
-// Later:
-unsub();
-```
+The event bus is a typed mitt instance. Events have a fixed type map — no arbitrary strings.
 
 ```ts
-events.emit<T>(event: string, data?: T): void
-```
-Emits an event to all subscribers.
-```ts
-events.emit('playerHit', { damage: 10 });
-events.emit('gameOver');
+events.on('scene:loaded', (sceneName: string) => { ... })
+events.emit('game:start')
+events.off('scene:loaded', handler)  // pass same function reference
 ```
 
-```ts
-events.clear(): void
-```
-Removes all event subscriptions.
-```ts
-events.clear();
-```
+### Event Map
 
-### Common Event Names
-
-These are conventions — the EventBus accepts any string key:
-
-- `'playerHit'` — Player took damage
-- `'enemyKilled'` — Enemy destroyed
-- `'gameOver'` — Game ended
-- `'scoreChanged'` — Score updated
-- `'sceneLoaded'` — New scene activated
+| Event | Payload | Direction |
+|-------|---------|-----------|
+| `game:start` | `void` | UI → Engine |
+| `game:resume` | `void` | UI → Engine |
+| `game:restart` | `void` | UI → Engine |
+| `game:pause` | `void` | UI → Engine |
+| `scene:loaded` | `string` (scene name) | Engine → UI |
+| `engine:started` | `void` | Engine → UI |
+| `engine:stopped` | `void` | Engine → UI |
+| `engine:paused` | `void` | Engine → UI |
+| `engine:resumed` | `void` | Engine → UI |
 
 ---
 

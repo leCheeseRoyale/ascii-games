@@ -24,7 +24,7 @@ game/     — User game code (scenes, systems, entities, data).
 ui/       — React UI only. Mounted independently of the canvas.
 shared/   — Types, constants, events shared across all layers.
 scripts/  — Bun scaffolding scripts.
-docs/     — Issue reports, API reference (API-generated.md is auto-generated).
+docs/     — API reference (API-generated.md is auto-generated).
 ```
 
 **Path aliases:** `@engine`, `@game`, `@ui`, `@shared` — use these for imports.
@@ -33,7 +33,7 @@ docs/     — Issue reports, API reference (API-generated.md is auto-generated).
 
 - **World**: miniplex `World<Entity>`. Access via `engine.world`.
 - **Entity**: plain object with optional components (`position`, `velocity`, `acceleration`, `ascii`, `sprite`, `textBlock`, `collider`, `health`, `lifetime`, `physics`, `tween`, `animation`, `image`, `parent`, `child`, `emitter`, `tags`).
-- **Built-in systems**: `_parent`, `_physics`, `_tween`, `_animation` — auto-registered on every scene load. Do not add them manually.
+- **Built-in systems**: `_parent`, `_physics`, `_tween`, `_animation` — auto-registered on every scene load. Do not add them manually. `_physics` handles velocity→position integration, so do NOT write a custom movement system that does `position += velocity * dt`.
 - **Components**: plain TypeScript objects — no classes, no decorators.
 - **Systems**: functions that receive `(engine: Engine, dt: number)` and iterate over entities.
 
@@ -122,19 +122,18 @@ engine.loadScene('play', { transition: 'wipe' })
 import { defineSystem, type Engine } from '@engine'
 
 export default defineSystem({
-  name: 'movement',
-  init(engine: Engine) { /* called once when system is added */ },
+  name: 'my-system',
+  init(engine: Engine) { /* called once when system is added — reset module-level state here */ },
   update(engine: Engine, dt: number) {
-    for (const e of engine.world.with('position', 'velocity')) {
-      e.position.x += e.velocity.vx * dt
-      e.position.y += e.velocity.vy * dt
+    for (const e of engine.world.with('position', 'tags')) {
+      if (e.tags.values.has('enemy')) { /* per-frame logic */ }
     }
   },
   cleanup(engine: Engine) { /* called when system is removed */ },
 })
 ```
 
-Add in scene setup: `engine.addSystem(movementSystem)`
+Add in scene setup: `engine.addSystem(mySystem)` (duplicate names are silently ignored)
 
 ## Entity Factories
 
@@ -223,7 +222,7 @@ vec2(10, 20)       // { x: 10, y: 20 }
 engine.after(1.0, () => { /* runs once after 1s */ })
 engine.every(0.5, () => { /* runs every 0.5s */ })
 engine.sequence([{ delay: 1, fn: step1 }, { delay: 2, fn: step2 }]) // delays are cumulative: step2 fires at t=3
-engine.cancelTimer(id) // cancel a scheduled timer
+engine.cancelTimer(id) // cancel a timer or entire sequence
 
 // Cooldown (for fire rates, spawn timers, etc.)
 const cd = new Cooldown(0.5)
@@ -259,7 +258,7 @@ sfx.death()    // death sound
 // Color utilities
 hsl(120, 80, 50)           // 'hsl(120,80%,50%)' CSS string
 hsla(120, 80, 50, 0.5)    // with alpha
-lerpColor('#ff0000', '#0000ff', 0.5)  // interpolate hex colors
+lerpColor('#ff0000', '#0000ff', 0.5)  // interpolate hex colors (6-digit hex only)
 rainbow(elapsed, speed)    // cycling hue based on time
 
 // Spatial grid
@@ -289,6 +288,7 @@ import { overlaps, overlapAll } from '@engine'
 
 if (overlaps(entityA, entityB)) { /* hit */ }
 const hits = overlapAll(bullet, engine.world.with('collider'))
+// Supports circle-circle, rect-rect, and circle-rect combinations
 ```
 
 ## Common Patterns
@@ -352,3 +352,4 @@ engine.isPaused  // boolean
 - **Don't mutate the world during iteration** without collecting first.
 - **Don't store game state in React** — store it on entities or in the zustand store.
 - **Don't add built-in systems manually** — `_parent`, `_physics`, `_tween`, `_animation` are auto-registered.
+- **Don't manually integrate velocity** — `_physics` does `position += velocity * dt` automatically. Writing your own movement system causes double-speed.
