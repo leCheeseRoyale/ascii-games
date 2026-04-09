@@ -121,7 +121,12 @@ export class AsciiRenderer {
       particles.render(ctx);
     }
 
-    // 6. Restore
+    // 6. Debug overlay (colliders, velocity arrows, position dots)
+    if (config.debug) {
+      this.renderDebug(world);
+    }
+
+    // 7. Restore
     ctx.restore();
   }
 
@@ -236,6 +241,54 @@ export class AsciiRenderer {
         ctx.fillText(lines[i].text, x, y + i * tb.lineHeight);
       }
     }
+    ctx.restore();
+  }
+
+  /** Draw debug overlays: collider outlines, velocity arrows, position dots. */
+  private renderDebug(world: GameWorld): void {
+    const { ctx } = this;
+    ctx.save();
+
+    // --- Collider outlines ---
+    ctx.strokeStyle = "#00ff00";
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.5;
+    for (const e of world.with("position", "collider")) {
+      const { x, y } = e.position;
+      const { type, width, height } = e.collider;
+      if (type === "circle") {
+        ctx.beginPath();
+        ctx.arc(x, y, width / 2, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        ctx.strokeRect(x - width / 2, y - height / 2, width, height);
+      }
+    }
+
+    // --- Velocity arrows ---
+    ctx.strokeStyle = "#ffff00";
+    ctx.globalAlpha = 0.4;
+    for (const e of world.with("position", "velocity")) {
+      const { vx, vy } = e.velocity;
+      if (vx === 0 && vy === 0) continue;
+      const { x, y } = e.position;
+      const ex = x + vx * 0.1;
+      const ey = y + vy * 0.1;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+    }
+
+    // --- Entity position dots ---
+    ctx.fillStyle = "#ff00ff";
+    ctx.globalAlpha = 0.3;
+    for (const e of world.with("position")) {
+      ctx.beginPath();
+      ctx.arc(e.position.x, e.position.y, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     ctx.restore();
   }
 }

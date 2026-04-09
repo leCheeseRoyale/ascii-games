@@ -16,10 +16,13 @@ import { events } from "@shared/events";
 import type { AnimationFrame, EngineConfig, Entity, GameTime, TweenEntry } from "@shared/types";
 import { DEFAULT_CONFIG } from "@shared/types";
 import { animationSystem } from "../ecs/animation-system";
+import { emitterSystem } from "../ecs/emitter-system";
 import { parentSystem } from "../ecs/parent-system";
+import { stateMachineSystem } from "../ecs/state-machine-system";
 import { type System, SystemRunner } from "../ecs/systems";
 import { tweenSystem } from "../ecs/tween-system";
 import { createWorld, type GameWorld } from "../ecs/world";
+import { Gamepad } from "../input/gamepad";
 import { Keyboard } from "../input/keyboard";
 import { Mouse } from "../input/mouse";
 import { physicsSystem } from "../physics/physics-system";
@@ -42,6 +45,7 @@ export class Engine {
   readonly camera: Camera;
   readonly keyboard: Keyboard;
   readonly mouse: Mouse;
+  readonly gamepad: Gamepad;
   readonly particles: ParticlePool;
   readonly scheduler: Scheduler;
   readonly transition: Transition;
@@ -75,6 +79,7 @@ export class Engine {
     this.camera = new Camera();
     this.keyboard = new Keyboard();
     this.mouse = new Mouse(canvas);
+    this.gamepad = new Gamepad();
     this.particles = new ParticlePool();
     this.scheduler = new Scheduler();
     this.transition = new Transition();
@@ -106,6 +111,39 @@ export class Engine {
 
   destroy(entity: Entity): void {
     this.world.remove(entity);
+  }
+
+  /** Find first entity with the given tag. */
+  findByTag(tag: string): Entity | undefined {
+    for (const e of this.world.with("tags")) {
+      if (e.tags.values.has(tag)) return e as Entity;
+    }
+    return undefined;
+  }
+
+  /** Find all entities with the given tag. */
+  findAllByTag(tag: string): Entity[] {
+    const result: Entity[] = [];
+    for (const e of this.world.with("tags")) {
+      if (e.tags.values.has(tag)) result.push(e as Entity);
+    }
+    return result;
+  }
+
+  /** Spawn floating text that rises and fades out, then self-destructs. */
+  floatingText(
+    x: number,
+    y: number,
+    text: string,
+    color = "#ffffff",
+    font = '16px "Fira Code", monospace',
+  ): void {
+    const entity = this.spawn({
+      position: { x, y },
+      ascii: { char: text, font, color, opacity: 1 },
+    });
+    this.tweenEntity(entity, "position.y", y, y - 40, 0.8, "easeOut");
+    this.tweenEntity(entity, "ascii.opacity", 1, 0, 0.8, "linear", true);
   }
 
   // ── Tween helper ──────────────────────────────────────────────
@@ -284,6 +322,8 @@ export class Engine {
         this.systems.add(physicsSystem, this);
         this.systems.add(tweenSystem, this);
         this.systems.add(animationSystem, this);
+        this.systems.add(emitterSystem, this);
+        this.systems.add(stateMachineSystem, this);
         events.emit("scene:loaded", name);
       });
     } else {
@@ -313,6 +353,7 @@ export class Engine {
     this.scheduler.clear();
     this.keyboard.destroy();
     this.mouse.destroy();
+    this.gamepad.destroy();
     if (this._onResize) {
       window.removeEventListener("resize", this._onResize);
     }
@@ -338,6 +379,7 @@ export class Engine {
   private update(dt: number): void {
     this.keyboard.update();
     this.mouse.update();
+    this.gamepad.update();
     this.systems.update(this, dt); // includes tweenSystem
     this.scenes.update(this, dt);
     this.scheduler.update(dt);

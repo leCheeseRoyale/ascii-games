@@ -29,6 +29,8 @@ export type {
   Player,
   Position,
   Sprite,
+  StateMachine,
+  StateMachineState,
   Tags,
   TextBlock,
   Tween,
@@ -37,17 +39,21 @@ export type {
 } from "@shared/types";
 export { DEFAULT_CONFIG } from "@shared/types";
 // Audio
-export { beep, sfx } from "./audio/audio";
+export { audio, beep, sfx } from "./audio/audio";
 // Core
 export { Engine } from "./core/engine";
 export { GameLoop } from "./core/game-loop";
 export { defineScene, type Scene, SceneManager } from "./core/scene";
 export { animationSystem } from "./ecs/animation-system";
+export { emitterSystem } from "./ecs/emitter-system";
 export { parentSystem } from "./ecs/parent-system";
+export { stateMachineSystem } from "./ecs/state-machine-system";
+export { transition } from "./ecs/state-machine-system";
 export { defineSystem, type System, SystemRunner } from "./ecs/systems";
 // ECS
 export { createWorld, type GameEntity, type GameWorld } from "./ecs/world";
 // Input
+export { Gamepad, GAMEPAD_BUTTONS } from "./input/gamepad";
 export { Keyboard } from "./input/keyboard";
 export { Mouse } from "./input/mouse";
 // Physics

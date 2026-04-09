@@ -160,6 +160,24 @@ export interface Animation {
   onComplete?: "destroy" | "stop";
 }
 
+export interface StateMachineState {
+  /** Called once when entering this state */
+  enter?: (entity: Partial<Entity>, engine: any) => void;
+  /** Called every frame while in this state */
+  update?: (entity: Partial<Entity>, engine: any, dt: number) => void;
+  /** Called once when leaving this state */
+  exit?: (entity: Partial<Entity>, engine: any) => void;
+}
+
+export interface StateMachine {
+  /** Current state name */
+  current: string;
+  /** Map of state name → state definition */
+  states: Record<string, StateMachineState>;
+  /** Set by game code to trigger a transition. System processes and clears it. */
+  next?: string;
+}
+
 /** Declarative animation. Engine auto-processes and removes when done. */
 export interface Tween {
   tweens: TweenEntry[];
@@ -196,6 +214,7 @@ export interface Entity {
   tags: Tags;
   tween: Tween;
   animation: Animation;
+  stateMachine: StateMachine;
   image: ImageComponent;
   parent: Parent;
   child: Child;
