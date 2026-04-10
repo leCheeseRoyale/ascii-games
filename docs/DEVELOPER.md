@@ -20,7 +20,11 @@ Read this first. Everything you need is here.
 11. [Creating a New Game](#11-creating-a-new-game)
 12. [Patterns & Recipes](#12-patterns--recipes)
 13. [Extending the Engine](#13-extending-the-engine)
-14. [Troubleshooting](#14-troubleshooting)
+14. [Persistence](#14-persistence)
+15. [Debug Overlay](#15-debug-overlay)
+16. [Toast System](#16-toast-system)
+17. [Color Palettes](#17-color-palettes)
+18. [Troubleshooting](#18-troubleshooting)
 
 ---
 
@@ -63,6 +67,11 @@ bun run gen:api              # Regenerate docs/API-generated.md from code
 bun run new:scene <name>     # e.g., bun run new:scene shop
 bun run new:system <name>    # e.g., bun run new:system gravity
 bun run new:entity <name>    # e.g., bun run new:entity enemy
+
+# Export & game management
+bun run export               # Bundle into a single HTML file
+bun run list:games           # List all available game templates
+bun run init:game <template> # Initialize from template (blank | asteroid-field | platformer)
 ```
 
 Open `http://localhost:5173` in your browser after `bun dev`.
@@ -131,7 +140,9 @@ ascii-game-engine/
 │   │   ├── systems.ts                 System interface + SystemRunner
 │   │   ├── animation-system.ts        Built-in _animation system
 │   │   ├── parent-system.ts           Built-in _parent system
-│   │   └── tween-system.ts            Built-in _tween system
+│   │   ├── tween-system.ts            Built-in _tween system
+│   │   ├── lifetime-system.ts         Built-in _lifetime system
+│   │   └── screen-bounds-system.ts    Built-in _screenBounds system
 │   ├── render/
 │   │   ├── ascii-renderer.ts          Canvas 2D text renderer (auto-renders entities)
 │   │   ├── text-layout.ts             Pretext integration with caching
@@ -166,8 +177,7 @@ ascii-game-engine/
 │   │   ├── player-input.ts
 │   │   ├── movement.ts
 │   │   ├── asteroid-spawner.ts
-│   │   ├── collision.ts
-│   │   └── lifetime.ts
+│   │   └── collision.ts
 │   └── entities/                      Entity factory functions
 │       ├── player.ts
 │       ├── asteroid.ts
@@ -343,11 +353,13 @@ engine.world.remove(entity)
 
 ```typescript
 const toRemove: Entity[] = []
-for (const e of engine.world.with('lifetime')) {
-  if (e.lifetime.remaining <= 0) toRemove.push(e)
+for (const e of engine.world.with('health')) {
+  if (e.health.current <= 0) toRemove.push(e)
 }
 for (const e of toRemove) engine.destroy(e)
 ```
+
+**Note**: Lifetime-based removal is handled automatically by the built-in `_lifetime` system. You do not need to write manual lifetime cleanup code.
 
 ### 4c. Scenes
 
@@ -444,14 +456,26 @@ export const enemyAISystem = defineSystem({
 Systems run in the order you add them. This matters!
 
 ```typescript
-// In scene setup (built-in _physics handles velocity→position automatically):
+// In scene setup (built-in systems handle velocity, lifetime, and screen bounds automatically):
 engine.addSystem(playerInputSystem)       // 1. Read input, set velocities
 engine.addSystem(asteroidSpawnerSystem)   // 2. Spawn new asteroids
 engine.addSystem(collisionSystem)         // 3. Check collisions, destroy entities
-engine.addSystem(lifetimeSystem)          // 4. Expire timed entities
 ```
 
-Input → Spawning → Collision → Cleanup is a good default order. Velocity integration is handled by the built-in `_physics` system — do NOT write a custom system for that.
+Input → Spawning → Collision is a good default order. Velocity integration is handled by the built-in `_physics` system — do NOT write a custom system for that. Lifetime expiration is handled by the built-in `_lifetime` system — do NOT write a manual lifetime system.
+
+#### Built-in Systems (auto-registered)
+
+The following systems are automatically registered on every scene load. Do **not** add them manually:
+
+| System | Purpose |
+|--------|---------|
+| `_parent` | Hierarchical transforms (parent/child offsets) |
+| `_physics` | Velocity integration, gravity, friction, drag |
+| `_tween` | Property tweening (via `engine.tweenEntity()`) |
+| `_animation` | Frame-based animation (via `engine.playAnimation()`) |
+| `_lifetime` | Auto-destroys entities when `lifetime.remaining` reaches 0 |
+| `_screenBounds` | Handles `screenWrap`, `screenClamp`, and `offScreenDestroy` components |
 
 #### Accessing Engine
 
@@ -462,8 +486,16 @@ Every system receives the full `engine` object, giving access to:
 - `engine.renderer` — canvas context
 - `engine.time` — frame timing
 - `engine.width` / `engine.height` — canvas dimensions
+- `engine.centerX` / `engine.centerY` — center of the canvas (shorthand for `width/2`, `height/2`)
+- `engine.sceneTime` — seconds elapsed since the current scene loaded (resets on scene change)
 - `engine.spawn()` / `engine.destroy()` — entity helpers
+- `engine.findByTag(tag)` — returns the first entity with the given tag, or `undefined`
+- `engine.destroyAll(tag)` — destroys all entities with the given tag
+- `engine.randomEdgePosition(margin?)` — returns a random `{x, y}` on the screen edge (useful for off-screen spawning)
+- `engine.spawnEvery(seconds, factory)` — spawns entities from a factory on a repeating interval
 - `engine.loadScene()` — scene transitions
+- `engine.toast` — toast notification system
+- `engine.debug` — debug overlay controls
 
 ### 4e. Entity Factories
 
@@ -814,6 +846,37 @@ sfx.pickup()   // item collected
 sfx.explode()  // explosion
 sfx.menu()     // menu blip
 sfx.death()    // death sound
+
+// Custom ZzFX sound — pass raw ZzFX parameters
+sfx.custom(...params)
+```
+
+### Music
+
+Play looping background music from an audio file:
+
+```typescript
+import { playMusic, stopMusic, pauseMusic, resumeMusic } from '@engine'
+
+playMusic('assets/theme.mp3')                          // Play with defaults
+playMusic('assets/theme.mp3', { volume: 0.5, loop: true })  // With options
+pauseMusic()   // Pause current track
+resumeMusic()  // Resume from where it paused
+stopMusic()    // Stop and unload
+```
+
+### Volume & Mute
+
+Global volume controls for both SFX and music:
+
+```typescript
+import { setVolume, setMusicVolume, mute, unmute, toggleMute } from '@engine'
+
+setVolume(0.8)        // Master SFX volume (0-1)
+setMusicVolume(0.5)   // Music volume (0-1)
+mute()                // Mute all audio
+unmute()              // Restore audio
+toggleMute()          // Toggle mute state
 ```
 
 ### Audio Context
@@ -1092,7 +1155,18 @@ Useful for centering text blocks or sizing UI panels.
 
 ## 11. Creating a New Game
 
-### 11a. Scaffolding Scripts
+### 11a. Game Templates
+
+Initialize a new game from a template:
+
+```bash
+bun run init:game blank           # Empty starting point
+bun run init:game asteroid-field  # Classic asteroid shooter
+bun run init:game platformer      # Side-scrolling platformer
+bun run list:games                # See all available templates
+```
+
+### 11b. Scaffolding Scripts
 
 ```bash
 # Create a new scene file
@@ -1110,7 +1184,7 @@ bun run new:entity enemy
 
 Each generates a template with the correct imports and patterns.
 
-### 11b. Step-by-Step: Your First Scene, System, Entity
+### 11c. Step-by-Step: Your First Scene, System, Entity
 
 Let's build a simple "catch the coins" game.
 
@@ -1223,7 +1297,7 @@ export const coinsScene = defineScene({
 })
 ```
 
-### 11c. Wiring It Together
+### 11d. Wiring It Together
 
 Edit `game/index.ts`:
 
@@ -1243,7 +1317,7 @@ export function setupGame(engine: Engine): string {
 
 Update the title scene to load 'coins' instead of 'play' on Space press.
 
-### 11d. Common Patterns with Code Examples
+### 11e. Common Patterns with Code Examples
 
 **Spawning with a timer:**
 ```typescript
@@ -1277,12 +1351,47 @@ export const GAME = {
 
 ## 12. Patterns & Recipes
 
-### 12a. Screen Wrapping
+### 12a. Screen Wrapping / Clamping / Off-Screen Destroy
 
-Entities teleport to the opposite edge when they leave the screen.
+The built-in `_screenBounds` system handles common screen-edge behaviors via components. No manual system needed.
+
+**Screen wrap** — entities teleport to the opposite edge:
 
 ```typescript
-// In a system update:
+engine.spawn({
+  position: { x: 400, y: 300 },
+  velocity: { vx: 200, vy: 0 },
+  screenWrap: true,   // handled automatically by _screenBounds
+  ascii: { char: '*', font: FONTS.normal, color: '#fff' },
+})
+```
+
+**Screen clamp** — entities are constrained to stay within bounds:
+
+```typescript
+engine.spawn({
+  position: { x: 400, y: 300 },
+  velocity: { vx: 0, vy: 0 },
+  screenClamp: true,  // prevents leaving the canvas area
+  ascii: { char: '@', font: FONTS.large, color: '#00ff88' },
+})
+```
+
+**Off-screen destroy** — entities are automatically removed when they leave bounds:
+
+```typescript
+engine.spawn({
+  position: { x: 400, y: 0 },
+  velocity: { vx: 0, vy: -200 },
+  offScreenDestroy: true,  // destroyed when fully off-screen
+  ascii: { char: '|', font: FONTS.normal, color: '#ff0' },
+})
+```
+
+For custom wrapping logic, you can still do it manually in a system:
+
+```typescript
+// Manual approach (if you need custom margins or behavior):
 const margin = 20
 const w = engine.width
 const h = engine.height
@@ -1294,8 +1403,6 @@ for (const e of engine.world.with('position', 'velocity', 'player')) {
   if (e.position.y > h + margin) e.position.y = -margin
 }
 ```
-
-See: `game/systems/player-input.ts`
 
 ### 12b. Difficulty Ramping
 
@@ -1592,7 +1699,120 @@ ctx.fillRect(0, 0, w, h)
 
 ---
 
-## 14. Troubleshooting
+## 14. Persistence
+
+Save and load game data using localStorage with automatic JSON serialization.
+
+### Basic Save/Load
+
+```typescript
+import { save, load, remove, setStoragePrefix } from '@engine'
+
+// Optional: set a prefix to namespace your game's storage keys
+setStoragePrefix('my-game')
+
+// Save data (serialized to JSON)
+save('settings', { volume: 0.8, difficulty: 'hard' })
+save('unlocked-levels', [1, 2, 3])
+
+// Load data (returns undefined if key doesn't exist)
+const settings = load<{ volume: number; difficulty: string }>('settings')
+
+// Remove a key
+remove('settings')
+```
+
+### High Scores
+
+Built-in high score management:
+
+```typescript
+import { submitScore, getHighScores, getTopScore, isHighScore, clearHighScores } from '@engine'
+
+// Submit a score (optionally with a name)
+submitScore(1500, 'Player1')
+submitScore(2300)
+
+// Check if a score qualifies as a high score
+if (isHighScore(currentScore)) {
+  // Show name entry UI
+}
+
+// Retrieve scores
+const top10 = getHighScores(10)     // sorted descending, max 10 entries
+const best = getTopScore()          // single highest score
+clearHighScores()                   // reset the leaderboard
+```
+
+---
+
+## 15. Debug Overlay
+
+The engine includes a built-in debug overlay toggled with the backtick key (`` ` ``).
+
+```typescript
+engine.debug.enabled        // boolean — whether the overlay is currently visible
+engine.debug.showError(msg) // display an error message in the overlay
+```
+
+When enabled, the overlay displays:
+- FPS counter and entity count
+- Collider outlines for all entities with a `collider` component
+- System execution times
+
+Toggle programmatically or let the player toggle with the backtick key during development.
+
+---
+
+## 16. Toast System
+
+Display temporary floating messages on the canvas (damage numbers, pickup notifications, status text).
+
+```typescript
+// Centered toast (appears at top-center of screen, fades out)
+engine.toast.show('Wave 3!', { color: '#ffaa00', duration: 2.0 })
+
+// Positional toast (appears at a specific world position)
+engine.toast.showAt('+100', entity.position.x, entity.position.y, {
+  color: '#00ff88',
+  duration: 1.0,
+})
+```
+
+Toasts are managed by the engine and rendered automatically. No system registration needed.
+
+---
+
+## 17. Color Palettes
+
+The `PALETTES` constant provides curated color sets for quick theming:
+
+```typescript
+import { PALETTES } from '@engine'
+
+PALETTES.retro       // warm CRT-era colors
+PALETTES.neon        // bright cyberpunk colors
+PALETTES.pastel      // soft muted tones
+PALETTES.forest      // greens and earth tones
+PALETTES.ocean       // blues and teals
+PALETTES.monochrome  // grayscale shades
+```
+
+Each palette is an array of hex color strings. Use with `pick()` for random variety:
+
+```typescript
+import { pick, PALETTES } from '@engine'
+
+const color = pick(PALETTES.neon)
+engine.spawn({
+  position: { x: 100, y: 100 },
+  ascii: { char: '*', font: FONTS.normal, color },
+})
+```
+
+---
+
+## 18. Troubleshooting
 
 ### Entity Not Appearing
 
@@ -1754,8 +1974,15 @@ update(engine, dt) {
 | `engine.time` | `{ dt, elapsed, frame, fps }` |
 | `engine.width` | Canvas width (pixels) |
 | `engine.height` | Canvas height (pixels) |
+| `engine.centerX` | Canvas center X (`width / 2`) |
+| `engine.centerY` | Canvas center Y (`height / 2`) |
+| `engine.sceneTime` | Seconds since current scene loaded |
 | `engine.spawn(components)` | Add entity to world |
 | `engine.destroy(entity)` | Remove entity from world |
+| `engine.findByTag(tag)` | First entity with tag, or `undefined` |
+| `engine.destroyAll(tag)` | Destroy all entities with a given tag |
+| `engine.randomEdgePosition(margin?)` | Random `{x, y}` on screen edge |
+| `engine.spawnEvery(seconds, factory)` | Spawn from factory on interval |
 | `engine.addSystem(system)` | Add system to update loop |
 | `engine.removeSystem(name)` | Remove system by name |
 | `engine.registerScene(scene)` | Register a scene |
@@ -1765,6 +1992,10 @@ update(engine, dt) {
 | `engine.pause()` | Pause updates (render continues) |
 | `engine.resume()` | Resume from pause |
 | `engine.isPaused` | Is engine paused? |
+| `engine.toast.show(text, opts?)` | Show a centered toast message |
+| `engine.toast.showAt(text, x, y, opts?)` | Show a toast at a world position |
+| `engine.debug.enabled` | Whether debug overlay is active |
+| `engine.debug.showError(msg)` | Display error in debug overlay |
 
 ### Utility Functions
 
@@ -1795,6 +2026,26 @@ hsl(h, s, l)             → CSS string
 hsla(h, s, l, a)         → CSS string
 rainbow(elapsed, speed?, s?, l?)  → CSS string (cycling hue)
 lerpColor(hexA, hexB, t) → hex string
+
+// Audio
+playMusic(src, opts?)    → play background music
+stopMusic()              → stop music
+pauseMusic()             → pause music
+resumeMusic()            → resume music
+setVolume(v)             → set master SFX volume (0-1)
+setMusicVolume(v)        → set music volume (0-1)
+mute() / unmute() / toggleMute()
+
+// Persistence
+save(key, data)          → save to localStorage (JSON)
+load<T>(key)             → load from localStorage (or undefined)
+remove(key)              → delete a key
+setStoragePrefix(id)     → namespace all storage keys
+submitScore(score, name?) → add to high scores
+getHighScores(max?)      → sorted score list
+getTopScore()            → single highest score
+isHighScore(score)       → does it qualify?
+clearHighScores()        → reset leaderboard
 ```
 
 ### Constants
@@ -1816,4 +2067,11 @@ FONTS.huge      // '48px "Fira Code", monospace'
 FONTS.small     // '12px "Fira Code", monospace'
 FONTS.bold      // '700 16px "Fira Code", monospace'
 FONTS.boldLarge // '700 24px "Fira Code", monospace'
+
+PALETTES.retro       // warm CRT-era colors
+PALETTES.neon        // bright cyberpunk colors
+PALETTES.pastel      // soft muted tones
+PALETTES.forest      // greens and earth tones
+PALETTES.ocean       // blues and teals
+PALETTES.monochrome  // grayscale shades
 ```

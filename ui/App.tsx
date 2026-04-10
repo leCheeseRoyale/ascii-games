@@ -1,12 +1,10 @@
 import { useStore } from "@ui/store";
 import { GameCanvas } from "./GameCanvas";
-import { HUD } from "./hud/HUD";
-import { GameOverScreen } from "./screens/GameOverScreen";
-import { MainMenu } from "./screens/MainMenu";
-import { PauseMenu } from "./screens/PauseMenu";
+import { getScreen } from "./screen-registry";
 
 export function App() {
   const screen = useStore((s) => s.screen);
+  const ScreenComponent = getScreen(screen);
 
   return (
     <div
@@ -19,16 +17,8 @@ export function App() {
     >
       <GameCanvas />
 
-      {/* Screen overlays */}
-      {screen === "menu" && <MainMenu />}
-      {screen === "playing" && <HUD debug />}
-      {screen === "paused" && (
-        <>
-          <HUD />
-          <PauseMenu />
-        </>
-      )}
-      {screen === "gameOver" && <GameOverScreen />}
+      {/* Screen overlay from registry */}
+      {ScreenComponent && <ScreenComponent />}
     </div>
   );
 }

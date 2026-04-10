@@ -50,4 +50,102 @@ export const sfx = {
   explode: () => zzfx(vol(0.2), 0.1, 110, 0.01, 0.3, 0, 4, 0, 3),
   menu: () => zzfx(vol(0.1), 0.05, 520, 0.01, 0.06, 0, 0, 0, 0),
   death: () => zzfx(vol(0.2), 0.1, 200, 0.05, 0.4, 0, 4, 2, 5),
+
+  /** Play a custom ZzFX sound. Pass raw zzfx parameters. */
+  custom: (...params: number[]) => {
+    if (params.length > 0) {
+      params[0] = vol(params[0] ?? 0.15);
+    }
+    zzfx(...params);
+  },
 };
+
+// ---------------------------------------------------------------------------
+// Volume & mute control
+// ---------------------------------------------------------------------------
+
+/** Set master volume (0 to 1). Affects all SFX and music. */
+export function setVolume(v: number): void {
+  masterVolume = Math.max(0, Math.min(1, v));
+}
+
+/** Get current master volume. */
+export function getVolume(): number {
+  return masterVolume;
+}
+
+/** Mute all audio. */
+export function mute(): void {
+  muted = true;
+  if (currentMusic) currentMusic.volume = 0;
+}
+
+/** Unmute all audio. */
+export function unmute(): void {
+  muted = false;
+  if (currentMusic) currentMusic.volume = musicVolume * masterVolume;
+}
+
+/** Toggle mute state. Returns new muted state. */
+export function toggleMute(): boolean {
+  if (muted) unmute();
+  else mute();
+  return muted;
+}
+
+/** Check if audio is muted. */
+export function isMuted(): boolean {
+  return muted;
+}
+
+// ---------------------------------------------------------------------------
+// Music playback
+// ---------------------------------------------------------------------------
+
+let currentMusic: HTMLAudioElement | null = null;
+let musicVolume = 0.3;
+
+/** Play background music from a URL. Loops by default. */
+export function playMusic(src: string, opts: { volume?: number; loop?: boolean } = {}): void {
+  stopMusic();
+  const audio = new Audio(src);
+  audio.loop = opts.loop ?? true;
+  musicVolume = opts.volume ?? 0.3;
+  audio.volume = muted ? 0 : musicVolume * masterVolume;
+  audio.play().catch(() => {
+    // Autoplay blocked — retry on first user interaction
+    const resume = () => {
+      audio.play().catch(() => {});
+      document.removeEventListener("click", resume);
+      document.removeEventListener("keydown", resume);
+    };
+    document.addEventListener("click", resume, { once: true });
+    document.addEventListener("keydown", resume, { once: true });
+  });
+  currentMusic = audio;
+}
+
+/** Stop current background music. */
+export function stopMusic(): void {
+  if (currentMusic) {
+    currentMusic.pause();
+    currentMusic.src = "";
+    currentMusic = null;
+  }
+}
+
+/** Pause current background music. */
+export function pauseMusic(): void {
+  if (currentMusic) currentMusic.pause();
+}
+
+/** Resume paused background music. */
+export function resumeMusic(): void {
+  if (currentMusic) currentMusic.play().catch(() => {});
+}
+
+/** Set music volume independently (0 to 1). */
+export function setMusicVolume(v: number): void {
+  musicVolume = Math.max(0, Math.min(1, v));
+  if (currentMusic) currentMusic.volume = muted ? 0 : musicVolume * masterVolume;
+}

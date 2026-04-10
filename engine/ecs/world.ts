@@ -18,4 +18,4 @@ export function createWorld() {
 }
 
 export type GameWorld = ReturnType<typeof createWorld>;
-export type GameEntity = Entity;
+export type WorldEntity = Entity;

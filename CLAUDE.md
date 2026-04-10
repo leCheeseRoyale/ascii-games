@@ -13,7 +13,9 @@ bun run gen:api  # Regenerate docs/API-generated.md from code
 bun run new:scene <name>   # Scaffold a scene
 bun run new:system <name>  # Scaffold a system
 bun run new:entity <name>  # Scaffold an entity factory
-bun run init:game <blank|asteroid-field>  # Initialize game from template
+bun run init:game <blank|asteroid-field|platformer>  # Initialize game from template
+bun run export         # Build single-file HTML (dist/game.html)
+bun run list:games     # List available game templates
 ```
 
 ## Architecture
@@ -32,8 +34,8 @@ docs/     — API reference (API-generated.md is auto-generated).
 ## ECS (Entity Component System)
 
 - **World**: miniplex `World<Entity>`. Access via `engine.world`.
-- **Entity**: plain object with optional components (`position`, `velocity`, `acceleration`, `ascii`, `sprite`, `textBlock`, `collider`, `health`, `lifetime`, `physics`, `tween`, `animation`, `image`, `parent`, `child`, `emitter`, `tags`).
-- **Built-in systems**: `_parent`, `_physics`, `_tween`, `_animation` — auto-registered on every scene load. Do not add them manually. `_physics` handles velocity→position integration, so do NOT write a custom movement system that does `position += velocity * dt`.
+- **Entity**: plain object with optional components (`position`, `velocity`, `acceleration`, `ascii`, `sprite`, `textBlock`, `collider`, `health`, `lifetime`, `physics`, `tween`, `animation`, `image`, `parent`, `child`, `emitter`, `tags`, `screenWrap`, `screenClamp`, `offScreenDestroy`).
+- **Built-in systems**: `_parent`, `_physics`, `_tween`, `_animation`, `_lifetime`, `_screenBounds` — auto-registered on every scene load. Do not add them manually. `_physics` handles velocity→position integration, so do NOT write a custom movement system that does `position += velocity * dt`. `_lifetime` counts down `lifetime.remaining` and destroys at 0. `_screenBounds` handles `screenWrap`, `screenClamp`, and `offScreenDestroy` components.
 - **Components**: plain TypeScript objects — no classes, no decorators.
 - **Systems**: functions that receive `(engine: Engine, dt: number)` and iterate over entities.
 
@@ -52,6 +54,9 @@ Lifetime:       { remaining: number }
 Physics:        { gravity?: number, friction?: number, drag?: number, bounce?: number, maxSpeed?: number, mass?: number, grounded?: boolean }
 Tags:           { values: Set<string> }
 ImageComponent: { image: HTMLImageElement, width: number, height: number, opacity?: number, layer?: number, anchor?: 'center' | 'topLeft', rotation?: number, tint?: string }
+ScreenWrap:     { margin?: number }       // auto-wrap at screen edges
+ScreenClamp:    { padding?: number }      // keep entity on screen
+OffScreenDestroy: { margin?: number }     // destroy when off screen
 ```
 
 ### Querying entities
@@ -62,8 +67,8 @@ for (const e of engine.world.with('position', 'velocity')) {
   e.position.x += e.velocity.vx * dt
 }
 
-// First entity matching a tag
-const player = engine.world.with('position', 'tags').where(e => e.tags.values.has('player')).first
+// First entity matching a tag (shorthand)
+const player = engine.findByTag('player')
 
 // Without a component
 for (const e of engine.world.with('position').without('velocity')) { ... }
@@ -82,6 +87,9 @@ engine.spawn({
 
 // Remove
 engine.destroy(entity)
+
+// Remove all entities with a tag
+engine.destroyAll('enemy')  // returns count of destroyed entities
 
 // Remove entity and all children
 engine.destroyWithChildren(entity)
@@ -201,10 +209,21 @@ engine.mouse.justDown                 // true on frame mouse was pressed
 engine.mouse.justUp                   // true on frame mouse was released
 ```
 
+## Engine Properties
+
+```ts
+engine.width / engine.height       // canvas dimensions
+engine.centerX / engine.centerY    // half of width/height
+engine.sceneTime                   // seconds since current scene loaded (resets on scene change)
+engine.debug                       // DebugOverlay instance (toggle with backtick key)
+engine.toast                       // ToastManager instance
+engine.isPaused                    // boolean
+```
+
 ## Utilities (from @engine)
 
 ```ts
-import { rng, rngInt, pick, chance, clamp, lerp, vec2, dist, Cooldown, sfx, COLORS, FONTS } from '@engine'
+import { rng, rngInt, pick, chance, clamp, lerp, vec2, dist, Cooldown, sfx, COLORS, FONTS, PALETTES } from '@engine'
 
 // Random
 rng(0, 1)          // random float in [min, max)
@@ -223,6 +242,10 @@ engine.after(1.0, () => { /* runs once after 1s */ })
 engine.every(0.5, () => { /* runs every 0.5s */ })
 engine.sequence([{ delay: 1, fn: step1 }, { delay: 2, fn: step2 }]) // delays are cumulative: step2 fires at t=3
 engine.cancelTimer(id) // cancel a timer or entire sequence
+engine.spawnEvery(1.0, () => createEnemy(rng(0, 800), -20))  // spawn on repeating timer, returns cancel ID
+
+// Spawn helpers
+engine.randomEdgePosition(margin?)  // returns { x, y, edge } just off a random screen edge
 
 // Cooldown (for fire rates, spawn timers, etc.)
 const cd = new Cooldown(0.5)
@@ -254,12 +277,26 @@ sfx.pickup()   // item pickup
 sfx.explode()  // explosion
 sfx.menu()     // menu blip
 sfx.death()    // death sound
+sfx.custom(0.15, 0.05, 880, 0.05, 0.02, 0, 1, 0, 0)  // raw ZzFX params
+
+// Music & volume control
+import { playMusic, stopMusic, pauseMusic, resumeMusic, setVolume, setMusicVolume, mute, unmute, toggleMute } from '@engine'
+playMusic('/music.mp3')                    // loop background music
+playMusic('/music.mp3', { volume: 0.5, loop: false })
+stopMusic() / pauseMusic() / resumeMusic()
+setVolume(0.5)       // master volume 0-1
+setMusicVolume(0.3)  // music volume 0-1
+mute() / unmute() / toggleMute()
 
 // Color utilities
 hsl(120, 80, 50)           // 'hsl(120,80%,50%)' CSS string
 hsla(120, 80, 50, 0.5)    // with alpha
 lerpColor('#ff0000', '#0000ff', 0.5)  // interpolate hex colors (6-digit hex only)
 rainbow(elapsed, speed)    // cycling hue based on time
+
+// Color palettes
+// PALETTES.retro, .neon, .pastel, .forest, .ocean, .monochrome
+// Each has: bg, fg, primary, secondary, accent, highlight
 
 // Spatial grid
 GridMap                    // tile-based grid with neighbor queries
@@ -296,6 +333,10 @@ const hits = overlapAll(bullet, engine.world.with('collider'))
 ### Spawn-on-timer
 
 ```ts
+// Simple — use engine.spawnEvery (preferred)
+const cancelId = engine.spawnEvery(1.0, () => createEnemy(rng(0, 800), -20))
+
+// Manual — use Cooldown
 const spawnTimer = new Cooldown(1.0)
 // in update:
 spawnTimer.update(dt)
@@ -323,16 +364,22 @@ engine.detachChild(childEntity)  // takes only the child
 engine.destroyWithChildren(parentEntity)
 ```
 
-### Screen-wrap
+### Screen-wrap / clamp / off-screen destroy
 
 ```ts
+// Preferred — use built-in components (handled by _screenBounds system)
+engine.spawn({ position: { x: 0, y: 0 }, screenWrap: { margin: 10 } })
+engine.spawn({ position: { x: 0, y: 0 }, screenClamp: { padding: 5 } })
+engine.spawn({ position: { x: 0, y: 0 }, offScreenDestroy: { margin: 50 } })
+
+// Manual fallback
 if (e.position.x < 0) e.position.x = engine.width
 if (e.position.x > engine.width) e.position.x = 0
 ```
 
 ### Lifetime cleanup
 
-Entities with `lifetime: { remaining: N }` must have a lifetime system registered in the scene to be auto-removed. The engine does NOT include a built-in lifetime system.
+Entities with `lifetime: { remaining: N }` are auto-removed by the built-in `_lifetime` system. No manual setup needed.
 
 ### Pause / Resume
 
@@ -340,6 +387,31 @@ Entities with `lifetime: { remaining: N }` must have a lifetime system registere
 engine.pause()
 engine.resume()
 engine.isPaused  // boolean
+```
+
+## Debug & Toast
+
+```ts
+// Debug overlay — press backtick (`) to toggle
+// Shows collider outlines, entity count, error banner
+
+// Toast notifications
+engine.toast.show('+100', { color: '#ffcc00' })           // centered floating text
+engine.toast.showAt('+100', entity.position.x, entity.position.y, { color: '#ff0' })  // at position
+```
+
+## Persistence
+
+```ts
+import { save, load, setStoragePrefix, submitScore, getHighScores, getTopScore } from '@engine'
+
+setStoragePrefix('my-game')        // scope storage keys (call once at init)
+save('checkpoint', { level: 3 })   // persist to localStorage
+const data = load<{level: number}>('checkpoint')  // retrieve
+
+submitScore(500, 'Player')         // add to persistent leaderboard
+const scores = getHighScores(10)   // top 10
+const best = getTopScore()         // highest score
 ```
 
 ## What NOT To Do
@@ -351,5 +423,5 @@ engine.isPaused  // boolean
 - **Don't use `setInterval`/`setTimeout` for game timing.** Use `Cooldown`, `engine.after()`, or `dt`.
 - **Don't mutate the world during iteration** without collecting first.
 - **Don't store game state in React** — store it on entities or in the zustand store.
-- **Don't add built-in systems manually** — `_parent`, `_physics`, `_tween`, `_animation` are auto-registered.
+- **Don't add built-in systems manually** — `_parent`, `_physics`, `_tween`, `_animation`, `_lifetime`, `_screenBounds` are auto-registered.
 - **Don't manually integrate velocity** — `_physics` does `position += velocity * dt` automatically. Writing your own movement system causes double-speed.

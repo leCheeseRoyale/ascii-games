@@ -2,13 +2,23 @@ import { Engine } from "@engine";
 import { setupGame } from "@game/index";
 import { COLORS } from "@shared/constants";
 import { events } from "@shared/events";
+import type { ComponentType } from "react";
 import { createContext, useContext, useEffect, useRef } from "react";
+import { setHUDComponents } from "./hud/hud-registry";
+import { registerScreen } from "./screen-registry";
 
 const EngineContext = createContext<React.MutableRefObject<Engine | null> | null>(null);
 
 export function useEngine(): Engine | null {
   const ref = useContext(EngineContext);
   return ref?.current ?? null;
+}
+
+/** Result type that setupGame may return instead of a plain string. */
+interface GameSetupResult {
+  startScene: string;
+  screens?: Record<string, ComponentType>;
+  hud?: ComponentType[];
 }
 
 export function GameCanvas({ children }: { children?: React.ReactNode }) {
@@ -23,7 +33,24 @@ export function GameCanvas({ children }: { children?: React.ReactNode }) {
     engineRef.current = engine;
 
     // Register scenes and get starting scene name
-    const firstScene = setupGame(engine);
+    const result = setupGame(engine) as string | GameSetupResult;
+
+    let firstScene: string;
+    if (typeof result === "string") {
+      firstScene = result;
+    } else {
+      firstScene = result.startScene;
+      // Register custom screens if provided
+      if (result.screens) {
+        for (const [name, component] of Object.entries(result.screens)) {
+          registerScreen(name, component);
+        }
+      }
+      // Replace HUD components if provided
+      if (result.hud) {
+        setHUDComponents(result.hud);
+      }
+    }
 
     // Listen for events from UI
     const onStart = () => {

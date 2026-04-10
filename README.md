@@ -20,6 +20,7 @@ Open `http://localhost:5173`. You're running.
 ```bash
 bun run init:game blank           # Minimal starter: title + play scenes
 bun run init:game asteroid-field  # Playable asteroid dodger
+bun run init:game platformer     # Side-scrolling platformer
 ```
 
 ## Project Structure
@@ -59,6 +60,13 @@ bun run new:entity asteroid    # → game/entities/asteroid.ts
 ```
 
 Each generates a complete, commented file ready to fill in.
+
+### Other Commands
+
+```bash
+bun run export       # Build single-file HTML (dist/game.html)
+bun run list:games   # List available game templates
+```
 
 ## Engine API
 
@@ -155,8 +163,11 @@ export function createBullet(x: number, y: number): Partial<Entity> {
 | `textBlock` | `{ text, font, color, align }` | Multi-line text block |
 | `collider` | `{ type, width, height }` | Collision shape |
 | `health` | `{ current, max }` | Hit points |
-| `lifetime` | `{ remaining }` | Auto-remove after N seconds |
+| `lifetime` | `{ remaining }` | Auto-remove after N seconds (handled by `_lifetime` system) |
 | `tags` | `{ [key]: boolean }` | Arbitrary flags |
+| `screenWrap` | `boolean` | Wrap entity to opposite edge when leaving screen |
+| `screenClamp` | `boolean` | Clamp entity position to screen bounds |
+| `offScreenDestroy` | `boolean` | Destroy entity when it leaves the screen |
 
 ### Input
 
@@ -177,6 +188,37 @@ const hits = overlapAll(bullet, engine.world.with('collider'))
 for (const hit of hits) engine.world.remove(hit)
 ```
 
+### Audio
+
+```ts
+import { sfx } from '@engine'
+
+sfx.shoot()              // Laser sound
+sfx.hit()                // Impact
+sfx.explode()            // Explosion
+sfx.pickup()             // Item pickup
+sfx.menu()               // Menu blip
+sfx.death()              // Death sound
+sfx.custom(...)          // Custom ZzFX parameters
+
+playMusic(src)           // Play background music from URL
+stopMusic()              // Stop background music
+setVolume(0.5)           // Set master volume (0–1)
+mute()                   // Mute all audio
+unmute()                 // Unmute all audio
+```
+
+### Built-in Systems
+
+The following systems are auto-registered on every scene load — do not add them manually:
+
+- `_physics` — velocity/acceleration integration, gravity, friction, drag
+- `_parent` — hierarchical transforms (parent/child positioning)
+- `_tween` — property tweening
+- `_animation` — frame-based animation
+- `_lifetime` — removes entities when `lifetime.remaining` expires
+- `_screenBounds` — handles `screenWrap`, `screenClamp`, and `offScreenDestroy` components
+
 ### Utilities
 
 ```ts
@@ -189,6 +231,15 @@ lerp(a, b, 0.5)   // Linear interpolation
 
 const cd = new Cooldown(0.5)  // Fire-rate limiter
 if (cd.ready(dt)) { shoot() }
+
+// Engine convenience helpers
+engine.centerX               // Canvas center X
+engine.centerY               // Canvas center Y
+engine.findByTag('enemy')    // Find first entity with tag
+engine.destroyAll('enemy')   // Destroy all entities with tag
+engine.sceneTime             // Seconds elapsed in current scene
+engine.randomEdgePosition()  // Random position on screen edge
+engine.spawnEvery(1.0, () => createEnemy())  // Spawn on interval
 ```
 
 ### React UI

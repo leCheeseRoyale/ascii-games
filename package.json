@@ -15,7 +15,9 @@
     "new:scene": "bun run scripts/new-scene.ts",
     "new:system": "bun run scripts/new-system.ts",
     "new:entity": "bun run scripts/new-entity.ts",
-    "init:game": "bun run scripts/init-game.ts"
+    "init:game": "bun run scripts/init-game.ts",
+    "list:games": "bun run scripts/list-games.ts",
+    "export": "bun run scripts/export.ts"
   },
   "dependencies": {
     "@chenglou/pretext": "^0.0.4",

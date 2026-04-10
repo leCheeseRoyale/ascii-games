@@ -17,7 +17,9 @@ import type { AnimationFrame, EngineConfig, Entity, GameTime, TweenEntry } from 
 import { DEFAULT_CONFIG } from "@shared/types";
 import { animationSystem } from "../ecs/animation-system";
 import { emitterSystem } from "../ecs/emitter-system";
+import { lifetimeSystem } from "../ecs/lifetime-system";
 import { parentSystem } from "../ecs/parent-system";
+import { screenBoundsSystem } from "../ecs/screen-bounds-system";
 import { stateMachineSystem } from "../ecs/state-machine-system";
 import { type System, SystemRunner } from "../ecs/systems";
 import { tweenSystem } from "../ecs/tween-system";
@@ -28,8 +30,10 @@ import { Mouse } from "../input/mouse";
 import { physicsSystem } from "../physics/physics-system";
 import { AsciiRenderer } from "../render/ascii-renderer";
 import { Camera } from "../render/camera";
+import { DebugOverlay } from "../render/debug";
 import { loadImage, preloadImages } from "../render/image-loader";
 import { ParticlePool } from "../render/particles";
+import { ToastManager } from "../render/toast";
 import { Transition, type TransitionType } from "../render/transitions";
 import { Scheduler } from "../utils/scheduler";
 import { GameLoop } from "./game-loop";
@@ -49,6 +53,8 @@ export class Engine {
   readonly particles: ParticlePool;
   readonly scheduler: Scheduler;
   readonly transition: Transition;
+  readonly debug: DebugOverlay;
+  readonly toast: ToastManager;
 
   get time(): GameTime {
     return {
@@ -66,9 +72,22 @@ export class Engine {
     return this.renderer.height;
   }
 
+  get centerX(): number {
+    return this.renderer.width / 2;
+  }
+  get centerY(): number {
+    return this.renderer.height / 2;
+  }
+
+  /** Seconds elapsed since the current scene loaded. Resets on scene change. */
+  get sceneTime(): number {
+    return this._sceneTime;
+  }
+
   // ── Private ───────────────────────────────────────────────────
   private loop: GameLoop;
   private _onResize: (() => void) | null = null;
+  private _sceneTime = 0;
 
   constructor(canvas: HTMLCanvasElement, config: Partial<EngineConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -83,6 +102,8 @@ export class Engine {
     this.particles = new ParticlePool();
     this.scheduler = new Scheduler();
     this.transition = new Transition();
+    this.debug = new DebugOverlay();
+    this.toast = new ToastManager();
 
     this.loop = new GameLoop(
       {
@@ -130,6 +151,18 @@ export class Engine {
     return result;
   }
 
+  /** Destroy all entities that have a given tag. */
+  destroyAll(tag: string): number {
+    const toRemove: Entity[] = [];
+    for (const e of this.world.with("tags")) {
+      if (e.tags.values.has(tag)) toRemove.push(e);
+    }
+    for (const e of toRemove) {
+      this.world.remove(e);
+    }
+    return toRemove.length;
+  }
+
   /** Spawn floating text that rises and fades out, then self-destructs. */
   floatingText(
     x: number,
@@ -144,6 +177,34 @@ export class Engine {
     });
     this.tweenEntity(entity, "position.y", y, y - 40, 0.8, "easeOut");
     this.tweenEntity(entity, "ascii.opacity", 1, 0, 0.8, "linear", true);
+  }
+
+  /** Get a random position just off a random screen edge. */
+  randomEdgePosition(margin = 30): {
+    x: number;
+    y: number;
+    edge: "top" | "right" | "bottom" | "left";
+  } {
+    const w = this.width;
+    const h = this.height;
+    const edge = Math.floor(Math.random() * 4);
+    switch (edge) {
+      case 0:
+        return { x: Math.random() * w, y: -margin, edge: "top" };
+      case 1:
+        return { x: w + margin, y: Math.random() * h, edge: "right" };
+      case 2:
+        return { x: Math.random() * w, y: h + margin, edge: "bottom" };
+      default:
+        return { x: -margin, y: Math.random() * h, edge: "left" };
+    }
+  }
+
+  /** Spawn entities on a repeating timer. Returns cancel ID. */
+  spawnEvery(seconds: number, factory: () => Partial<Entity>): number {
+    return this.scheduler.every(seconds, () => {
+      this.spawn(factory());
+    });
   }
 
   // ── Tween helper ──────────────────────────────────────────────
@@ -317,6 +378,7 @@ export class Engine {
       this.transition.start(async () => {
         this.scheduler.clear();
         this.particles.clear();
+        this._sceneTime = 0;
         await this.scenes.load(name, this);
         this.systems.add(parentSystem, this);
         this.systems.add(physicsSystem, this);
@@ -324,16 +386,21 @@ export class Engine {
         this.systems.add(animationSystem, this);
         this.systems.add(emitterSystem, this);
         this.systems.add(stateMachineSystem, this);
+        this.systems.add(lifetimeSystem, this);
+        this.systems.add(screenBoundsSystem, this);
         events.emit("scene:loaded", name);
       });
     } else {
       this.scheduler.clear();
       this.particles.clear();
+      this._sceneTime = 0;
       await this.scenes.load(name, this);
       this.systems.add(parentSystem, this);
       this.systems.add(physicsSystem, this);
       this.systems.add(tweenSystem, this);
       this.systems.add(animationSystem, this);
+      this.systems.add(lifetimeSystem, this);
+      this.systems.add(screenBoundsSystem, this);
       events.emit("scene:loaded", name);
     }
   }
@@ -377,15 +444,29 @@ export class Engine {
   // ── Frame lifecycle (private) ─────────────────────────────────
 
   private update(dt: number): void {
+    this._sceneTime += dt;
     this.keyboard.update();
     this.mouse.update();
     this.gamepad.update();
-    this.systems.update(this, dt); // includes tweenSystem
-    this.scenes.update(this, dt);
+
+    if (this.keyboard.pressed("Backquote")) {
+      this.debug.enabled = !this.debug.enabled;
+    }
+
+    try {
+      this.systems.update(this, dt); // includes tweenSystem
+      this.scenes.update(this, dt);
+    } catch (err: any) {
+      this.debug.showError(err?.message ?? String(err));
+      console.error("Game error:", err);
+    }
+
     this.scheduler.update(dt);
     this.particles.update(dt);
     this.transition.update(dt);
     this.camera.update(dt);
+    this.debug.update(dt);
+    this.toast.update(dt);
   }
 
   private render(): void {
@@ -394,5 +475,7 @@ export class Engine {
     if (this.transition.active) {
       this.transition.render(this.renderer.ctx, this.width, this.height);
     }
+    this.toast.render(this.renderer.ctx, this.width, this.height);
+    this.debug.render(this.renderer.ctx, this.world, this.camera, this.width, this.height);
   }
 }

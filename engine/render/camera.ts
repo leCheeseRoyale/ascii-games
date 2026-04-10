@@ -75,7 +75,7 @@ export class Camera {
   /** Call once per frame. */
   update(dt: number): void {
     // Frame-rate independent smoothing
-    const t = 1 - Math.pow(1 - this.smoothing, dt * 60);
+    const t = 1 - (1 - this.smoothing) ** (dt * 60);
 
     // Smooth pan
     this.x = lerp(this.x, this.targetX, t);
@@ -86,7 +86,7 @@ export class Camera {
     if (this.shakeMagnitude > 0.1) {
       this.shakeX = rng(-this.shakeMagnitude, this.shakeMagnitude);
       this.shakeY = rng(-this.shakeMagnitude, this.shakeMagnitude);
-      this.shakeMagnitude *= Math.pow(this.shakeDecay, dt * 60);
+      this.shakeMagnitude *= this.shakeDecay ** (dt * 60);
     } else {
       this.shakeX = 0;
       this.shakeY = 0;

@@ -1,12 +1,13 @@
 import { Debug } from "./Debug";
-import { HealthBar } from "./HealthBar";
-import { Score } from "./Score";
+import { getHUDComponents } from "./hud-registry";
 
 interface HUDProps {
   debug?: boolean;
 }
 
 export function HUD({ debug = false }: HUDProps) {
+  const components = getHUDComponents();
+
   return (
     <>
       <div
@@ -23,8 +24,9 @@ export function HUD({ debug = false }: HUDProps) {
           zIndex: 10,
         }}
       >
-        <Score />
-        <HealthBar />
+        {components.map((C) => (
+          <C key={C.displayName || C.name || C.toString()} />
+        ))}
       </div>
       {debug && <Debug />}
     </>

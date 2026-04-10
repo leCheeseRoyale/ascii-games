@@ -12,7 +12,7 @@
 
 import { create } from "zustand";
 
-export type GameScreen = "menu" | "playing" | "paused" | "gameOver";
+export type GameScreen = string;
 
 export interface GameStore {
   // ── Game state (written by game loop) ──
@@ -24,6 +24,11 @@ export interface GameStore {
   fps: number;
   entityCount: number;
   sceneName: string;
+
+  // ── Game extension point ──
+  gameState: Record<string, unknown>;
+  setGameState: (key: string, value: unknown) => void;
+  getGameState: <T>(key: string) => T | undefined;
 
   // ── Actions (called by game loop or UI) ──
   setScreen: (screen: GameScreen) => void;
@@ -43,10 +48,17 @@ const initialState = {
   fps: 0,
   entityCount: 0,
   sceneName: "",
+  gameState: {} as Record<string, unknown>,
 };
 
 export const useStore = create<GameStore>((set, get) => ({
   ...initialState,
+
+  setGameState: (key, value) =>
+    set((state) => ({
+      gameState: { ...state.gameState, [key]: value },
+    })),
+  getGameState: <T>(key: string) => get().gameState[key] as T | undefined,
 
   setScreen: (screen) => set({ screen }),
   setScore: (score) => {

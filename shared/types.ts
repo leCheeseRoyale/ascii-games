@@ -195,6 +195,24 @@ export interface TweenEntry {
   destroyOnComplete?: boolean;
 }
 
+/** Auto-wrap entity position when it goes off screen. */
+export interface ScreenWrap {
+  /** Extra margin before wrapping (default 0). */
+  margin?: number;
+}
+
+/** Clamp entity position to stay within screen bounds. */
+export interface ScreenClamp {
+  /** Padding from edge (default 0). */
+  padding?: number;
+}
+
+/** Auto-destroy entity when it leaves the screen. */
+export interface OffScreenDestroy {
+  /** Margin beyond screen edge before destroying (default 50). */
+  margin?: number;
+}
+
 // ── Entity: union of all components ──────────────────────────────
 
 export interface Entity {
@@ -218,7 +236,16 @@ export interface Entity {
   image: ImageComponent;
   parent: Parent;
   child: Child;
+  screenWrap: ScreenWrap;
+  screenClamp: ScreenClamp;
+  offScreenDestroy: OffScreenDestroy;
+
+  /** Game-specific custom components. Use this for any data not covered above. */
+  [key: string]: any;
 }
+
+/** Helper for games to define typed custom entities. */
+export type GameEntity<T extends Record<string, any> = {}> = Partial<Entity> & T;
 
 // ── Engine types ─────────────────────────────────────────────────
 
