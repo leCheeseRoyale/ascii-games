@@ -10,9 +10,22 @@
  *   - Never import React stuff in engine/ or game/
  */
 
-import { create } from "zustand";
+import { type StoreApi, type UseBoundStore, create } from "zustand";
 
 export type GameScreen = string;
+
+// ── Store extension types ──────────────────────────────────────
+
+/** Define a typed store slice for game-specific state. */
+export interface StoreSlice<T extends Record<string, unknown>> {
+  /** Initial values for your custom state fields. */
+  initialState: T;
+  /** Optional action creators. Receives zustand set/get typed to your slice + GameStore. */
+  actions?: (
+    set: (partial: Partial<GameStore & T> | ((state: GameStore & T) => Partial<GameStore & T>)) => void,
+    get: () => GameStore & T,
+  ) => Record<string, (...args: any[]) => void>;
+}
 
 export interface GameStore {
   // ── Game state (written by game loop) ──
@@ -68,5 +81,41 @@ export const useStore = create<GameStore>((set, get) => ({
   setHealth: (current, max) => set({ health: current, maxHealth: max }),
   setDebugInfo: (fps, entityCount) => set({ fps, entityCount }),
   setSceneName: (sceneName) => set({ sceneName }),
-  reset: () => set({ ...initialState, highScore: get().highScore }),
+  reset: () => set({ ...initialState, ..._extensionInitialState, highScore: get().highScore }),
 }));
+
+// ── Store extension API ────────────────────────────────────────
+
+let _extensionInitialState: Record<string, unknown> = {};
+let _extended = false;
+
+/**
+ * Merge game-specific state and actions into the store.
+ * Called automatically during setupGame() if a `store` field is returned.
+ * Idempotent — safe to call multiple times (e.g., during HMR).
+ */
+export function extendStore<T extends Record<string, unknown>>(slice: StoreSlice<T>): void {
+  if (_extended) return;
+  _extended = true;
+  _extensionInitialState = { ...slice.initialState };
+  useStore.setState(slice.initialState as Partial<GameStore>);
+  if (slice.actions) {
+    const actions = slice.actions(
+      useStore.setState as any,
+      useStore.getState as () => GameStore & T,
+    );
+    useStore.setState(actions as Partial<GameStore>);
+  }
+}
+
+/**
+ * Get a typed version of the store that includes your game-specific state.
+ *
+ * Usage:
+ *   const useGameStore = typedStore<MyGameState>()
+ *   useGameStore.getState().myField  // typed!
+ *   const val = useGameStore(s => s.myField)  // typed in React!
+ */
+export function typedStore<T>(): UseBoundStore<StoreApi<GameStore & T>> {
+  return useStore as unknown as UseBoundStore<StoreApi<GameStore & T>>;
+}

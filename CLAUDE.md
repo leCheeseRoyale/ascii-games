@@ -3,7 +3,8 @@
 ## Commands
 
 ```
-bun dev          # Start dev server (Vite + HMR)
+bun dev          # Start dev server (auto-runs template picker if game/ is missing)
+bun dev:fast     # Start dev server directly (skip auto-detect)
 bun run check    # TypeScript type-check (no emit)
 bun run build    # Production build
 bun run lint     # Biome linter
@@ -13,16 +14,20 @@ bun run gen:api  # Regenerate docs/API-generated.md from code
 bun run new:scene <name>   # Scaffold a scene
 bun run new:system <name>  # Scaffold a system
 bun run new:entity <name>  # Scaffold an entity factory
-bun run init:game <blank|asteroid-field|platformer>  # Initialize game from template
-bun run export         # Build single-file HTML (dist/game.html)
-bun run list:games     # List available game templates
+bun run init:game          # Interactive template picker
+bun run init:game <name>   # Initialize game from template (blank|asteroid-field|platformer)
+bun run export             # Build single-file HTML (dist/game.html)
+bun run list:games         # List available game templates
 ```
+
+**New project setup:** `npx create-ascii-game my-game && cd my-game && bun dev`
 
 ## Architecture
 
 ```
 engine/   — Framework code. Do not put game logic here.
-game/     — User game code (scenes, systems, entities, data).
+game/     — Generated user game code (gitignored — created from templates via init:game).
+games/    — Source-of-truth game templates (blank, asteroid-field, platformer).
 ui/       — React UI only. Mounted independently of the canvas.
 shared/   — Types, constants, events shared across all layers.
 scripts/  — Bun scaffolding scripts.
@@ -189,12 +194,48 @@ useStore.getState().setHealth(player.health.current, player.health.max)
 const score = useStore(s => s.score)
 ```
 
+### Custom game state (extensible store)
+
+For complex games that need more than score/health, define a typed store slice:
+
+```ts
+// game/store.ts
+import type { StoreSlice } from '@ui/store'
+import { typedStore } from '@ui/store'
+
+interface MyGameState {
+  inventory: Item[]
+  gold: number
+  addItem: (item: Item) => void
+  addGold: (n: number) => void
+}
+
+export const gameSlice: StoreSlice<MyGameState> = {
+  initialState: { inventory: [], gold: 0 },
+  actions: (set) => ({
+    addItem: (item) => set(s => ({ ...s, inventory: [...s.inventory, item] })),
+    addGold: (n) => set(s => ({ ...s, gold: s.gold + n })),
+  }),
+}
+
+export const useGameStore = typedStore<MyGameState>()
+```
+
+Return it from `setupGame()`:
+```ts
+return { startScene: 'title', store: gameSlice, screens: { inventory: InventoryScreen } }
+```
+
+Use from game code: `useGameStore.getState().addItem(sword)`
+Use from React: `const gold = useGameStore(s => s.gold)`
+
 ### Rules
 
 - **Never import `ui/` from `engine/` or `game/`** (except the store).
 - **Never import `engine/` or `game/` from `ui/`** React components.
 - Store state: `screen`, `score`, `highScore`, `health`, `maxHealth`, `fps`, `entityCount`, `sceneName`.
 - Store actions: `setScreen`, `setScore`, `setHealth`, `setDebugInfo`, `setSceneName`, `reset`.
+- Game extensions via `StoreSlice` + `typedStore<T>()` for typed custom state.
 
 ## Input
 
@@ -255,16 +296,25 @@ if (cd.fire()) { /* fires and resets cooldown */ }
 // or check without firing:
 if (cd.ready) { /* cooldown is ready */ }
 
-// Tweening
+// Tweening — animate any numeric property via dot-path
 engine.tweenEntity(entity, 'position.x', 0, 200, 0.5, 'easeOut')
+engine.tweenEntity(entity, 'ascii.opacity', 1, 0, 0.8, 'linear', true) // true = destroy on complete
 // args: entity, property (dot-path), from, to, duration, ease?, destroyOnComplete?
 // ease options: 'linear' | 'easeOut' | 'easeIn' | 'easeInOut'
+// dot-path targets: 'position.x', 'position.y', 'ascii.opacity', 'ascii.scale', 'image.rotation', etc.
 
-// Animation
-engine.playAnimation(entity, frames, frameDuration, loop)
+// Frame-based animation — cycles ascii.char/sprite.lines + color per frame
+engine.playAnimation(entity, [
+  { char: '◯', color: '#ffff00', duration: 0.03 },
+  { char: '◎', color: '#ffaa00', duration: 0.03 },
+  { char: '·', color: '#ff6600', duration: 0.03 },
+], 0.03, false)  // frameDuration, loop
 // frames: AnimationFrame[] — each frame: { char?, lines?, color?, duration? }
-// frameDuration: default seconds per frame (default 0.1)
-// loop: boolean (default true)
+// onComplete: set entity.animation.onComplete = 'destroy' | 'stop' after calling
+// No custom callback — use engine.after(totalDuration, fn) or check entity.animation.playing === false
+
+// Floating text (rises and fades, auto-destroys)
+engine.floatingText(x, y, '+100', '#ffcc00')
 
 // Images
 engine.loadImage('url')        // async, returns HTMLImageElement
@@ -318,6 +368,59 @@ events.on('scene:loaded', (sceneName) => { ... })
 events.off('scene:loaded', handler)  // unsubscribe (pass same function reference)
 ```
 
+## Turn Management (opt-in)
+
+Turn-based games use `engine.turns` to manage phases. Real-time games ignore it — everything works as before.
+
+```ts
+// Configure phases in scene setup
+engine.turns.configure({ phases: ['draw', 'play', 'attack', 'end'] })
+engine.turns.start()
+
+// Advance phases
+engine.turns.endPhase()          // draw → play → attack → end → next turn
+engine.turns.endTurn()           // skip to first phase of next turn
+engine.turns.goToPhase('attack') // jump to a specific phase
+
+// Query state
+engine.turns.currentPhase   // 'play'
+engine.turns.turnCount       // 1 (1-based)
+engine.turns.active          // true
+engine.turns.phases          // ['draw', 'play', 'attack', 'end']
+
+// Stop turn management (back to pure real-time)
+engine.turns.stop()
+```
+
+### Phase-gated systems
+
+Systems can declare a `phase` — they only run during that phase. Systems without `phase` always run (animations, tweens, particles stay real-time).
+
+```ts
+export default defineSystem({
+  name: 'player-input',
+  phase: 'play',  // only runs during the 'play' phase
+  update(engine, dt) { ... }
+})
+
+export default defineSystem({
+  name: 'resolve-attacks',
+  phase: 'attack',
+  update(engine, dt) { ... }
+})
+```
+
+### Turn events
+
+```ts
+events.on('turn:start', (turnCount) => { ... })
+events.on('turn:end', (turnCount) => { ... })
+events.on('phase:enter', (phaseName) => { ... })
+events.on('phase:exit', (phaseName) => { ... })
+```
+
+Turn state resets automatically on scene change.
+
 ## Collision
 
 ```ts
@@ -326,6 +429,134 @@ import { overlaps, overlapAll } from '@engine'
 if (overlaps(entityA, entityB)) { /* hit */ }
 const hits = overlapAll(bullet, engine.world.with('collider'))
 // Supports circle-circle, rect-rect, and circle-rect combinations
+```
+
+## Optional Features
+
+All opt-in. Games that don't use them have zero overhead.
+
+### Scene Data Passing
+
+```ts
+engine.loadScene('game-over', { data: { score: 1500, level: 3 } })
+// In game-over scene:
+setup(engine) {
+  const { score, level } = engine.sceneData
+}
+```
+
+### Entity Interaction (click/hover/drag)
+
+```ts
+import { interactionSystem, makeInteractive } from '@engine'
+engine.addSystem(interactionSystem)
+
+engine.spawn({
+  position: { x: 100, y: 200 },
+  ascii: { char: '♠', font: FONTS.large, color: '#fff' },
+  collider: { type: 'rect', width: 40, height: 60 },
+  interactive: makeInteractive({ cursor: 'grab' }),
+})
+
+// In a system:
+for (const e of engine.world.with('interactive')) {
+  if (e.interactive.hovered) { /* highlight */ }
+  if (e.interactive.clicked) { /* select */ }
+  if (e.interactive.dragging) { /* being dragged — position auto-updates */ }
+}
+// Set autoMove: false in makeInteractive() for manual drag handling.
+```
+
+### Tilemap
+
+```ts
+import { createTilemap, isSolidAt } from '@engine'
+
+engine.spawn({
+  position: { x: 0, y: 0 },
+  ...createTilemap(
+    ['########', '#......#', '#.@..$.#', '########'],
+    24,
+    { '#': { color: '#888', solid: true }, '.': { color: '#333' }, '$': { color: '#ff0' } },
+  ),
+})
+
+// Check collision with solid tiles
+if (isSolidAt(entity.tilemap, worldX, worldY)) { /* blocked */ }
+```
+
+### A* Pathfinding
+
+```ts
+import { findPath, GridMap } from '@engine'
+
+const grid = new GridMap<string>(20, 15, '.')
+grid.set(5, 5, '#') // wall
+
+const path = findPath(grid, { col: 0, row: 0 }, { col: 19, row: 14 }, {
+  isWalkable: (_col, _row, val) => val !== '#',
+  diagonal: true,
+})
+// path: [{col: 0, row: 0}, {col: 1, row: 1}, ...] or null
+```
+
+### Typewriter Text
+
+```ts
+import { typewriterSystem } from '@engine'
+engine.addSystem(typewriterSystem)
+
+engine.spawn({
+  position: { x: 100, y: 100 },
+  ascii: { char: '', font: FONTS.normal, color: '#fff' },
+  typewriter: { fullText: 'Hello, adventurer...', revealed: 0, speed: 30, done: false, _acc: 0,
+    onComplete: () => { /* text finished */ },
+    onChar: (ch) => { sfx.menu() }, // sound per character
+  },
+})
+```
+
+### ASCII Gauge / Progress Bar
+
+```ts
+import { gaugeSystem } from '@engine'
+engine.addSystem(gaugeSystem)
+
+engine.spawn({
+  position: { x: 100, y: 50 },
+  ascii: { char: '', font: FONTS.normal, color: '#0f0' },
+  gauge: { current: 75, max: 100, width: 20, fillChar: '█', emptyChar: '░' },
+})
+// Renders: ███████████████░░░░░
+// Update gauge.current to animate the bar.
+```
+
+### Cutscene / Sequence Helper
+
+```ts
+import { cutscene } from '@engine'
+
+await cutscene()
+  .call((e) => e.spawn({ position: { x: 100, y: 200 }, ascii: { char: 'NPC', font: FONTS.normal, color: '#0ff' } }))
+  .wait(1)
+  .shake(8)
+  .waitForInput('Space')
+  .wait(0.5)
+  .play(engine)
+```
+
+### ASCII Sprite Library
+
+```ts
+import { ASCII_SPRITES, asciiBox } from '@engine'
+
+engine.spawn({
+  position: { x: 100, y: 100 },
+  sprite: { lines: ASCII_SPRITES.characters.player, font: FONTS.normal, color: '#0f0' },
+})
+
+const box = asciiBox(10, 5, 'double')  // ['╔════════╗', '║        ║', ...]
+// Sprite categories: characters, effects, ui, borders, blocks
 ```
 
 ## Common Patterns
@@ -387,6 +618,44 @@ Entities with `lifetime: { remaining: N }` are auto-removed by the built-in `_li
 engine.pause()
 engine.resume()
 engine.isPaused  // boolean
+```
+
+## Particles & Camera
+
+```ts
+// Particle burst — fire-and-forget, auto-managed by engine
+engine.particles.burst({
+  x: entity.position.x, y: entity.position.y,
+  count: 15, chars: ['*', '.', '×', '+'],
+  color: '#ff4400', speed: 120, lifetime: 0.6,
+  spread: Math.PI * 2,  // optional — default full circle
+})
+
+// Built-in shortcuts
+engine.particles.explosion(x, y, color?)  // 25 fast chars + 10 glowing dots
+engine.particles.sparkle(x, y, color?)    // 8 gentle shimmer
+engine.particles.smoke(x, y, color?)      // 6 smoke puffs
+
+// Camera shake (decays automatically)
+engine.camera.shake(4)   // subtle hit
+engine.camera.shake(12)  // big explosion
+```
+
+## Visual Feedback Pattern
+
+Layer multiple systems on gameplay events for satisfying feedback:
+
+```ts
+if (overlaps(bullet, enemy)) {
+  engine.particles.burst({ x, y, count: 15, chars: ['*','.','+'], color: '#ff4400', speed: 120, lifetime: 0.6 })
+  engine.floatingText(x, y, '+100', '#ffcc00')
+  engine.camera.shake(4)
+  sfx.hit()
+  score += 100
+  useStore.getState().setScore(score)
+  engine.destroy(bullet)
+  engine.destroy(enemy)
+}
 ```
 
 ## Debug & Toast

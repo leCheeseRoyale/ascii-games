@@ -28,19 +28,26 @@ By the end, you'll have a working game with a title screen, player movement, ene
 
 You need [Bun](https://bun.sh) installed (a fast JavaScript runtime).
 
+**Quickest way** (requires Node.js):
+
 ```bash
-# Clone the project
-git clone <your-repo-url>
-cd ascii-games
-
-# Install dependencies
-bun install
-
-# Start the dev server (opens in your browser with live reload)
+npx create-ascii-game my-game
+cd my-game
 bun dev
 ```
 
-You should see the current game running in your browser at `http://localhost:5173`.
+**Or clone directly:**
+
+```bash
+git clone https://github.com/leCheeseRoyale/ascii-games my-game
+cd my-game
+bun install
+bun dev
+```
+
+First `bun dev` auto-detects no game and shows a template picker — pick **blank** for this tutorial.
+
+You should see the game running in your browser at `http://localhost:5173`.
 
 ---
 
@@ -622,6 +629,91 @@ engine.toast.show('+100', { color: '#ffcc00' })
 engine.toast.showAt('Nice!', entity.position.x, entity.position.y, { color: '#0f0' })
 ```
 
+### Frame-based animation (`playAnimation`)
+
+Cycle through ASCII characters and colors on an entity over time:
+
+```ts
+// Spawn a muzzle flash that self-destructs
+const flash = engine.spawn({
+  position: { x: player.position.x + 20, y: player.position.y },
+  ascii: { char: '○', font: FONTS.normal, color: '#ffaa00' },
+})
+
+engine.playAnimation(flash, [
+  { char: '◯', color: '#ffff00', duration: 0.03 },
+  { char: '◎', color: '#ffaa00', duration: 0.03 },
+  { char: '·', color: '#ff6600', duration: 0.03 },
+], 0.03, false)  // false = don't loop
+
+// Auto-destroy when animation finishes
+flash.animation!.onComplete = 'destroy'
+```
+
+Each frame can override `char`, `color`, and `duration`. The `_animation` system updates the entity's `ascii` (or `sprite`) component in-place — the renderer picks up the change automatically.
+
+For looping animations (idle, hover effects):
+
+```ts
+engine.playAnimation(entity, [
+  { char: '~', color: '#4488ff' },
+  { char: '≈', color: '#66aaff' },
+  { char: '~', color: '#4488ff' },
+], 0.2, true)  // true = loop forever
+```
+
+### Combining effects on gameplay events
+
+Most satisfying game moments layer multiple feedback systems together. Here's the pattern:
+
+```ts
+// Enemy destroyed — particles + shake + toast + sound
+if (overlaps(bullet, enemy)) {
+  // 1. Particles — visual pop
+  engine.particles.burst({
+    x: enemy.position.x, y: enemy.position.y,
+    count: 15, chars: ['*', '.', '×', '+'],
+    color: '#ff4400', speed: 120, lifetime: 0.6,
+  })
+
+  // 2. Floating score text — rises and fades
+  engine.floatingText(enemy.position.x, enemy.position.y, '+100', '#ffcc00')
+
+  // 3. Camera shake — impact feel
+  engine.camera.shake(4)
+
+  // 4. Sound
+  sfx.hit()
+
+  // 5. Update score
+  score += 100
+  useStore.getState().setScore(score)
+
+  // 6. Clean up
+  engine.destroy(bullet)
+  engine.destroy(enemy)
+}
+```
+
+For a bigger moment (boss death, level complete):
+
+```ts
+// Layer multiple particle bursts for richness
+engine.particles.burst({ x, y, count: 40, chars: ['@','#','*','!'], color: '#00ff88', speed: 200, lifetime: 1.5 })
+engine.particles.burst({ x, y, count: 20, chars: ['·','.'], color: '#ff4444', speed: 150, lifetime: 1.0 })
+
+// Screen shake (bigger)
+engine.camera.shake(12)
+
+// Delayed scene transition
+engine.after(1.5, () => engine.loadScene('victory'))
+
+// Sound
+sfx.explode()
+```
+
+You can also use `engine.particles.explosion(x, y)`, `.sparkle(x, y)`, and `.smoke(x, y)` as shortcuts.
+
 ### Debug overlay
 
 Press backtick (`` ` ``) during gameplay to toggle the debug overlay. Shows collider outlines and entity counts.
@@ -1020,7 +1112,7 @@ You now have a complete game with title screen, dodging gameplay, scoring, colli
 bun run new:scene <name>    # Generate a new scene
 bun run new:system <name>   # Generate a new system
 bun run new:entity <name>   # Generate a new entity factory
-bun run init:game <blank|asteroid-field|platformer>  # Start fresh from a template
+bun run init:game            # Interactive template picker
 bun run list:games           # See available templates
 bun run export               # Build single shareable HTML file
 ```
@@ -1082,6 +1174,18 @@ Query custom components the same way:
 for (const e of engine.world.with('position', 'mana')) {
   e.mana.current += dt * 5  // regenerate mana
 }
+```
+
+### Turn-based games
+
+The engine also supports turn-based gameplay via `engine.turns`. Systems can declare a `phase` to only run during specific turn phases, while animations and particles stay real-time. See the Turn Management section in `docs/DEVELOPER.md` for a full card game example.
+
+```ts
+engine.turns.configure({ phases: ['draw', 'play', 'attack', 'end'] })
+engine.turns.start()
+
+// This system only runs during the 'play' phase
+defineSystem({ name: 'player-input', phase: 'play', update(engine, dt) { ... } })
 ```
 
 ### Study the asteroid-field example

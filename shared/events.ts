@@ -10,6 +10,11 @@ type EngineEvents = {
   "engine:stopped": void;
   "engine:paused": void;
   "engine:resumed": void;
+  // Turn management events
+  "turn:start": number;
+  "turn:end": number;
+  "phase:enter": string;
+  "phase:exit": string;
 };
 
 export const events = mitt<EngineEvents>();

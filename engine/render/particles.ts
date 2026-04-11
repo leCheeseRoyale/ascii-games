@@ -98,19 +98,46 @@ export class ParticlePool {
   }
 
   /** Fire + debris explosion */
-  explosion(x: number, y: number, color = '#ff4400'): void {
-    this.burst({ x, y, count: 25, chars: ['*', '.', '·', '+', '×', '#'], color, speed: 180, spread: Math.PI * 2, lifetime: 0.8 });
-    this.burst({ x, y, count: 10, chars: ['.', '·'], color: '#ffaa00', speed: 80, lifetime: 1.2 });
+  explosion(x: number, y: number, color = "#ff4400"): void {
+    this.burst({
+      x,
+      y,
+      count: 25,
+      chars: ["*", ".", "·", "+", "×", "#"],
+      color,
+      speed: 180,
+      spread: Math.PI * 2,
+      lifetime: 0.8,
+    });
+    this.burst({ x, y, count: 10, chars: [".", "·"], color: "#ffaa00", speed: 80, lifetime: 1.2 });
   }
 
   /** Gentle shimmer/sparkle */
-  sparkle(x: number, y: number, color = '#ffff44'): void {
-    this.burst({ x, y, count: 8, chars: ['✦', '·', '*', '.'], color, speed: 40, spread: Math.PI * 2, lifetime: 0.6 });
+  sparkle(x: number, y: number, color = "#ffff44"): void {
+    this.burst({
+      x,
+      y,
+      count: 8,
+      chars: ["✦", "·", "*", "."],
+      color,
+      speed: 40,
+      spread: Math.PI * 2,
+      lifetime: 0.6,
+    });
   }
 
   /** Small smoke puff */
-  smoke(x: number, y: number, color = '#888888'): void {
-    this.burst({ x, y, count: 6, chars: ['░', '·', '.'], color, speed: 30, spread: Math.PI * 0.8, lifetime: 1.0 });
+  smoke(x: number, y: number, color = "#888888"): void {
+    this.burst({
+      x,
+      y,
+      count: 6,
+      chars: ["░", "·", "."],
+      color,
+      speed: 30,
+      spread: Math.PI * 0.8,
+      lifetime: 1.0,
+    });
   }
 
   clear(): void {

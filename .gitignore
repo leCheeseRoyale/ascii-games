@@ -1,6 +1,10 @@
 # dependencies (bun install)
 node_modules
 
+# generated game code (created from templates via `bun run init:game`)
+# the source-of-truth templates live in games/
+game/
+
 # output
 out
 dist

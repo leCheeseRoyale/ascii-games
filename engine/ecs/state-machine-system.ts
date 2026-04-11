@@ -27,10 +27,7 @@ export const stateMachineSystem: System = {
 };
 
 /** Trigger a state transition on an entity. Processed next frame by the system. */
-export function transition(
-  entity: { stateMachine?: { next?: string } },
-  state: string,
-): void {
+export function transition(entity: { stateMachine?: { next?: string } }, state: string): void {
   if (entity.stateMachine) {
     entity.stateMachine.next = state;
   }

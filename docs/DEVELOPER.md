@@ -1516,7 +1516,121 @@ engine.camera.shake(8)
 
 See: `game/systems/collision.ts`
 
-### 12g. Camera Follow
+### 12g. Frame-Based Animation (`playAnimation`)
+
+Cycle through ASCII characters/colors on an entity. The `_animation` system updates `entity.ascii.char` and `.color` in-place each frame — the renderer picks it up automatically.
+
+```typescript
+// One-shot animation (muzzle flash, hit effect)
+const flash = engine.spawn({
+  position: { x, y },
+  ascii: { char: '○', font: FONTS.normal, color: '#ffaa00' },
+})
+
+engine.playAnimation(flash, [
+  { char: '◯', color: '#ffff00', duration: 0.03 },
+  { char: '◎', color: '#ffaa00', duration: 0.03 },
+  { char: '·', color: '#ff6600', duration: 0.03 },
+], 0.03, false)  // false = don't loop
+
+flash.animation!.onComplete = 'destroy'  // self-destruct when done
+```
+
+```typescript
+// Looping animation (idle, hover, ambient)
+engine.playAnimation(entity, [
+  { char: '~', color: '#4488ff' },
+  { char: '≈', color: '#66aaff' },
+], 0.3, true)  // true = loop
+```
+
+```typescript
+// Sprite animation (multi-line ASCII art)
+engine.playAnimation(spriteEntity, [
+  { lines: ['  o  ', ' /|\\ ', ' / \\ '], color: '#fff' },
+  { lines: ['  o  ', ' \\|/ ', ' / \\ '], color: '#fff' },
+], 0.2, true)
+```
+
+**AnimationFrame fields:** `char?` (for ascii), `lines?` (for sprite), `color?`, `duration?` (override default frameDuration for this frame).
+
+**onComplete options:** `'destroy'` (remove entity) or `'stop'` (freeze on last frame). No custom callback — use `engine.after(totalDuration, fn)` or check `entity.animation.playing === false` in your system.
+
+### 12h. Tween Recipes
+
+```typescript
+// Fade out and destroy
+engine.tweenEntity(entity, 'ascii.opacity', 1, 0, 0.8, 'linear', true)
+
+// Pulse scale (combine with engine.every for repeating)
+engine.tweenEntity(entity, 'ascii.scale', 1, 1.3, 0.15, 'easeOut')
+engine.after(0.15, () => engine.tweenEntity(entity, 'ascii.scale', 1.3, 1, 0.15, 'easeIn'))
+
+// Slide in from off-screen
+engine.tweenEntity(entity, 'position.x', -100, targetX, 0.5, 'easeOut')
+
+// Floating damage number (rise + fade, auto-destroy)
+engine.floatingText(x, y, '-50', '#ff4444')
+```
+
+**Dot-path property targeting:** Any nested numeric property works — `position.x`, `position.y`, `ascii.opacity`, `ascii.scale`, `image.rotation`, etc.
+
+### 12i. Combining Effects (Visual Feedback Pattern)
+
+Layer multiple systems on a single gameplay event for satisfying feedback:
+
+```typescript
+// Enemy destroyed — the complete pattern
+if (overlaps(bullet, enemy)) {
+  const { x, y } = enemy.position
+
+  // Particles — visual pop
+  engine.particles.burst({
+    x, y, count: 15,
+    chars: ['*', '.', '×', '+'],
+    color: enemy.ascii?.color ?? '#ff4400',
+    speed: 120, lifetime: 0.6,
+  })
+
+  // Floating score text
+  engine.floatingText(x, y, '+100', '#ffcc00')
+
+  // Camera shake
+  engine.camera.shake(4)
+
+  // Sound
+  sfx.hit()
+
+  // Score
+  score += 100
+  useStore.getState().setScore(score)
+
+  // Cleanup
+  engine.destroy(bullet)
+  engine.destroy(enemy)
+}
+```
+
+For bigger moments (boss death, level clear), layer more:
+
+```typescript
+// Multiple particle layers for depth
+engine.particles.burst({ x, y, count: 40, chars: ['@','#','*','!'], color: '#00ff88', speed: 200, lifetime: 1.5 })
+engine.particles.burst({ x, y, count: 20, chars: ['·','.'], color: '#ff4444', speed: 150, lifetime: 1.0 })
+
+// Bigger shake
+engine.camera.shake(12)
+
+// Delayed transition
+engine.after(1.5, () => engine.loadScene('victory'))
+
+// Sound
+sfx.explode()
+```
+
+Built-in particle shortcuts: `engine.particles.explosion(x, y)`, `.sparkle(x, y)`, `.smoke(x, y)`.
+
+### 12j. Camera Follow
 
 ```typescript
 // In a system:
@@ -1530,7 +1644,7 @@ update(engine, dt) {
 
 Smoothing (0.08) controls how fast the camera catches up. Lower = smoother/slower.
 
-### 12h. Blinking/Pulsing Text
+### 12k. Blinking/Pulsing Text
 
 ```typescript
 // In a scene update:
@@ -1550,7 +1664,7 @@ For React-side blinking, `AsciiText` supports a `blink` prop:
 </AsciiText>
 ```
 
-### 12i. Tags for Entity Groups
+### 12l. Tags for Entity Groups
 
 Tags let you categorize entities without creating new component types:
 
@@ -1575,6 +1689,139 @@ const projectiles = [...engine.world.with('position', 'tags')]
 ```
 
 Tags are a `Set<string>`, so checking membership is O(1).
+
+### 12m. Turn-Based Games
+
+The engine supports both real-time and turn-based gameplay through `engine.turns`. Turn management is opt-in — real-time games don't use it and nothing changes for them.
+
+#### Setup
+
+```typescript
+// In scene setup
+engine.turns.configure({
+  phases: ['draw', 'play', 'attack', 'end'],
+})
+engine.turns.start()
+```
+
+#### Phase-Gated Systems
+
+Systems can declare a `phase` field. When turn management is active, phase-gated systems only run during their declared phase. Systems without a phase always run (keeping animations, tweens, and particles real-time).
+
+```typescript
+// Only runs during the 'play' phase
+const playerInputSystem = defineSystem({
+  name: 'player-input',
+  phase: 'play',
+  update(engine, dt) {
+    // Handle card selection, drag-drop, etc.
+  },
+})
+
+// Only runs during the 'attack' phase
+const resolveAttacksSystem = defineSystem({
+  name: 'resolve-attacks',
+  phase: 'attack',
+  update(engine, dt) {
+    // Process queued attacks, apply damage, trigger effects
+  },
+})
+
+// No phase — runs every frame regardless of turn state
+const uiSyncSystem = defineSystem({
+  name: 'ui-sync',
+  update(engine, dt) {
+    // Always keep UI updated
+    useStore.getState().setDebugInfo(Math.round(engine.time.fps), entityCount)
+  },
+})
+```
+
+#### Advancing Phases
+
+```typescript
+// In scene update or a system:
+if (playerConfirmedAction) {
+  engine.turns.endPhase()  // advances to next phase
+}
+
+// Skip remaining phases, start next turn
+engine.turns.endTurn()
+
+// Jump to a specific phase
+engine.turns.goToPhase('attack')
+```
+
+#### Turn Events
+
+```typescript
+import { events } from '@engine'
+
+events.on('turn:start', (turnCount) => {
+  console.log(`Turn ${turnCount} begins`)
+  drawCard()
+})
+
+events.on('phase:enter', (phase) => {
+  if (phase === 'play') showPlayableCards()
+  if (phase === 'attack') resolveBoard()
+})
+
+events.on('turn:end', (turnCount) => {
+  applyEndOfTurnEffects()
+})
+```
+
+#### Example: Card Game Turn Structure
+
+```typescript
+// Scene setup
+engine.turns.configure({
+  phases: ['draw', 'play', 'combat', 'end'],
+})
+engine.turns.start()
+
+// Systems
+engine.addSystem(defineSystem({
+  name: 'draw-phase',
+  phase: 'draw',
+  update(engine) {
+    drawCardForActivePlayer()
+    engine.turns.endPhase() // auto-advance to 'play'
+  },
+}))
+
+engine.addSystem(defineSystem({
+  name: 'play-phase',
+  phase: 'play',
+  update(engine) {
+    // Wait for player to play cards or press "End Turn"
+    if (engine.keyboard.pressed('Enter')) {
+      engine.turns.endPhase() // advance to 'combat'
+    }
+  },
+}))
+
+engine.addSystem(defineSystem({
+  name: 'combat-phase',
+  phase: 'combat',
+  update(engine) {
+    resolveCombat()
+    engine.turns.endPhase() // advance to 'end'
+  },
+}))
+
+engine.addSystem(defineSystem({
+  name: 'end-phase',
+  phase: 'end',
+  update(engine) {
+    applyEndOfTurnEffects()
+    engine.turns.endPhase() // wraps to 'draw' of next turn
+  },
+}))
+```
+
+Turn state resets automatically on scene change. Call `engine.turns.stop()` to disable turn management and return to pure real-time.
 
 ---
 

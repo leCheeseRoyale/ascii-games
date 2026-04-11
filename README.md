@@ -1,70 +1,84 @@
 # ASCII Game Engine
 
-A game engine for building ASCII-art games in the browser. Built on [Pretext](https://github.com/chenglou/pretext) for text rendering, [miniplex](https://github.com/hmans/miniplex) for ECS, and React for UI.
+A game engine for building ASCII-art games in the browser. Supports both real-time and turn-based games. Built on [Pretext](https://github.com/chenglou/pretext) for text rendering, [miniplex](https://github.com/hmans/miniplex) for ECS, and React for UI.
 
 Everything renders as text on a canvas — characters, particles, HUD — with pixel-perfect layout powered by Pretext's font metrics.
 
 ## Quick Start
 
+**One command** (requires Node.js):
+
 ```bash
-git clone <repo-url> ascii-game-engine
-cd ascii-game-engine
-bun install
+npx create-ascii-game my-game
+cd my-game
 bun dev
 ```
 
-Open `http://localhost:5173`. You're running.
+First `bun dev` auto-detects no game and shows a template picker. Pick one, hit Enter, and you're playing.
 
-### Initialize from a template
+Or pick a template upfront:
 
 ```bash
-bun run init:game blank           # Minimal starter: title + play scenes
-bun run init:game asteroid-field  # Playable asteroid dodger
-bun run init:game platformer     # Side-scrolling platformer
+npx create-ascii-game my-game --template asteroid-field
+```
+
+### Templates
+
+| Template | Description |
+|----------|-------------|
+| `blank` | Minimal starter — title screen + movable player |
+| `asteroid-field` | Complete game — dodge, shoot, score, difficulty ramp |
+| `platformer` | Gravity, jumping, platforms, collectibles |
+
+### Alternative: clone directly
+
+```bash
+git clone https://github.com/leCheeseRoyale/ascii-games my-game
+cd my-game
+bun install
+bun dev
 ```
 
 ## Project Structure
 
 ```
 engine/          Core framework — rendering, ECS, input, physics, audio
-  core/          Engine class, game loop, scene manager
-  ecs/           miniplex world, system runner
+  core/          Engine class, game loop, scene manager, turn manager
+  ecs/           miniplex world, system runner, state machines
   render/        ASCII renderer, camera, particles, Pretext text layout
-  input/         Keyboard and mouse handling
+  input/         Keyboard, mouse, and gamepad handling
   physics/       Collision detection
-  audio/         Procedural sound effects (beep, sfx)
-  utils/         Math, timers, colors
+  audio/         Procedural sound effects (ZzFX)
+  utils/         Math, timers, colors, grid
 
-game/            Your game code
+game/            Your game code (generated from templates, gitignored)
   scenes/        Scene definitions (title, play, game-over, etc.)
   systems/       ECS systems (movement, collision response, spawning)
   entities/      Entity factory functions
-  data/          Static data, level definitions
+
+games/           Source-of-truth game templates (blank, asteroid-field, platformer)
 
 ui/              React UI overlay
   store.ts       Zustand store — bridge between engine and React
-  components/    HUD, menus, overlays
+  screens/       HUD, menus, overlays
 
 shared/          Types, constants, events shared across layers
-scripts/         Scaffolding scripts
+scripts/         Scaffolding and dev scripts
 ```
 
-## Scaffolding
-
-Generate boilerplate with one command:
+## Commands
 
 ```bash
-bun run new:scene game-over    # → game/scenes/game-over.ts
-bun run new:system spawner     # → game/systems/spawner.ts
-bun run new:entity asteroid    # → game/entities/asteroid.ts
-```
-
-Each generates a complete, commented file ready to fill in.
-
-### Other Commands
-
-```bash
+bun dev              # Start dev server (auto-runs template picker if game/ is missing)
+bun dev:fast         # Start dev server directly (skip auto-detect)
+bun run check        # TypeScript type-check
+bun run build        # Production build
+bun run lint         # Biome linter
 bun run export       # Build single-file HTML (dist/game.html)
+bun run init:game    # Interactive template picker
+bun run new:scene    # Scaffold a new scene
+bun run new:system   # Scaffold a new system
+bun run new:entity   # Scaffold an entity factory
 bun run list:games   # List available game templates
 ```
 
@@ -75,10 +89,9 @@ Everything imports from `@engine`:
 ```ts
 import {
   Engine, defineScene, defineSystem,
-  ParticlePool, sfx, Cooldown,
-  overlaps, overlapAll,
+  sfx, Cooldown, overlaps, overlapAll,
   rng, rngInt, pick, chance, clamp, lerp, vec2, dist,
-  COLORS, FONTS, events, DEFAULT_CONFIG,
+  COLORS, FONTS, PALETTES, events,
 } from '@engine'
 ```
 
@@ -87,50 +100,62 @@ import {
 Scenes are the top-level game states. Each has setup/update/cleanup hooks:
 
 ```ts
-import { defineScene, type Engine } from '@engine'
+import { defineScene, FONTS, COLORS } from '@engine'
+import type { Engine } from '@engine'
 
 export default defineScene({
   name: 'play',
 
   setup(engine: Engine) {
-    engine.world.add({
-      position: { x: 400, y: 300 },
-      ascii: { char: '@', font: '24px "Fira Code", monospace', color: '#00ff88' },
-      tags: { player: true },
+    engine.spawn({
+      position: { x: engine.centerX, y: engine.centerY },
+      velocity: { vx: 0, vy: 0 },
+      ascii: { char: '@', font: FONTS.large, color: COLORS.accent },
+      tags: { values: new Set(['player']) },
     })
   },
 
   update(engine: Engine, dt: number) {
-    const player = engine.world.with('position', 'tags').where(e => e.tags?.player).first
-    if (!player) return
+    const player = engine.findByTag('player')
+    if (!player?.velocity) return
 
-    if (engine.keyboard.isDown('ArrowLeft')) player.position.x -= 200 * dt
-    if (engine.keyboard.isDown('ArrowRight')) player.position.x += 200 * dt
+    const speed = 200
+    player.velocity.vx = 0
+    if (engine.keyboard.held('ArrowLeft')) player.velocity.vx = -speed
+    if (engine.keyboard.held('ArrowRight')) player.velocity.vx = speed
+    // _physics handles position += velocity * dt automatically
   },
-
-  cleanup(engine: Engine) { },
 })
 ```
-
-Register scenes in `game/index.ts` and return the starting scene name.
 
 ### Systems
 
 Systems run every frame and operate on entities by querying components:
 
 ```ts
-import { defineSystem, type Engine } from '@engine'
+import { defineSystem, overlaps, sfx } from '@engine'
 
 export default defineSystem({
-  name: 'movement',
-  update(engine: Engine, dt: number) {
-    for (const e of engine.world.with('position', 'velocity')) {
-      e.position.x += e.velocity.vx * dt
-      e.position.y += e.velocity.vy * dt
+  name: 'collision',
+  update(engine, dt) {
+    const bullets = engine.findAllByTag('bullet')
+    const enemies = engine.findAllByTag('enemy')
+    for (const bullet of bullets) {
+      for (const enemy of enemies) {
+        if (overlaps(bullet, enemy)) {
+          engine.particles.burst({ x: enemy.position.x, y: enemy.position.y, count: 12, chars: ['*','.','+'], color: '#ff4400', speed: 120, lifetime: 0.6 })
+          engine.camera.shake(4)
+          sfx.hit()
+          engine.destroy(bullet)
+          engine.destroy(enemy)
+        }
+      }
     }
   },
 })
 ```
+
+Systems can optionally declare a `phase` for turn-based games — see Turn Management below.
 
 ### Entity Factories
 
@@ -146,10 +171,11 @@ export function createBullet(x: number, y: number): Partial<Entity> {
     ascii: { char: '|', font: '14px "Fira Code", monospace', color: '#ffff00' },
     collider: { type: 'circle', width: 4, height: 12 },
     lifetime: { remaining: 2 },
+    tags: { values: new Set(['bullet']) },
   }
 }
 
-// Spawn: engine.world.add(createBullet(x, y))
+// Spawn: engine.spawn(createBullet(x, y))
 ```
 
 ### Components
@@ -159,23 +185,28 @@ export function createBullet(x: number, y: number): Partial<Entity> {
 | `position` | `{ x, y }` | World position |
 | `velocity` | `{ vx, vy }` | Velocity in px/sec |
 | `acceleration` | `{ ax, ay }` | Acceleration in px/sec² |
-| `ascii` | `{ char, font, color }` | Single character rendering |
-| `textBlock` | `{ text, font, color, align }` | Multi-line text block |
-| `collider` | `{ type, width, height }` | Collision shape |
+| `ascii` | `{ char, font, color, glow?, opacity?, scale?, layer? }` | Single/multi character rendering |
+| `sprite` | `{ lines, font, color, layer? }` | Multi-line ASCII art |
+| `textBlock` | `{ text, font, maxWidth, lineHeight, color, layer? }` | Word-wrapped text block |
+| `image` | `{ image, width, height, opacity?, layer? }` | HTML image rendering |
+| `collider` | `{ type, width, height, sensor? }` | Circle or rect collision shape |
 | `health` | `{ current, max }` | Hit points |
-| `lifetime` | `{ remaining }` | Auto-remove after N seconds (handled by `_lifetime` system) |
-| `tags` | `{ [key]: boolean }` | Arbitrary flags |
-| `screenWrap` | `boolean` | Wrap entity to opposite edge when leaving screen |
-| `screenClamp` | `boolean` | Clamp entity position to screen bounds |
-| `offScreenDestroy` | `boolean` | Destroy entity when it leaves the screen |
+| `lifetime` | `{ remaining }` | Auto-remove after N seconds |
+| `physics` | `{ gravity?, friction?, drag?, bounce?, maxSpeed? }` | Automatic physics simulation |
+| `tags` | `{ values: Set<string> }` | Categorize entities |
+| `screenWrap` | `{ margin? }` | Wrap to opposite edge |
+| `screenClamp` | `{ padding? }` | Keep on screen |
+| `offScreenDestroy` | `{ margin? }` | Destroy when off screen |
 
 ### Input
 
 ```ts
-engine.keyboard.isDown('ArrowLeft')    // held down
-engine.keyboard.justPressed('Enter')   // pressed this frame
-engine.mouse.position                  // { x, y }
-engine.mouse.isDown(0)                 // left mouse button
+engine.keyboard.held('ArrowLeft')     // true while key is down
+engine.keyboard.pressed('Enter')      // true only on frame key was pressed
+engine.keyboard.released('Escape')    // true only on frame key was released
+engine.mouse.x / engine.mouse.y      // mouse position relative to canvas
+engine.mouse.down                     // true while mouse button is held
+engine.mouse.justDown                 // true on frame mouse was pressed
 ```
 
 ### Collision
@@ -183,63 +214,122 @@ engine.mouse.isDown(0)                 // left mouse button
 ```ts
 import { overlaps, overlapAll } from '@engine'
 
-if (overlaps(entityA, entityB)) { /* hit! */ }
+if (overlaps(entityA, entityB)) { /* hit */ }
 const hits = overlapAll(bullet, engine.world.with('collider'))
-for (const hit of hits) engine.world.remove(hit)
+```
+
+### Visual Feedback
+
+Layer multiple effects on gameplay events:
+
+```ts
+// Particles
+engine.particles.burst({ x, y, count: 15, chars: ['*','.','+'], color: '#ff4400', speed: 120, lifetime: 0.6 })
+engine.particles.explosion(x, y)    // built-in shortcut
+engine.particles.sparkle(x, y)
+engine.particles.smoke(x, y)
+
+// Camera shake
+engine.camera.shake(4)               // subtle hit
+engine.camera.shake(12)              // big explosion
+
+// Floating text (rises + fades, auto-destroys)
+engine.floatingText(x, y, '+100', '#ffcc00')
+
+// Tweens — animate any numeric property
+engine.tweenEntity(entity, 'ascii.opacity', 1, 0, 0.8, 'linear', true)
+
+// Frame animation — cycle chars/colors
+engine.playAnimation(entity, [
+  { char: '◯', color: '#ff0' },
+  { char: '◎', color: '#fa0' },
+], 0.1, false)
+
+// Toast notifications
+engine.toast.show('+100', { color: '#ffcc00' })
 ```
 
 ### Audio
 
 ```ts
-import { sfx } from '@engine'
+import { sfx, playMusic, stopMusic, setVolume, mute, unmute, toggleMute } from '@engine'
 
-sfx.shoot()              // Laser sound
+sfx.shoot()              // Laser
 sfx.hit()                // Impact
 sfx.explode()            // Explosion
-sfx.pickup()             // Item pickup
+sfx.pickup()             // Item collect
 sfx.menu()               // Menu blip
-sfx.death()              // Death sound
-sfx.custom(...)          // Custom ZzFX parameters
+sfx.death()              // Death
 
-playMusic(src)           // Play background music from URL
-stopMusic()              // Stop background music
-setVolume(0.5)           // Set master volume (0–1)
-mute()                   // Mute all audio
-unmute()                 // Unmute all audio
+playMusic('/music.mp3')  // Loop background music
+stopMusic()
+setVolume(0.5)           // Master volume 0-1
+mute() / unmute() / toggleMute()
 ```
+
+### Turn Management
+
+Opt-in turn-based gameplay. Real-time games ignore this — nothing changes.
+
+```ts
+// Setup in scene
+engine.turns.configure({ phases: ['draw', 'play', 'attack', 'end'] })
+engine.turns.start()
+
+// Advance
+engine.turns.endPhase()          // draw → play → attack → end → next turn
+engine.turns.endTurn()           // skip to next turn
+engine.turns.currentPhase        // 'play'
+engine.turns.turnCount           // 1
+
+// Phase-gated systems — only run during their declared phase
+defineSystem({
+  name: 'player-input',
+  phase: 'play',
+  update(engine, dt) { /* only runs during 'play' phase */ }
+})
+
+// Turn events
+events.on('turn:start', (turnCount) => { ... })
+events.on('phase:enter', (phaseName) => { ... })
+```
+
+Systems without a `phase` always run (animations, tweens, particles stay real-time).
 
 ### Built-in Systems
 
-The following systems are auto-registered on every scene load — do not add them manually:
+Auto-registered on every scene load — do not add them manually:
 
 - `_physics` — velocity/acceleration integration, gravity, friction, drag
 - `_parent` — hierarchical transforms (parent/child positioning)
 - `_tween` — property tweening
 - `_animation` — frame-based animation
 - `_lifetime` — removes entities when `lifetime.remaining` expires
-- `_screenBounds` — handles `screenWrap`, `screenClamp`, and `offScreenDestroy` components
+- `_screenBounds` — handles `screenWrap`, `screenClamp`, and `offScreenDestroy`
 
 ### Utilities
 
 ```ts
-rng()              // Random 0..1
-rngInt(1, 6)       // Random integer 1..6
+rng(0, 1)          // Random float in [min, max)
+rngInt(1, 6)       // Random int in [1, 6] inclusive
 pick(['a', 'b'])   // Random element
 chance(0.3)        // 30% chance → true
 clamp(x, 0, 100)  // Constrain to range
 lerp(a, b, 0.5)   // Linear interpolation
 
 const cd = new Cooldown(0.5)  // Fire-rate limiter
-if (cd.ready(dt)) { shoot() }
+cd.update(dt)
+if (cd.fire()) { shoot() }
 
-// Engine convenience helpers
-engine.centerX               // Canvas center X
-engine.centerY               // Canvas center Y
-engine.findByTag('enemy')    // Find first entity with tag
-engine.destroyAll('enemy')   // Destroy all entities with tag
-engine.sceneTime             // Seconds elapsed in current scene
-engine.randomEdgePosition()  // Random position on screen edge
-engine.spawnEvery(1.0, () => createEnemy())  // Spawn on interval
+engine.centerX / engine.centerY       // Canvas center
+engine.findByTag('enemy')             // First entity with tag
+engine.findAllByTag('enemy')          // All entities with tag
+engine.destroyAll('enemy')            // Destroy all with tag
+engine.sceneTime                      // Seconds in current scene
+engine.randomEdgePosition()           // Random position on screen edge
+engine.spawnEvery(1.0, () => create())  // Spawn on interval
+engine.after(2.0, () => { ... })      // Delayed action
+engine.every(0.5, () => { ... })      // Repeating action
 ```
 
 ### React UI
@@ -255,17 +345,17 @@ useStore.getState().setScore(10)
 const score = useStore(s => s.score)
 ```
 
-Store fields: `screen`, `score`, `highScore`, `health`, `maxHealth`, `fps`, `entityCount`.
+Store fields: `screen`, `score`, `highScore`, `health`, `maxHealth`, `fps`, `entityCount`, `sceneName`.
 
 ## Creating Your First Game
 
-1. **Initialize**: `bun run init:game blank`
+1. **Initialize**: `bun run init:game` (or `bun run init:game blank`)
 2. **Run**: `bun dev` — you'll see a title screen
 3. **Edit `game/scenes/play.ts`** — add entities, input handling
 4. **Create entities**: `bun run new:entity enemy` → edit the factory
 5. **Create systems**: `bun run new:system spawner` → add spawn logic
 6. **Add systems to scenes**: in `setup()`, call `engine.addSystem(mySystem)`
-7. **Add UI**: edit `ui/components/` for HUD, update store from game code
+7. **Add UI**: edit `ui/screens/` for HUD, update store from game code
 8. **Add scenes**: `bun run new:scene game-over` → register in `game/index.ts`
 
 ## Tech Stack

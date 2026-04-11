@@ -24,7 +24,7 @@ import { layoutTextAroundObstacles, layoutTextBlock } from "./text-layout";
 interface Renderable {
   entity: Partial<Entity>;
   layer: number;
-  type: "ascii" | "sprite" | "textBlock" | "image";
+  type: "ascii" | "sprite" | "textBlock" | "image" | "tilemap";
 }
 
 export class AsciiRenderer {
@@ -89,6 +89,9 @@ export class AsciiRenderer {
     for (const e of world.with("position", "image")) {
       renderables.push({ entity: e, layer: e.image.layer ?? 0, type: "image" });
     }
+    for (const e of world.with("position", "tilemap")) {
+      renderables.push({ entity: e, layer: e.tilemap.layer ?? -10, type: "tilemap" });
+    }
 
     renderables.sort((a, b) => a.layer - b.layer);
 
@@ -113,6 +116,9 @@ export class AsciiRenderer {
         case "textBlock":
           this.drawTextBlock(r.entity, obstacles);
           break;
+        case "tilemap":
+          this.drawTilemap(r.entity);
+          break;
       }
     }
 
@@ -127,6 +133,41 @@ export class AsciiRenderer {
     }
 
     // 7. Restore
+    ctx.restore();
+  }
+
+  private drawTilemap(entity: Partial<Entity>): void {
+    const { ctx } = this;
+    const { x: ox, y: oy } = entity.position!;
+    const tm = entity.tilemap!;
+    const font = tm.font ?? '16px "Fira Code", monospace';
+    const cs = tm.cellSize;
+
+    ctx.save();
+    ctx.font = font;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    for (let row = 0; row < tm.data.length; row++) {
+      const line = tm.data[row];
+      for (let col = 0; col < line.length; col++) {
+        const char = line[col];
+        if (char === " ") continue;
+
+        const entry = tm.legend[char];
+        const px = ox + tm.offsetX + col * cs + cs / 2;
+        const py = oy + tm.offsetY + row * cs + cs / 2;
+
+        if (entry?.bg) {
+          ctx.fillStyle = entry.bg;
+          ctx.fillRect(px - cs / 2, py - cs / 2, cs, cs);
+        }
+
+        ctx.fillStyle = entry?.color ?? "#ffffff";
+        ctx.fillText(char, px, py);
+      }
+    }
+
     ctx.restore();
   }
 

@@ -19,9 +19,11 @@ export type {
   Entity,
   GameEntity,
   GameTime,
+  Gauge,
   Health,
   ImageComponent,
   InputState,
+  Interactive,
   Lifetime,
   Obstacle,
   OffScreenDestroy,
@@ -37,8 +39,11 @@ export type {
   StateMachineState,
   Tags,
   TextBlock,
+  TileLegendEntry,
+  TilemapComponent,
   Tween,
   TweenEntry,
+  TypewriterComponent,
   Velocity,
 } from "@shared/types";
 export { DEFAULT_CONFIG } from "@shared/types";
@@ -63,18 +68,24 @@ export {
 export { Engine } from "./core/engine";
 export { GameLoop } from "./core/game-loop";
 export { defineScene, type Scene, SceneManager } from "./core/scene";
+export { type TurnConfig, TurnManager } from "./core/turn-manager";
+// Data — Sprite library
+export { ASCII_SPRITES, asciiBox } from "./data/ascii-sprites";
 export { animationSystem } from "./ecs/animation-system";
 export { emitterSystem } from "./ecs/emitter-system";
+// Optional systems (not auto-registered — add with engine.addSystem())
+export { gaugeSystem } from "./ecs/gauge-system";
+export { interactionSystem, makeInteractive } from "./ecs/interaction-system";
 export { lifetimeSystem } from "./ecs/lifetime-system";
 export { parentSystem } from "./ecs/parent-system";
 export { screenBoundsSystem } from "./ecs/screen-bounds-system";
-export { stateMachineSystem } from "./ecs/state-machine-system";
-export { transition } from "./ecs/state-machine-system";
+export { stateMachineSystem, transition } from "./ecs/state-machine-system";
 export { defineSystem, type System, SystemRunner } from "./ecs/systems";
+export { typewriterSystem } from "./ecs/typewriter-system";
 // ECS
 export { createWorld, type GameWorld, type WorldEntity } from "./ecs/world";
 // Input
-export { Gamepad, GAMEPAD_BUTTONS } from "./input/gamepad";
+export { GAMEPAD_BUTTONS, Gamepad } from "./input/gamepad";
 export { Keyboard } from "./input/keyboard";
 export { Mouse } from "./input/mouse";
 // Physics
@@ -115,8 +126,12 @@ export {
   setStoragePrefix,
   submitScore,
 } from "./storage/index";
+// Tilemap
+export { createTilemap, isSolidAt, tileAt } from "./tiles/tilemap";
 // Utils — Color
 export { hsl, hsla, lerpColor, rainbow } from "./utils/color";
+// Utils — Cutscene
+export { Cutscene, cutscene } from "./utils/cutscene";
 // Utils — Grid
 export { GridMap, gridDistance, gridToWorld, worldToGrid } from "./utils/grid";
 // Utils — Math
@@ -137,6 +152,8 @@ export {
   type Vec2,
   vec2,
 } from "./utils/math";
+// Utils — Pathfinding
+export { findPath, type PathOptions } from "./utils/pathfinding";
 export { Scheduler } from "./utils/scheduler";
 // Utils — Timer & Scheduler
 export { Cooldown, easeOut, tween } from "./utils/timer";

@@ -4,7 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bunx vite",
+    "dev": "bun run scripts/dev.ts",
+    "dev:fast": "bunx vite",
     "build": "bunx vite build",
     "preview": "bunx vite preview",
     "check": "bunx tsc --noEmit",

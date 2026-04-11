@@ -213,6 +213,63 @@ export interface OffScreenDestroy {
   margin?: number;
 }
 
+// ── Optional feature components ─────────────────────────────────
+
+/** ASCII gauge / progress bar. Renders as filled + empty characters. */
+export interface Gauge {
+  current: number;
+  max: number;
+  /** Number of characters wide. */
+  width: number;
+  fillChar?: string;
+  emptyChar?: string;
+  color?: string;
+  emptyColor?: string;
+}
+
+/** Typewriter text — progressively reveals text character by character. */
+export interface TypewriterComponent {
+  fullText: string;
+  revealed: number;
+  /** Characters per second. */
+  speed: number;
+  done: boolean;
+  /** Internal accumulator — do not set manually. */
+  _acc: number;
+  onComplete?: () => void;
+  onChar?: (char: string) => void;
+}
+
+/** Entity interaction state — set by the interaction system. */
+export interface Interactive {
+  hovered: boolean;
+  clicked: boolean;
+  dragging: boolean;
+  dragOffset: { x: number; y: number };
+  cursor?: string;
+  /** If true, position updates follow mouse while dragging. Set false for manual handling. */
+  autoMove?: boolean;
+}
+
+/** Tilemap legend entry — describes how a tile character is rendered. */
+export interface TileLegendEntry {
+  color?: string;
+  bg?: string;
+  solid?: boolean;
+  [key: string]: any;
+}
+
+/** Tilemap component — renders a grid of ASCII characters. */
+export interface TilemapComponent {
+  data: string[];
+  legend: Record<string, TileLegendEntry>;
+  cellSize: number;
+  offsetX: number;
+  offsetY: number;
+  font?: string;
+  layer?: number;
+}
+
 // ── Entity: union of all components ──────────────────────────────
 
 export interface Entity {
@@ -239,6 +296,10 @@ export interface Entity {
   screenWrap: ScreenWrap;
   screenClamp: ScreenClamp;
   offScreenDestroy: OffScreenDestroy;
+  gauge: Gauge;
+  typewriter: TypewriterComponent;
+  interactive: Interactive;
+  tilemap: TilemapComponent;
 
   /** Game-specific custom components. Use this for any data not covered above. */
   [key: string]: any;

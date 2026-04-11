@@ -38,6 +38,7 @@ import { Transition, type TransitionType } from "../render/transitions";
 import { Scheduler } from "../utils/scheduler";
 import { GameLoop } from "./game-loop";
 import { type Scene, SceneManager } from "./scene";
+import { TurnManager } from "./turn-manager";
 
 export class Engine {
   // ── Public API ────────────────────────────────────────────────
@@ -55,6 +56,7 @@ export class Engine {
   readonly transition: Transition;
   readonly debug: DebugOverlay;
   readonly toast: ToastManager;
+  readonly turns: TurnManager;
 
   get time(): GameTime {
     return {
@@ -84,10 +86,16 @@ export class Engine {
     return this._sceneTime;
   }
 
+  /** Data passed to the current scene via loadScene(name, { data }). */
+  get sceneData(): Record<string, any> {
+    return this._sceneData;
+  }
+
   // ── Private ───────────────────────────────────────────────────
   private loop: GameLoop;
   private _onResize: (() => void) | null = null;
   private _sceneTime = 0;
+  private _sceneData: Record<string, any> = {};
 
   constructor(canvas: HTMLCanvasElement, config: Partial<EngineConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -104,6 +112,7 @@ export class Engine {
     this.transition = new Transition();
     this.debug = new DebugOverlay();
     this.toast = new ToastManager();
+    this.turns = new TurnManager();
 
     this.loop = new GameLoop(
       {
@@ -370,8 +379,9 @@ export class Engine {
    */
   async loadScene(
     name: string,
-    opts?: { transition?: TransitionType; duration?: number },
+    opts?: { transition?: TransitionType; duration?: number; data?: Record<string, any> },
   ): Promise<void> {
+    this._sceneData = opts?.data ?? {};
     if (opts?.transition && opts.transition !== "none") {
       this.transition.type = opts.transition;
       this.transition.duration = opts.duration ?? 0.4;
@@ -393,6 +403,7 @@ export class Engine {
     } else {
       this.scheduler.clear();
       this.particles.clear();
+      this.turns.reset();
       this._sceneTime = 0;
       await this.scenes.load(name, this);
       this.systems.add(parentSystem, this);

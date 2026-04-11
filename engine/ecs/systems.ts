@@ -3,6 +3,10 @@
  *
  * A system is a named function that runs every frame.
  * Systems receive the full engine context and delta time.
+ *
+ * Systems can optionally declare a `phase` — when turn management is active,
+ * phase-gated systems only run during their declared phase. Systems without
+ * a phase always run (real-time behavior preserved for animations, tweens, etc.).
  */
 
 import type { Engine } from "../core/engine";
@@ -14,6 +18,8 @@ export interface System {
   init?: (engine: Engine) => void;
   /** Optional: called when system is removed */
   cleanup?: (engine: Engine) => void;
+  /** Optional: only run this system during this turn phase. Ignored when turn management is inactive. */
+  phase?: string;
 }
 
 export function defineSystem(system: System): System {
@@ -22,6 +28,9 @@ export function defineSystem(system: System): System {
 
 /**
  * Manages an ordered list of systems.
+ *
+ * When turn management is active (engine.turns.active), systems with a `phase`
+ * are skipped unless their phase matches the current turn phase.
  */
 export class SystemRunner {
   private systems: System[] = [];
@@ -42,7 +51,14 @@ export class SystemRunner {
   }
 
   update(engine: Engine, dt: number): void {
+    const turnActive = engine.turns.active;
+    const currentPhase = turnActive ? engine.turns.currentPhase : null;
+
     for (const sys of this.systems) {
+      // Phase gating: skip systems whose phase doesn't match
+      if (turnActive && sys.phase && sys.phase !== currentPhase) {
+        continue;
+      }
       sys.update(engine, dt);
     }
   }

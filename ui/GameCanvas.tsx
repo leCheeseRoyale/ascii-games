@@ -6,6 +6,7 @@ import type { ComponentType } from "react";
 import { createContext, useContext, useEffect, useRef } from "react";
 import { setHUDComponents } from "./hud/hud-registry";
 import { registerScreen } from "./screen-registry";
+import { type StoreSlice, extendStore } from "./store";
 
 const EngineContext = createContext<React.MutableRefObject<Engine | null> | null>(null);
 
@@ -19,6 +20,7 @@ interface GameSetupResult {
   startScene: string;
   screens?: Record<string, ComponentType>;
   hud?: ComponentType[];
+  store?: StoreSlice<any>;
 }
 
 export function GameCanvas({ children }: { children?: React.ReactNode }) {
@@ -49,6 +51,10 @@ export function GameCanvas({ children }: { children?: React.ReactNode }) {
       // Replace HUD components if provided
       if (result.hud) {
         setHUDComponents(result.hud);
+      }
+      // Extend store with game-specific state
+      if (result.store) {
+        extendStore(result.store);
       }
     }
 
