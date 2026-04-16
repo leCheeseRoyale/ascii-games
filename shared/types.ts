@@ -2,6 +2,24 @@
  * Shared types between engine, game, and UI.
  */
 
+// ── Text effect types (used by engine/render/text-effects.ts) ────
+
+export interface CharTransform {
+  dx: number;
+  dy: number;
+  color?: string;
+  opacity?: number;
+  scale?: number;
+  char?: string;
+}
+
+export type TextEffectFn = (charIndex: number, totalChars: number, time: number) => CharTransform;
+
+/** Attach to an entity to apply per-character effects on its ascii text. */
+export interface TextEffectComponent {
+  fn: TextEffectFn;
+}
+
 // ── Component types ──────────────────────────────────────────────
 
 export interface Position {
@@ -38,6 +56,10 @@ export interface Sprite {
   opacity?: number;
   /** Render layer. Default 0. */
   layer?: number;
+  /** Per-character color mapping. Maps individual characters to colors.
+   *  Characters not in the map use the default `color`. Spaces are skipped.
+   *  Example: { '@': '#ff4444', '~': '#44aa44', '*': '#ffcc00' } */
+  colorMap?: Record<string, string>;
 }
 
 export interface TextBlock {
@@ -46,6 +68,8 @@ export interface TextBlock {
   maxWidth: number;
   lineHeight: number;
   color: string;
+  /** Text alignment. Default 'left'. */
+  align?: "left" | "center" | "right" | "justify";
   /** Render layer. Default 0. */
   layer?: number;
 }
@@ -300,6 +324,7 @@ export interface Entity {
   typewriter: TypewriterComponent;
   interactive: Interactive;
   tilemap: TilemapComponent;
+  textEffect: TextEffectComponent;
 
   /** Game-specific custom components. Use this for any data not covered above. */
   [key: string]: any;

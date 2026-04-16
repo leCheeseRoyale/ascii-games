@@ -1,9 +1,10 @@
 import type { Entity } from "@shared/types";
 import type { Engine } from "../core/engine";
-import type { System } from "./systems";
+import { type System, SystemPriority } from "./systems";
 
 export const animationSystem: System = {
   name: "_animation",
+  priority: SystemPriority.animation,
   update(engine: Engine, dt: number) {
     for (const entity of [...engine.world.with("animation")]) {
       const anim = entity.animation;

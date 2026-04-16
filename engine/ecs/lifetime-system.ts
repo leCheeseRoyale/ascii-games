@@ -1,7 +1,8 @@
-import { defineSystem } from "./systems";
+import { defineSystem, SystemPriority } from "./systems";
 
 export const lifetimeSystem = defineSystem({
   name: "_lifetime",
+  priority: SystemPriority.lifetime,
   update(engine, dt) {
     const toRemove: any[] = [];
     for (const e of engine.world.with("lifetime")) {

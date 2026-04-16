@@ -12,13 +12,34 @@
         "noUnusedVariables": "warn"
       },
       "suspicious": {
-        "noDoubleEquals": "error"
+        "noDoubleEquals": "error",
+        "noExplicitAny": "warn",
+        "noAssignInExpressions": "warn"
       },
       "style": {
-        "useConst": "error"
+        "useConst": "error",
+        "noNonNullAssertion": "warn"
       }
     }
   },
+  "overrides": [
+    {
+      "includes": ["**/__tests__/**", "**/*.test.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off"
+          },
+          "style": {
+            "noNonNullAssertion": "off"
+          },
+          "complexity": {
+            "useLiteralKeys": "off"
+          }
+        }
+      }
+    }
+  ],
   "formatter": {
     "enabled": true,
     "indentStyle": "space",

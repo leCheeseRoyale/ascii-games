@@ -18,8 +18,17 @@
 import type { EngineConfig, Entity, Obstacle, Position } from "@shared/types";
 import type { GameWorld } from "../ecs/world";
 import type { Camera } from "./camera";
+import type { CanvasUI } from "./canvas-ui";
 import type { ParticlePool } from "./particles";
-import { layoutTextAroundObstacles, layoutTextBlock } from "./text-layout";
+import {
+  layoutJustifiedBlock,
+  layoutTextAroundObstacles,
+  layoutTextBlock,
+  measureLineWidth,
+  parseStyledText,
+  type StyledSegment,
+  stripTags,
+} from "./text-layout";
 
 interface Renderable {
   entity: Partial<Entity>;
@@ -55,7 +64,14 @@ export class AsciiRenderer {
     return this.canvas.clientHeight;
   }
 
-  render(world: GameWorld, config: EngineConfig, camera: Camera, particles?: ParticlePool): void {
+  render(
+    world: GameWorld,
+    config: EngineConfig,
+    camera: Camera,
+    particles?: ParticlePool,
+    _sceneTime?: number,
+    ui?: CanvasUI,
+  ): void {
     const { ctx } = this;
     const w = this.width;
     const h = this.height;
@@ -134,6 +150,11 @@ export class AsciiRenderer {
 
     // 7. Restore
     ctx.restore();
+
+    // 8. Screen-space UI (after camera restore so it draws in screen space)
+    if (ui) {
+      ui.render();
+    }
   }
 
   private drawTilemap(entity: Partial<Entity>): void {
@@ -257,15 +278,36 @@ export class AsciiRenderer {
     const { ctx } = this;
     const { x, y } = entity.position!;
     const tb = entity.textBlock!;
+    const align = tb.align ?? "left";
 
     ctx.save();
     ctx.font = tb.font;
     ctx.fillStyle = tb.color;
     ctx.textBaseline = "top";
 
-    if (obstacles.length > 0) {
+    // Check if text contains style tags
+    const hasStyleTags = /\[(#[0-9a-fA-F]{3,8}|b|\/b|dim|\/dim|bg:#[0-9a-fA-F]{3,8}|\/bg)\]/.test(
+      tb.text,
+    );
+    const plainText = hasStyleTags ? stripTags(tb.text) : tb.text;
+
+    if (align === "justify" && obstacles.length === 0) {
+      // Justified layout: draw word-by-word with distributed spacing
+      const justifiedLines = layoutJustifiedBlock(
+        plainText,
+        tb.font,
+        tb.maxWidth,
+        tb.lineHeight,
+        x,
+      );
+      for (const jline of justifiedLines) {
+        for (const word of jline.words) {
+          ctx.fillText(word.text, word.x, y + jline.y);
+        }
+      }
+    } else if (obstacles.length > 0) {
       const lines = layoutTextAroundObstacles(
-        tb.text,
+        plainText,
         tb.font,
         x,
         y,
@@ -276,13 +318,137 @@ export class AsciiRenderer {
       for (const line of lines) {
         ctx.fillText(line.text, line.x, line.y);
       }
-    } else {
-      const lines = layoutTextBlock(tb.text, tb.font, tb.maxWidth, tb.lineHeight);
+    } else if (hasStyleTags) {
+      // Styled text: parse tags and render segments with per-character styling.
+      // Layout is done on plain text, then we map styled segments onto each line.
+      const lines = layoutTextBlock(plainText, tb.font, tb.maxWidth, tb.lineHeight);
+      const segments = parseStyledText(tb.text, tb.font, tb.color);
+
+      // Build a flat char-to-style map from segments
+      let charIndex = 0;
+      const plainChars = plainText.length;
+      const charStyles: StyledSegment[] = new Array(plainChars);
+      for (const seg of segments) {
+        for (let ci = 0; ci < seg.text.length && charIndex < plainChars; ci++) {
+          charStyles[charIndex] = seg;
+          charIndex++;
+        }
+      }
+
+      // Render each line with styles applied per character run
+      let lineCharStart = 0;
       for (let i = 0; i < lines.length; i++) {
-        ctx.fillText(lines[i].text, x, y + i * tb.lineHeight);
+        const lineText = lines[i].text;
+        const lineY = y + i * tb.lineHeight;
+        let lineX = x;
+
+        if (align === "center") {
+          lineX = x + (tb.maxWidth - lines[i].width) / 2;
+        } else if (align === "right") {
+          lineX = x + tb.maxWidth - lines[i].width;
+        }
+
+        this.drawStyledRun(
+          ctx,
+          lineText,
+          lineX,
+          lineY,
+          charStyles,
+          lineCharStart,
+          tb.font,
+          tb.color,
+        );
+        lineCharStart += lineText.length;
+        // Skip whitespace between lines (word wrap consumes trailing spaces)
+        while (lineCharStart < plainChars && plainText[lineCharStart] === " ") {
+          lineCharStart++;
+        }
+      }
+    } else {
+      const lines = layoutTextBlock(plainText, tb.font, tb.maxWidth, tb.lineHeight);
+      for (let i = 0; i < lines.length; i++) {
+        const lineY = y + i * tb.lineHeight;
+        let lineX = x;
+
+        if (align === "center") {
+          lineX = x + (tb.maxWidth - lines[i].width) / 2;
+        } else if (align === "right") {
+          lineX = x + tb.maxWidth - lines[i].width;
+        }
+
+        ctx.fillText(lines[i].text, lineX, lineY);
       }
     }
     ctx.restore();
+  }
+
+  /**
+   * Draw a run of text with per-character styles from charStyles array.
+   * Groups consecutive characters with the same style into single fillText calls.
+   */
+  private drawStyledRun(
+    ctx: CanvasRenderingContext2D,
+    lineText: string,
+    startX: number,
+    y: number,
+    charStyles: StyledSegment[],
+    charOffset: number,
+    baseFont: string,
+    baseColor: string,
+  ): void {
+    let drawX = startX;
+    let runStart = 0;
+
+    while (runStart < lineText.length) {
+      // Get style for this character
+      const style = charStyles[charOffset + runStart] ?? {
+        text: "",
+        color: baseColor,
+        font: baseFont,
+        opacity: 1,
+        bgColor: null,
+      };
+
+      // Find end of run with same style
+      let runEnd = runStart + 1;
+      while (runEnd < lineText.length) {
+        const nextStyle = charStyles[charOffset + runEnd];
+        if (
+          !nextStyle ||
+          nextStyle.color !== style.color ||
+          nextStyle.font !== style.font ||
+          nextStyle.opacity !== style.opacity ||
+          nextStyle.bgColor !== style.bgColor
+        ) {
+          break;
+        }
+        runEnd++;
+      }
+
+      const runText = lineText.slice(runStart, runEnd);
+      ctx.font = style.font;
+      const runWidth = measureLineWidth(runText, style.font);
+
+      // Draw background if present
+      if (style.bgColor) {
+        const prevFill = ctx.fillStyle;
+        const prevAlpha = ctx.globalAlpha;
+        ctx.fillStyle = style.bgColor;
+        ctx.globalAlpha = 1;
+        const fontSize = parseFloat(style.font) || 16;
+        ctx.fillRect(drawX, y, runWidth, fontSize * 1.2);
+        ctx.fillStyle = prevFill;
+        ctx.globalAlpha = prevAlpha;
+      }
+
+      // Draw text
+      ctx.globalAlpha = style.opacity;
+      ctx.fillStyle = style.color;
+      ctx.fillText(runText, drawX, y);
+
+      drawX += runWidth;
+      runStart = runEnd;
+    }
   }
 
   /** Draw debug overlays: collider outlines, velocity arrows, position dots. */

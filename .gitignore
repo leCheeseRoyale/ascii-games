@@ -1,39 +1,59 @@
 # dependencies (bun install)
-node_modules
+node_modules/
+**/node_modules/
+packages/*/node_modules/
 
 # generated game code (created from templates via `bun run init:game`)
 # the source-of-truth templates live in games/
 game/
 
-# output
-out
-dist
+# build output
+dist/
+dist-ssr/
+out/
 *.tgz
 
 # code coverage
-coverage
+coverage/
 *.lcov
 
 # logs
-logs
-_.log
-report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # dotenv environment variable files
 .env
+.env.local
 .env.development.local
 .env.test.local
 .env.production.local
-.env.local
 
 # caches
 .eslintcache
-.cache
+.cache/
 *.tsbuildinfo
-.api-tmp
+.api-tmp/
+.vite/
 
-# IntelliJ based IDEs
-.idea
+# local-only files
+*.local
 
-# Finder (MacOS) folder config
+# editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea/
 .DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Claude Code local state
+.claude/

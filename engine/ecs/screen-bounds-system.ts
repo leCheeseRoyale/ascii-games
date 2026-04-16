@@ -1,7 +1,8 @@
-import { defineSystem } from "./systems";
+import { defineSystem, SystemPriority } from "./systems";
 
 export const screenBoundsSystem = defineSystem({
   name: "_screenBounds",
+  priority: SystemPriority.screenBounds,
   update(engine, dt) {
     const w = engine.width;
     const h = engine.height;

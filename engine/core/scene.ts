@@ -38,13 +38,26 @@ export class SceneManager {
     }
 
     const scene = this.scenes.get(name);
-    if (!scene)
-      throw new Error(
-        `Scene "${name}" not found. Registered: ${[...this.scenes.keys()].join(", ")}`,
-      );
+    if (!scene) {
+      const registered = [...this.scenes.keys()];
+      let msg = `Scene "${name}" not found.`;
+      if (registered.length === 0) {
+        msg += " No scenes registered — did you call engine.registerScene()?";
+      } else {
+        msg += ` Registered: ${registered.join(", ")}`;
+      }
+      engine.debug.showError(msg);
+      throw new Error(msg);
+    }
 
     this.current = scene;
-    await scene.setup(engine);
+    try {
+      await scene.setup(engine);
+    } catch (err: any) {
+      const msg = `Scene "${name}" setup failed: ${err?.message ?? String(err)}`;
+      console.error(`[SceneManager] ${msg}`, err);
+      engine.debug.showError(msg);
+    }
   }
 
   update(engine: Engine, dt: number): void {

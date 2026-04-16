@@ -1,12 +1,22 @@
 import { FONTS } from '@engine'
 import type { Entity } from '@engine'
 
-export function createPlatform(x: number, y: number, width: number): Partial<Entity> {
-  const char = '='.repeat(Math.max(1, Math.floor(width / 10)))
+/** A rectangular platform the player can land on. */
+export function createPlatform(
+  x: number,
+  y: number,
+  widthInTiles: number,
+  color = '#6677aa',
+): Partial<Entity> {
+  const char = '\u2580'.repeat(widthInTiles) // upper half block
   return {
     position: { x, y },
-    ascii: { char, font: FONTS.normal, color: '#888888' },
-    collider: { type: 'rect', width, height: 8 },
+    ascii: { char, font: FONTS.large, color },
+    collider: {
+      type: 'rect',
+      width: widthInTiles * 12, // ~12px per char at large font
+      height: 12,
+    },
     tags: { values: new Set(['platform']) },
   }
 }

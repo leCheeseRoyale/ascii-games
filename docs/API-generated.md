@@ -1,52 +1,79 @@
 # Engine API Reference (Auto-Generated)
 
 > Generated from actual TypeScript declarations. Do not edit manually.
-> Last generated: 2026-04-10
+> Last generated: 2026-04-13
 
 ## Uncategorized
 
 ```ts
 export { COLORS, FONTS, PALETTES } from "@shared/constants";
 export { events } from "@shared/events";
-export type { Acceleration, Animation, AnimationFrame, Ascii, Child, Collider, EngineConfig, Entity, GameEntity, GameTime, Gauge, Health, ImageComponent, InputState, Interactive, Lifetime, Obstacle, OffScreenDestroy, Parent, ParticleEmitter, Physics, Player, Position, ScreenClamp, ScreenWrap, Sprite, StateMachine, StateMachineState, Tags, TextBlock, TileLegendEntry, TilemapComponent, Tween, TweenEntry, TypewriterComponent, Velocity, } from "@shared/types";
+export type { Acceleration, Animation, AnimationFrame, Ascii, CharTransform, Child, Collider, EngineConfig, Entity, GameEntity, GameTime, Gauge, Health, ImageComponent, InputState, Interactive, Lifetime, Obstacle, OffScreenDestroy, Parent, ParticleEmitter, Physics, Player, Position, ScreenClamp, ScreenWrap, Sprite, StateMachine, StateMachineState, Tags, TextBlock, TextEffectComponent, TextEffectFn, TileLegendEntry, TilemapComponent, Tween, TweenEntry, TypewriterComponent, Velocity, } from "@shared/types";
 export { DEFAULT_CONFIG } from "@shared/types";
 export { audio, beep, getVolume, isMuted, mute, pauseMusic, playMusic, resumeMusic, setMusicVolume, setVolume, sfx, stopMusic, toggleMute, unmute, } from "./audio/audio";
+export { type Achievement, type AchievementCondition, type AchievementState, AchievementTracker, } from "./behaviors/achievements";
+export { type ChaseOptions, createChaseBehavior, createFleeBehavior, createPatrolBehavior, createWanderBehavior, type FleeOptions, type PatrolOptions, type WanderOptions, } from "./behaviors/ai";
+export { type CanCraftResult, type CraftIngredient, type CraftOutput, type CraftResult, canCraft, craft, type Recipe, RecipeBook, } from "./behaviors/crafting";
+export { add as addCurrency, type CurrencyId, type CurrencyTransaction, type CurrencyWallet, canAfford, clearHistory, createWallet, deserializeWallet, getBalance, getHistory, type SerializedWallet, serializeWallet, setBalance, setCap, spend as spendCurrency, spendMulti, transfer as transferCurrency, } from "./behaviors/currency";
+export { createDamageFlash, createDamageSystem, type DamageComponent, type DamageFlashOptions, type DamageSystemConfig, } from "./behaviors/damage";
+export { type DialogChoice, type DialogContext, type DialogNode, type DialogTree, runDialogTree, } from "./behaviors/dialog-tree";
+export { canEquip, clearEquipment, createEquipment, deserializeEquipment, type EquipmentComponent, type EquipmentSlotId, type EquippableItem, equipItem, getEquipped, isSlotAvailable, type SerializedEquipment, serializeEquipment, unequipItem, } from "./behaviors/equipment";
+export { addItem, clearInventory, countItem, createInventory, findSlot, getSlot, hasItem, type InventoryComponent, type InventoryItem, type InventorySlot, isFull, removeItem, totalWeight, transferItem, } from "./behaviors/inventory";
+export { createSeededRandom, type LootContext, type LootDrop, type LootEntry, type LootTable, rollLoot, } from "./behaviors/loot";
+export { type QuestDefinition, type QuestObjective, type QuestState, type QuestStatus, QuestTracker, } from "./behaviors/quests";
+export { addModifier, clearModifiers, createStats, deserializeStats, getModifiersFor, getStat, hasModifier, type ModifierType, removeModifier, removeModifiersBySource, type StatModifier, type Stats, serializeStats, setBaseStat, tickModifiers, } from "./behaviors/stats";
+export { createWaveSpawner, type WaveDefinition, type WaveEnemy, type WaveSpawnerConfig, } from "./behaviors/wave-spawner";
 export { Engine } from "./core/engine";
-export { GameLoop } from "./core/game-loop";
-export { defineScene, type Scene, SceneManager } from "./core/scene";
+export { defineScene, type Scene } from "./core/scene";
 export { type TurnConfig, TurnManager } from "./core/turn-manager";
-export { ASCII_SPRITES, asciiBox } from "./data/ascii-sprites";
+export { ASCII_SPRITES, asciiBox, createAsciiFrames, createAsciiSprite, parseAsciiArt, } from "./data/ascii-sprites";
 export { animationSystem } from "./ecs/animation-system";
 export { emitterSystem } from "./ecs/emitter-system";
 export { gaugeSystem } from "./ecs/gauge-system";
 export { interactionSystem, makeInteractive } from "./ecs/interaction-system";
 export { lifetimeSystem } from "./ecs/lifetime-system";
 export { parentSystem } from "./ecs/parent-system";
+export { createEntityPool, type EntityPool, type PoolOptions, } from "./ecs/pool";
 export { screenBoundsSystem } from "./ecs/screen-bounds-system";
 export { stateMachineSystem, transition } from "./ecs/state-machine-system";
-export { defineSystem, type System, SystemRunner } from "./ecs/systems";
+export { defineSystem, type System, SystemPriority } from "./ecs/systems";
 export { typewriterSystem } from "./ecs/typewriter-system";
 export { createWorld, type GameWorld, type WorldEntity } from "./ecs/world";
+export { type BindingEntry, type BindingsConfig, createDefaultBindings, DEFAULT_BINDINGS, InputBindings, } from "./input/bindings";
 export { GAMEPAD_BUTTONS, Gamepad } from "./input/gamepad";
 export { Keyboard } from "./input/keyboard";
 export { Mouse } from "./input/mouse";
+export { type PinchGesture, type SwipeGesture, type TapGesture, Touch, type TouchGesture, type TouchOptions, type TouchPoint, } from "./input/touch";
+export { type ClientFrame, GameServer, type GameServerOptions, type PeerHandle, type PublicRoomInfo, type Room, type RoomCreationOptions, type RoomListFilter, type ServerFrame, } from "./net/game-server";
+export { MockAdapter, type MockAdapterOptions, MockBus, } from "./net/mock-adapter";
+export { generatePeerId, NetEmitter, type NetLifecycleHandler, type NetMessageHandler, type NetPeerHandler, type NetworkAdapter, type Unsubscribe, } from "./net/network-adapter";
+export { SocketAdapter, type SocketAdapterOptions, } from "./net/socket-adapter";
+export { type DesyncEvent, type TurnCompleteEvent, TurnSync, type TurnSyncOptions, } from "./net/turn-sync";
 export { type Collidable, overlapAll, overlaps } from "./physics/collision";
 export { physicsSystem } from "./physics/physics-system";
+export { pairsFromHash, SpatialHash } from "./physics/spatial-hash";
 export { AsciiRenderer } from "./render/ascii-renderer";
-export { Camera } from "./render/camera";
-export { DebugOverlay } from "./render/debug";
+export { Camera, type CameraBounds, type CameraFollowOpts, type CameraFollowTarget, } from "./render/camera";
+export { type Anchor, BORDERS, type BorderStyle, CanvasUI, DialogManager, type UIBarOpts, type UIChoiceOpts, type UIDialogOpts, UIGrid, type UIGridCell, type UIGridOpts, type UIInlineChunk, type UIInlineRunOpts, UIMenu, type UIMenuOpts, type UIPanelOpts, UIScrollPanel, type UIScrollPanelOpts, type UITabDef, UITabs, type UITabsOpts, type UITextOpts, type UITextPanelOpts, UITooltip, type UITooltipOpts, } from "./render/canvas-ui";
 export { clearImageCache, getCachedImage, loadImage, preloadImages } from "./render/image-loader";
 export { type Particle, ParticlePool } from "./render/particles";
-export { clearTextCache, getLineCount, layoutTextAroundObstacles, layoutTextBlock, measureHeight, type RenderedLine, shrinkwrap, } from "./render/text-layout";
+export { compose, fadeIn, flicker, float, glitch, popIn, pulse, rainbow, scatter, shake, spiral, sway, textEffect, throb, wave, } from "./render/text-effects";
+export { clearTextCache, getLineCount, insertSoftHyphens, type JustifiedLine, type JustifiedWord, layoutJustifiedBlock, layoutTextAroundObstacles, layoutTextBlock, measureHeight, parseStyledText, type RenderedLine, type StyledSegment, shrinkwrap, stripTags, } from "./render/text-layout";
 export { ToastManager } from "./render/toast";
 export { Transition, type TransitionType } from "./render/transitions";
-export { clearAll as clearStorage, clearHighScores, getHighScores, getTopScore, has as hasStorage, isHighScore, load, remove as removeStorage, type ScoreEntry, save, setStoragePrefix, submitScore, } from "./storage/index";
+export { type Orientation, type SafeAreaInsets, Viewport } from "./render/viewport";
+export { VirtualDpad, type VirtualDpadOptions, VirtualJoystick, type VirtualJoystickOptions, } from "./render/virtual-controls";
+export { clearAll as clearStorage, clearHighScores, type GameStateSources, getHighScores, getTopScore, has as hasStorage, isHighScore, load, type RehydratedGameState, type RehydrateOptions, rehydrateGameState, remove as removeStorage, type ScoreEntry, type SerializedGameState, save, serializeGameState, setStoragePrefix, submitScore, } from "./storage/index";
+export { type SaveSlot, SaveSlotManager, type SaveSlotManagerOptions, type SaveSlotMetadata, } from "./storage/save-slots";
 export { createTilemap, isSolidAt, tileAt } from "./tiles/tilemap";
-export { hsl, hsla, lerpColor, rainbow } from "./utils/color";
+export { hsl, hsla, lerpColor, rainbow as rainbowColor } from "./utils/color";
 export { Cutscene, cutscene } from "./utils/cutscene";
+export { type BSPConfig, type CaveConfig, type DungeonConfig, type DungeonResult, type DungeonTiles, generateBSP, generateCave, generateDungeon, generateWalkerCave, gridMapToTilemapData, type Rect, type RoomInfo, type WalkerConfig, } from "./utils/dungeon";
 export { GridMap, gridDistance, gridToWorld, worldToGrid } from "./utils/grid";
 export { add, chance, clamp, dist, dot, len, lerp, normalize, pick, rng, rngInt, scale, sub, type Vec2, vec2, } from "./utils/math";
+export { createNoise2D, generateNoiseGrid, type NoiseOptions } from "./utils/noise";
 export { findPath, type PathOptions } from "./utils/pathfinding";
+export { clearAssetCache, getAsset, type PreloadAsset, type PreloadOptions, type PreloadResult, preloadAssets, } from "./utils/preloader";
 export { Scheduler } from "./utils/scheduler";
 export { Cooldown, easeOut, tween } from "./utils/timer";
 ```
@@ -54,6 +81,21 @@ export { Cooldown, easeOut, tween } from "./utils/timer";
 ## Component Types (from shared/types.ts)
 
 ```ts
+export interface CharTransform {
+    dx: number;
+    dy: number;
+    color?: string;
+    opacity?: number;
+    scale?: number;
+    char?: string;
+}
+
+export type TextEffectFn = (charIndex: number, totalChars: number, time: number) => CharTransform;
+
+export interface TextEffectComponent {
+    fn: TextEffectFn;
+}
+
 export interface Position {
     x: number;
     y: number;
@@ -89,6 +131,10 @@ export interface Sprite {
     opacity?: number;
     /** Render layer. Default 0. */
     layer?: number;
+    /** Per-character color mapping. Maps individual characters to colors.
+     *  Characters not in the map use the default `color`. Spaces are skipped.
+     *  Example: { '@': '#ff4444', '~': '#44aa44', '*': '#ffcc00' } */
+    colorMap?: Record<string, string>;
 }
 
 export interface TextBlock {
@@ -97,6 +143,8 @@ export interface TextBlock {
     maxWidth: number;
     lineHeight: number;
     color: string;
+    /** Text alignment. Default 'left'. */
+    align?: "left" | "center" | "right" | "justify";
     /** Render layer. Default 0. */
     layer?: number;
 }
@@ -338,6 +386,7 @@ export interface Entity {
     typewriter: TypewriterComponent;
     interactive: Interactive;
     tilemap: TilemapComponent;
+    textEffect: TextEffectComponent;
     /** Game-specific custom components. Use this for any data not covered above. */
     [key: string]: any;
 }

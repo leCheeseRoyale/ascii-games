@@ -1,8 +1,9 @@
 import type { Engine } from "../core/engine";
-import type { System } from "./systems";
+import { type System, SystemPriority } from "./systems";
 
 export const stateMachineSystem: System = {
   name: "_stateMachine",
+  priority: SystemPriority.stateMachine,
   update(engine: Engine, dt: number) {
     for (const entity of engine.world.with("stateMachine")) {
       const sm = entity.stateMachine;

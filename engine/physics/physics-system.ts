@@ -6,10 +6,11 @@
  */
 
 import type { Engine } from "../core/engine";
-import type { System } from "../ecs/systems";
+import { type System, SystemPriority } from "../ecs/systems";
 
 export const physicsSystem: System = {
   name: "_physics",
+  priority: SystemPriority.physics,
 
   update(engine: Engine, dt: number) {
     const w = engine.width;
@@ -62,6 +63,22 @@ export const physicsSystem: System = {
     for (const e of engine.world.with("position", "velocity")) {
       e.position.x += e.velocity.vx * dt;
       e.position.y += e.velocity.vy * dt;
+    }
+
+    // ── Pass 3b: NaN detection — reset corrupt values ──
+    for (const e of engine.world.with("position", "velocity")) {
+      let reset = false;
+      if (!Number.isFinite(e.position.x) || !Number.isFinite(e.position.y)) reset = true;
+      if (!Number.isFinite(e.velocity.vx) || !Number.isFinite(e.velocity.vy)) reset = true;
+      if (reset) {
+        const tag = (e as any).tags?.values?.values().next().value ?? "unknown";
+        console.error(`[physics] NaN in entity [${tag}]`);
+        engine.debug.showError(`NaN in entity [${tag}] — reset to (0,0)`);
+        if (!Number.isFinite(e.position.x)) e.position.x = 0;
+        if (!Number.isFinite(e.position.y)) e.position.y = 0;
+        if (!Number.isFinite(e.velocity.vx)) e.velocity.vx = 0;
+        if (!Number.isFinite(e.velocity.vy)) e.velocity.vy = 0;
+      }
     }
 
     // ── Pass 4: bounce off world bounds (entities with physics.bounce and collider) ──

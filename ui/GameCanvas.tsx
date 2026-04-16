@@ -6,7 +6,7 @@ import type { ComponentType } from "react";
 import { createContext, useContext, useEffect, useRef } from "react";
 import { setHUDComponents } from "./hud/hud-registry";
 import { registerScreen } from "./screen-registry";
-import { type StoreSlice, extendStore } from "./store";
+import { extendStore, type StoreSlice } from "./store";
 
 const EngineContext = createContext<React.MutableRefObject<Engine | null> | null>(null);
 

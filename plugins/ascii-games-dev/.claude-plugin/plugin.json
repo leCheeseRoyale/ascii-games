@@ -1,0 +1,8 @@
+{
+  "name": "ascii-games-dev",
+  "version": "0.1.0",
+  "description": "Build games with the ascii-games engine: scaffold games, compose mechanics, layer juice, wire multiplayer, persist state. Includes an ECS-footgun reviewer agent.",
+  "author": {
+    "name": "ascii-games"
+  }
+}

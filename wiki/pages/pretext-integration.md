@@ -24,34 +24,29 @@ Two operational modes:
 
 Pretext's `prepare()` call is **expensive** — it measures every grapheme cluster in the text. The `layout()` call is **cheap** — it just walks the prepared data with a width constraint.
 
-The engine maintains two caches keyed by `font + '\x00' + text`:
+The engine maintains a single LRU cache keyed by `font + '\x00' + text`. `PreparedTextWithSegments` is a superset of `PreparedText` — both `layout()` and `walkLineRanges()` accept it — so one cache entry covers every path:
 
 ```typescript
-const fastCache = new Map<string, PreparedText>()
-const segCache = new Map<string, PreparedTextWithSegments>()
+const preparedCache = new LRUCache<PreparedTextWithSegments>(MAX_CACHE_SIZE)
 
 function cacheKey(text: string, font: string): string {
   return font + '\x00' + text
 }
 
-function getPrepared(text: string, font: string): PreparedText {
+function getPrepared(text: string, font: string): PreparedTextWithSegments {
   const k = cacheKey(text, font)
-  let p = fastCache.get(k)
-  if (!p) { p = prepare(text, font); fastCache.set(k, p) }
-  return p
-}
-
-function getSegments(text: string, font: string): PreparedTextWithSegments {
-  const k = cacheKey(text, font)
-  let p = segCache.get(k)
-  if (!p) { p = prepareWithSegments(text, font); segCache.set(k, p) }
+  let p = preparedCache.get(k)
+  if (!p) {
+    p = prepareWithSegments(text, font)
+    preparedCache.set(k, p)
+  }
   return p
 }
 ```
 
-- `fastCache` stores `PreparedText` (for `measureHeight` which only needs `layout()`)
-- `segCache` stores `PreparedTextWithSegments` (for line-level operations like `layoutTextBlock`, `shrinkwrap`, `getLineCount`, and obstacle flow)
-- `clearTextCache()` wipes both — call when fonts change
+- `preparedCache` is used by every path: `measureHeight`, `layoutTextBlock`, `shrinkwrap`, `getLineCount`, obstacle flow.
+- A separate `widthCache` memoizes single-line widths for `measureLineWidth` and `CanvasUI.inlineRun` chunks.
+- `clearTextCache()` wipes both — call when fonts change.
 
 ## Public API
 

@@ -30,15 +30,28 @@ import { Mouse } from "../input/mouse";
 import { physicsSystem } from "../physics/physics-system";
 import { AsciiRenderer } from "../render/ascii-renderer";
 import { Camera } from "../render/camera";
+import { CanvasUI, DialogManager } from "../render/canvas-ui";
 import { DebugOverlay } from "../render/debug";
 import { loadImage, preloadImages } from "../render/image-loader";
 import { ParticlePool } from "../render/particles";
 import { ToastManager } from "../render/toast";
 import { Transition, type TransitionType } from "../render/transitions";
+import { Viewport } from "../render/viewport";
 import { Scheduler } from "../utils/scheduler";
 import { GameLoop } from "./game-loop";
 import { type Scene, SceneManager } from "./scene";
 import { TurnManager } from "./turn-manager";
+
+const BUILTIN_SYSTEMS = [
+  parentSystem,
+  physicsSystem,
+  tweenSystem,
+  animationSystem,
+  emitterSystem,
+  stateMachineSystem,
+  lifetimeSystem,
+  screenBoundsSystem,
+];
 
 export class Engine {
   // ── Public API ────────────────────────────────────────────────
@@ -57,6 +70,9 @@ export class Engine {
   readonly debug: DebugOverlay;
   readonly toast: ToastManager;
   readonly turns: TurnManager;
+  readonly ui: CanvasUI;
+  readonly dialog: DialogManager;
+  readonly viewport: Viewport;
 
   get time(): GameTime {
     return {
@@ -113,6 +129,13 @@ export class Engine {
     this.debug = new DebugOverlay();
     this.toast = new ToastManager();
     this.turns = new TurnManager();
+    this.ui = new CanvasUI(canvas.getContext("2d")!);
+    this.dialog = new DialogManager();
+    this.viewport = new Viewport();
+
+    // Wire debug overlay back to engine so the profiler can access
+    // systems/world/scheduler when rendering.
+    this.debug.setEngine(this);
 
     this.loop = new GameLoop(
       {
@@ -125,8 +148,7 @@ export class Engine {
     this.renderer.resize();
     const onResize = () => {
       this.renderer.resize();
-      this.camera.viewWidth = this.renderer.width;
-      this.camera.viewHeight = this.renderer.height;
+      this.camera.setViewport(this.renderer.width, this.renderer.height);
     };
     window.addEventListener("resize", onResize);
     onResize();
@@ -136,7 +158,55 @@ export class Engine {
   // ── Entity helpers ────────────────────────────────────────────
 
   spawn(components: Partial<Entity>) {
+    this.validateEntity(components);
     return this.world.add(components as Entity);
+  }
+
+  private validateEntity(components: Partial<Entity>): void {
+    const warnings: string[] = [];
+    if (components.position) {
+      if (
+        components.position.x === undefined ||
+        components.position.y === undefined ||
+        Number.isNaN(components.position.x) ||
+        Number.isNaN(components.position.y)
+      ) {
+        warnings.push("position.x or position.y is invalid");
+      }
+    }
+    if (components.velocity) {
+      if (
+        components.velocity.vx === undefined ||
+        components.velocity.vy === undefined ||
+        Number.isNaN(components.velocity.vx) ||
+        Number.isNaN(components.velocity.vy)
+      ) {
+        warnings.push("velocity will produce NaN");
+      }
+    }
+    if (components.ascii) {
+      if (!components.ascii.char || !components.ascii.font) {
+        warnings.push("entity will be invisible (ascii.char or ascii.font is empty)");
+      }
+    }
+    if (components.collider) {
+      if (
+        (components.collider.width != null && components.collider.width <= 0) ||
+        (components.collider.height != null && components.collider.height <= 0)
+      ) {
+        warnings.push("collisions will not work (collider width/height <= 0)");
+      }
+    }
+    if (components.velocity && !components.position) {
+      warnings.push("velocity without position — physics will skip this entity");
+    }
+    if (components.physics && !components.velocity) {
+      warnings.push("physics without velocity — gravity/drag will have no effect");
+    }
+    if (warnings.length > 0) {
+      for (const w of warnings) console.warn(`[Engine.spawn] ${w}`);
+      this.debug.showError(warnings[0]);
+    }
   }
 
   destroy(entity: Entity): void {
@@ -162,13 +232,8 @@ export class Engine {
 
   /** Destroy all entities that have a given tag. */
   destroyAll(tag: string): number {
-    const toRemove: Entity[] = [];
-    for (const e of this.world.with("tags")) {
-      if (e.tags.values.has(tag)) toRemove.push(e);
-    }
-    for (const e of toRemove) {
-      this.world.remove(e);
-    }
+    const toRemove = this.findAllByTag(tag);
+    for (const e of toRemove) this.world.remove(e);
     return toRemove.length;
   }
 
@@ -382,37 +447,21 @@ export class Engine {
     opts?: { transition?: TransitionType; duration?: number; data?: Record<string, any> },
   ): Promise<void> {
     this._sceneData = opts?.data ?? {};
-    if (opts?.transition && opts.transition !== "none") {
-      this.transition.type = opts.transition;
-      this.transition.duration = opts.duration ?? 0.4;
-      this.transition.start(async () => {
-        this.scheduler.clear();
-        this.particles.clear();
-        this._sceneTime = 0;
-        await this.scenes.load(name, this);
-        this.systems.add(parentSystem, this);
-        this.systems.add(physicsSystem, this);
-        this.systems.add(tweenSystem, this);
-        this.systems.add(animationSystem, this);
-        this.systems.add(emitterSystem, this);
-        this.systems.add(stateMachineSystem, this);
-        this.systems.add(lifetimeSystem, this);
-        this.systems.add(screenBoundsSystem, this);
-        events.emit("scene:loaded", name);
-      });
-    } else {
+    const doLoad = async () => {
       this.scheduler.clear();
       this.particles.clear();
       this.turns.reset();
       this._sceneTime = 0;
       await this.scenes.load(name, this);
-      this.systems.add(parentSystem, this);
-      this.systems.add(physicsSystem, this);
-      this.systems.add(tweenSystem, this);
-      this.systems.add(animationSystem, this);
-      this.systems.add(lifetimeSystem, this);
-      this.systems.add(screenBoundsSystem, this);
+      for (const s of BUILTIN_SYSTEMS) this.systems.add(s, this);
       events.emit("scene:loaded", name);
+    };
+    if (opts?.transition && opts.transition !== "none") {
+      this.transition.type = opts.transition;
+      this.transition.duration = opts.duration ?? 0.4;
+      this.transition.start(doLoad);
+    } else {
+      await doLoad();
     }
   }
 
@@ -435,6 +484,7 @@ export class Engine {
     if (this._onResize) {
       window.removeEventListener("resize", this._onResize);
     }
+    this.viewport.destroy();
     events.emit("engine:stopped");
   }
 
@@ -461,7 +511,7 @@ export class Engine {
     this.gamepad.update();
 
     if (this.keyboard.pressed("Backquote")) {
-      this.debug.enabled = !this.debug.enabled;
+      this.debug.toggle();
     }
 
     try {
@@ -478,10 +528,24 @@ export class Engine {
     this.camera.update(dt);
     this.debug.update(dt);
     this.toast.update(dt);
+    this.ui.update(dt);
+    this.dialog.update(dt, this);
   }
 
   private render(): void {
-    this.renderer.render(this.world, this.config, this.camera, this.particles);
+    // Dialog queues its draw commands into the UI system
+    this.dialog.draw(this.ui, this.width, this.height);
+
+    // Game world + screen-space UI (ui.render is called inside renderer after camera restore)
+    this.renderer.render(
+      this.world,
+      this.config,
+      this.camera,
+      this.particles,
+      this._sceneTime,
+      this.ui,
+    );
+
     // Transition overlay renders on top of everything
     if (this.transition.active) {
       this.transition.render(this.renderer.ctx, this.width, this.height);

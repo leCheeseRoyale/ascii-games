@@ -10,7 +10,7 @@
  *   - Never import React stuff in engine/ or game/
  */
 
-import { type StoreApi, type UseBoundStore, create } from "zustand";
+import { create, type StoreApi, type UseBoundStore } from "zustand";
 
 export type GameScreen = string;
 
@@ -22,7 +22,9 @@ export interface StoreSlice<T extends Record<string, unknown>> {
   initialState: T;
   /** Optional action creators. Receives zustand set/get typed to your slice + GameStore. */
   actions?: (
-    set: (partial: Partial<GameStore & T> | ((state: GameStore & T) => Partial<GameStore & T>)) => void,
+    set: (
+      partial: Partial<GameStore & T> | ((state: GameStore & T) => Partial<GameStore & T>),
+    ) => void,
     get: () => GameStore & T,
   ) => Record<string, (...args: any[]) => void>;
 }

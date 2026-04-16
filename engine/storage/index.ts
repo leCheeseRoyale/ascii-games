@@ -1,4 +1,12 @@
 export {
+  type GameStateSources,
+  type RehydratedGameState,
+  type RehydrateOptions,
+  rehydrateGameState,
+  type SerializedGameState,
+  serializeGameState,
+} from "./game-state";
+export {
   clearHighScores,
   getHighScores,
   getTopScore,

@@ -39,11 +39,18 @@ export const ${camel}System = defineSystem({
   // },
 
   update(engine: Engine, dt: number) {
-    // Example: apply velocity to position
-    // for (const e of engine.world.with('position', 'velocity')) {
-    //   e.position.x += e.velocity.vx * dt
-    //   e.position.y += e.velocity.vy * dt
+    // Example: make enemies chase the player by setting velocity
+    // const player = engine.findByTag('player')
+    // if (!player?.position) return
+    // for (const e of engine.world.with('position', 'velocity', 'tags')) {
+    //   if (!e.tags.values.has('enemy')) continue
+    //   const dx = player.position.x - e.position.x
+    //   const dy = player.position.y - e.position.y
+    //   const len = Math.sqrt(dx * dx + dy * dy) || 1
+    //   e.velocity.vx = (dx / len) * 100
+    //   e.velocity.vy = (dy / len) * 100
     // }
+    // NOTE: _physics auto-integrates velocity. Don't add position += velocity * dt here.
   },
 
   // cleanup(engine: Engine) {

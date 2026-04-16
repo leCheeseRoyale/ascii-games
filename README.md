@@ -15,7 +15,7 @@ bun dev
 ```
 
 First `bun dev` auto-detects no game and shows a template picker. Pick one, hit Enter, and you're playing.
-
+s
 Or pick a template upfront:
 
 ```bash

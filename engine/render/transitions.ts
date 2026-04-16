@@ -10,7 +10,10 @@
  *   // in render: t.render(ctx, width, height)
  */
 
-export type TransitionType = "fade" | "fadeWhite" | "wipe" | "none";
+export type TransitionType = "fade" | "fadeWhite" | "wipe" | "dissolve" | "scanline" | "none";
+
+/** Safety cap so a hung scene loader doesn't freeze the transition forever (ms). */
+const MIDPOINT_TIMEOUT_MS = 5000;
 
 export class Transition {
   type: TransitionType;
@@ -20,10 +23,16 @@ export class Transition {
   phase: "out" | "in" = "out"; // 'out' = fading to black, 'in' = fading from black
   private onMidpoint?: () => void | Promise<void>;
   private midpointPending = false;
+  private midpointTimeoutMs: number;
 
-  constructor(type: TransitionType = "fade", duration = 0.5) {
+  constructor(
+    type: TransitionType = "fade",
+    duration = 0.5,
+    midpointTimeoutMs = MIDPOINT_TIMEOUT_MS,
+  ) {
     this.type = type;
     this.duration = duration;
+    this.midpointTimeoutMs = midpointTimeoutMs;
   }
 
   /** Start a transition. onMidpoint fires at the halfway point (swap scene here). */
@@ -44,7 +53,20 @@ export class Transition {
       const result = this.onMidpoint?.();
       if (result instanceof Promise) {
         this.midpointPending = true;
-        result.then(() => {
+        const timeout = new Promise<void>((resolve) =>
+          setTimeout(() => {
+            if (this.midpointPending) {
+              console.warn(
+                `[transition] onMidpoint exceeded ${this.midpointTimeoutMs}ms — forcing phase=in`,
+              );
+            }
+            resolve();
+          }, this.midpointTimeoutMs),
+        );
+        Promise.race([
+          result.catch((err) => console.error("[transition] onMidpoint rejected:", err)),
+          timeout,
+        ]).then(() => {
           this.midpointPending = false;
           this.phase = "in";
           this.elapsed = 0;
@@ -98,6 +120,50 @@ export class Transition {
         }
         ctx.restore();
         break;
+
+      case "dissolve": {
+        ctx.save();
+        ctx.font = '16px "Fira Code", monospace';
+        ctx.textBaseline = "top";
+        ctx.textAlign = "left";
+        ctx.fillStyle = "#000000";
+        const dChars = "░▒▓█╬╠╣╦╩╗╔╚╝─│┌┐└┘";
+        const cellW = 14;
+        const cellH = 18;
+        const gridW = Math.ceil(width / cellW);
+        const gridH = Math.ceil(height / cellH);
+
+        for (let gx = 0; gx < gridW; gx++) {
+          for (let gy = 0; gy < gridH; gy++) {
+            // Deterministic pseudo-random threshold per cell
+            const seed = Math.sin(gx * 12.9898 + gy * 78.233) * 43758.5453;
+            const threshold = Math.abs(seed % 1);
+            if (threshold < alpha) {
+              const ci = Math.abs(Math.floor(Math.sin(seed * 2.1) * dChars.length)) % dChars.length;
+              ctx.globalAlpha = Math.min(1, (alpha - threshold) * 3);
+              ctx.fillText(dChars[ci], gx * cellW, gy * cellH);
+            }
+          }
+        }
+        ctx.restore();
+        break;
+      }
+
+      case "scanline": {
+        ctx.save();
+        ctx.fillStyle = "#000000";
+        const lineH = 3;
+        const numLines = Math.ceil(height / lineH);
+        for (let i = 0; i < numLines; i++) {
+          const lineT = alpha * 1.5 - (i / numLines) * 0.5;
+          if (lineT > 0) {
+            ctx.globalAlpha = Math.min(1, lineT * 2);
+            ctx.fillRect(0, i * lineH, width, lineH);
+          }
+        }
+        ctx.restore();
+        break;
+      }
 
       case "none":
         break;

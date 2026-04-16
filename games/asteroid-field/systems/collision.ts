@@ -5,9 +5,6 @@ import { GAME } from "../config";
 let score = 0;
 let invincibleTimer = 0;
 
-export function getScore() {
-  return score;
-}
 export function resetScore() {
   score = 0;
 }

@@ -1,8 +1,9 @@
 import type { Engine } from "../core/engine";
-import type { System } from "./systems";
+import { type System, SystemPriority } from "./systems";
 
 export const emitterSystem: System = {
   name: "_emitter",
+  priority: SystemPriority.emitter,
   update(engine: Engine, dt: number) {
     for (const e of engine.world.with("position", "emitter")) {
       const em = e.emitter;

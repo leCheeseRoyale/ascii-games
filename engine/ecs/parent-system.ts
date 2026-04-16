@@ -9,10 +9,11 @@
 
 import type { Entity } from "@shared/types";
 import type { Engine } from "../core/engine";
-import type { System } from "./systems";
+import { type System, SystemPriority } from "./systems";
 
 export const parentSystem: System = {
   name: "_parent",
+  priority: SystemPriority.parent,
   update(engine: Engine, _dt: number) {
     // Process all children: set their world position based on parent + offset
     for (const entity of engine.world.with("child", "position")) {

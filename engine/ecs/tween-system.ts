@@ -16,7 +16,7 @@
 
 import type { Entity, TweenEntry } from "@shared/types";
 import type { Engine } from "../core/engine";
-import type { System } from "./systems";
+import { type System, SystemPriority } from "./systems";
 
 function applyEasing(t: number, ease: TweenEntry["ease"]): number {
   switch (ease) {
@@ -46,6 +46,7 @@ function setNestedProp(obj: any, path: string, value: number): void {
 
 export const tweenSystem: System = {
   name: "_tween",
+  priority: SystemPriority.tween,
 
   update(engine: Engine, dt: number) {
     const entities = [...engine.world.with("tween")];

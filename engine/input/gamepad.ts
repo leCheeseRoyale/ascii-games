@@ -42,6 +42,9 @@ export class Gamepad {
     this.onDisconnect = () => {
       this._connected = false;
       this.gamepadIndex = -1;
+      this.prevButtons = [];
+      this.currButtons = [];
+      this.axes = [0, 0, 0, 0];
     };
     window.addEventListener("gamepadconnected", this.onConnect);
     window.addEventListener("gamepaddisconnected", this.onDisconnect);
