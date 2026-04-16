@@ -19,10 +19,14 @@
     "init:game": "bun run scripts/init-game.ts",
     "list:games": "bun run scripts/list-games.ts",
     "export": "bun run scripts/export.ts",
+    "ai:sprite": "bun run scripts/ai-sprite.ts",
+    "ai:mechanic": "bun run scripts/ai-mechanic.ts",
+    "ai:juice": "bun run scripts/ai-juice.ts",
     "test": "bun test",
     "bench": "bun run engine/__bench__/run.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.90.0",
     "@chenglou/pretext": "^0.0.4",
     "@vitejs/plugin-react": "^4.5.2",
     "miniplex": "^2.0.0",

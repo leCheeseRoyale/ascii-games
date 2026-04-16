@@ -38,6 +38,7 @@ import { ToastManager } from "../render/toast";
 import { Transition, type TransitionType } from "../render/transitions";
 import { Viewport } from "../render/viewport";
 import { Scheduler } from "../utils/scheduler";
+import { buildGameScene, type GameDefinition, GameRuntime } from "./define-game";
 import { GameLoop } from "./game-loop";
 import { type Scene, SceneManager } from "./scene";
 import { TurnManager } from "./turn-manager";
@@ -433,6 +434,35 @@ export class Engine {
 
   registerScene(scene: Scene): void {
     this.scenes.register(scene);
+  }
+
+  // ── Declarative game helper ───────────────────────────────────
+
+  /** Active `defineGame` runtime — set by `runGame`, read by render/input code. */
+  private _gameRuntime: GameRuntime<any> | null = null;
+
+  /** The currently-running declarative game runtime, if any. */
+  get game(): GameRuntime<any> | null {
+    return this._gameRuntime;
+  }
+
+  /**
+   * Register a declarative game definition. Creates a scene that owns
+   * state + turn phases + optional systems, and returns its name so callers
+   * can pass it up to `setupGame`'s return value.
+   *
+   * ```ts
+   * export function setupGame(engine: Engine) {
+   *   return { startScene: engine.runGame(ticTacToe) };
+   * }
+   * ```
+   */
+  runGame<TState>(def: GameDefinition<TState>): string {
+    const runtime = new GameRuntime<TState>(def, this);
+    this._gameRuntime = runtime;
+    const scene = buildGameScene(def, runtime);
+    this.registerScene(scene);
+    return scene.name;
   }
 
   /**

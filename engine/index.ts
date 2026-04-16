@@ -200,8 +200,31 @@ export {
   type WaveSpawnerConfig,
 } from "./behaviors/wave-spawner";
 // Core
+export {
+  createMultiplayerGame,
+  type GameMove,
+  type MultiplayerGameHandle,
+  type MultiplayerOpts,
+  type MultiplayerTransport,
+} from "./core/create-multiplayer-game";
+export {
+  buildGameScene,
+  defineGame,
+  type GameContext,
+  type GameDefinition,
+  type GameResult,
+  GameRuntime,
+  type MoveFn,
+  type MoveResult,
+  type MovesMap,
+  type PhaseConfig,
+  type PlayersConfig,
+  type SetupContext,
+  type TurnsConfig,
+} from "./core/define-game";
 export { Engine } from "./core/engine";
 export { defineScene, type Scene } from "./core/scene";
+export { defaultHashState, fnv1a32, stableStringify } from "./core/state-hash";
 export { type TurnConfig, TurnManager } from "./core/turn-manager";
 // Data — Sprite library
 export {
