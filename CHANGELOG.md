@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **One-line multiplayer** — `createMultiplayerGame(def, { transport, engineFactory, ... })` wraps any `defineGame` definition with lockstep sync + desync detection via `TurnSync`. Transports: `local` (N `MockAdapter` peers for dev) and `socket` (`SocketAdapter` against `GameServer`). See [`docs/COOKBOOK.md#multiplayer-games-in-one-line`](docs/COOKBOOK.md#multiplayer-games-in-one-line).
 - **AI CLI scripts** — `bun run ai:sprite`, `ai:mechanic`, `ai:juice` generate entity factories, systems, and juice helpers via Claude. Setup in [`docs/AI-WORKFLOWS.md`](docs/AI-WORKFLOWS.md).
 - **Template** — `tic-tac-toe` showcasing `defineGame` with canvas-only UI.
+- **Template** — connect-four second declarative showcase, stress-tests the defineGame API on a 7x6 grid game with gravity + 4-in-a-row detection.
 
 ## [0.1.0] - 2026-04-16
 

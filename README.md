@@ -93,6 +93,7 @@ Wraps any `defineGame` definition with a lockstep transport (local / WebSocket) 
 |----------|-------------|---------|
 | `blank` | Minimal starter — title screen + movable player | `--template blank` |
 | `tic-tac-toe` | Declarative `defineGame` showcase, canvas-only UI | `--template tic-tac-toe` |
+| `connect-four` | Declarative 7x6 grid game with gravity + 4-in-a-row detection | `--template connect-four` |
 | `asteroid-field` | Complete real-time game — dodge, shoot, score, difficulty ramp | `--template asteroid-field` |
 | `platformer` | Gravity, jumping, platforms, collectibles | `--template platformer` |
 | `roguelike` | Turn-based grid game with tilemap, pathfinding, dialog | `--template roguelike` |
