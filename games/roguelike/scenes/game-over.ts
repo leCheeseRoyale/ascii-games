@@ -8,13 +8,13 @@
 import {
   COLORS,
   defineScene,
+  type Engine,
   FONTS,
   removeStorage,
   sfx,
   shake,
   submitScore,
   UIMenu,
-  type Engine,
 } from "@engine";
 import { useStore } from "@ui/store";
 import { GAME } from "../config";

@@ -6,11 +6,7 @@
  * triggers game over.
  */
 
-import {
-  defineSystem,
-  sfx,
-  type Engine,
-} from "@engine";
+import { defineSystem, type Engine, sfx } from "@engine";
 import { useStore } from "@ui/store";
 import { GAME } from "../config";
 import { addMessage, getMessages } from "../scenes/play";

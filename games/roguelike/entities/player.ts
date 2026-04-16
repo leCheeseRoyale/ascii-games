@@ -6,11 +6,16 @@
  * which updates gridPos and tweens position for smooth visuals.
  */
 
-import { FONTS } from "@engine";
 import type { Entity } from "@engine";
+import { FONTS } from "@engine";
 import { GAME } from "../config";
 
-export function createPlayer(col: number, row: number, worldX: number, worldY: number): Partial<Entity> {
+export function createPlayer(
+  col: number,
+  row: number,
+  worldX: number,
+  worldY: number,
+): Partial<Entity> {
   return {
     position: { x: worldX, y: worldY },
     ascii: {

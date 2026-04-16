@@ -6,13 +6,7 @@
  * Uses gridToWorld() and engine.tweenEntity() for smooth movement.
  */
 
-import {
-  defineSystem,
-  gridDistance,
-  gridToWorld,
-  sfx,
-  type Engine,
-} from "@engine";
+import { defineSystem, type Engine, gridDistance, gridToWorld, sfx } from "@engine";
 import { GAME } from "../config";
 import { addMessage, getNavGrid } from "../scenes/play";
 
@@ -102,12 +96,7 @@ function performAttack(engine: Engine, enemy: any, player: any): void {
   const name = enemy.enemyStats?.name ?? "Enemy";
   addMessage(`The ${name} hits you for ${damage} damage!`);
 
-  engine.floatingText(
-    player.position.x,
-    player.position.y - 12,
-    `-${damage}`,
-    "#ff4444",
-  );
+  engine.floatingText(player.position.x, player.position.y - 12, `-${damage}`, "#ff4444");
   engine.camera.shake(4);
   sfx.hit();
 }

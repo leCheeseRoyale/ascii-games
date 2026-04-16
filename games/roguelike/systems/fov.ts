@@ -9,14 +9,10 @@
  * Also toggles visibility of entities (enemies, items) based on FOV.
  */
 
-import {
-  createTilemap,
-  defineSystem,
-  type Engine,
-} from "@engine";
+import { createTilemap, defineSystem, type Engine } from "@engine";
 import { GAME } from "../config";
+import { getDungeonGrid, getVisibleCells, setVisibleCells } from "../scenes/play";
 import { computeFOV } from "../utils/fov";
-import { getDungeonGrid, setVisibleCells, getVisibleCells } from "../scenes/play";
 
 /** Set of cells the player has ever seen, stored as "col,row" strings. */
 let explored = new Set<string>();
@@ -134,10 +130,18 @@ function rebuildTilemaps(engine: Engine, visible?: Set<string>): void {
 
   // Remove old tilemap entities
   if (memoryEntity) {
-    try { engine.destroy(memoryEntity); } catch { /* already destroyed */ }
+    try {
+      engine.destroy(memoryEntity);
+    } catch {
+      /* already destroyed */
+    }
   }
   if (visibleEntity) {
-    try { engine.destroy(visibleEntity); } catch { /* already destroyed */ }
+    try {
+      engine.destroy(visibleEntity);
+    } catch {
+      /* already destroyed */
+    }
   }
 
   // Spawn memory layer (behind everything)

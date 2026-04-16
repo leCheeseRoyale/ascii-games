@@ -5,8 +5,8 @@
  * walks over them (handled by the player-input system).
  */
 
-import { FONTS } from "@engine";
 import type { Entity } from "@engine";
+import { FONTS } from "@engine";
 import { GAME } from "../config";
 
 export function createHealthPotion(

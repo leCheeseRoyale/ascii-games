@@ -5,16 +5,7 @@
  * with New Game / Continue options. Uses save/load for persistence.
  */
 
-import {
-  COLORS,
-  defineScene,
-  FONTS,
-  load,
-  sfx,
-  UIMenu,
-  wave,
-  type Engine,
-} from "@engine";
+import { COLORS, defineScene, type Engine, FONTS, load, sfx, UIMenu, wave } from "@engine";
 import { useStore } from "@ui/store";
 import { GAME } from "../config";
 
@@ -74,7 +65,7 @@ export const titleScene = defineScene({
         color: COLORS.dim,
         colorMap: {
           "@": GAME.player.color,
-          "r": GAME.enemies.rat.color,
+          r: GAME.enemies.rat.color,
           "!": GAME.items.healthPotion.color,
           ">": GAME.dungeon.stairsColor,
           "#": GAME.dungeon.wallColor,
@@ -87,9 +78,7 @@ export const titleScene = defineScene({
     hasSave = saveData !== undefined;
 
     // Menu
-    const menuItems = hasSave
-      ? ["New Game", "Continue", "Controls"]
-      : ["New Game", "Controls"];
+    const menuItems = hasSave ? ["New Game", "Continue", "Controls"] : ["New Game", "Controls"];
 
     menu = new UIMenu(menuItems, {
       border: "double",
@@ -139,10 +128,10 @@ export const titleScene = defineScene({
           sfx.menu();
           engine.dialog.show(
             "WASD or Arrow Keys to move.\n" +
-            "Walk into enemies to attack.\n" +
-            "Space or Period to wait.\n" +
-            "Walk over items to pick them up.\n" +
-            "Reach the stairs (>) to descend.",
+              "Walk into enemies to attack.\n" +
+              "Space or Period to wait.\n" +
+              "Walk over items to pick them up.\n" +
+              "Reach the stairs (>) to descend.",
             { speaker: "Controls", border: "rounded", typeSpeed: 0 },
           );
           break;

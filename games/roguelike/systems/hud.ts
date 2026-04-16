@@ -6,12 +6,7 @@
  * engine.ui.textPanel().
  */
 
-import {
-  COLORS,
-  defineSystem,
-  FONTS,
-  type Engine,
-} from "@engine";
+import { COLORS, defineSystem, type Engine, FONTS } from "@engine";
 import { GAME } from "../config";
 import { getMessages } from "../scenes/play";
 
@@ -70,7 +65,7 @@ export const hudSystem = defineSystem({
 
     // Message log (bottom)
     const messages = getMessages();
-    const logY = engine.height - 16 - (messages.length * 18);
+    const logY = engine.height - 16 - messages.length * 18;
 
     engine.ui.panel(8, logY - 8, engine.width - 16, messages.length * 18 + 16, {
       bg: "rgba(0, 0, 0, 0.75)",

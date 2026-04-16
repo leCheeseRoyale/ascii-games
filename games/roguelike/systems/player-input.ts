@@ -6,15 +6,10 @@
  * Only advances the turn on valid actions.
  */
 
-import {
-  defineSystem,
-  gridToWorld,
-  sfx,
-  type Engine,
-} from "@engine";
+import { defineSystem, type Engine, gridToWorld, sfx } from "@engine";
 import { useStore } from "@ui/store";
 import { GAME } from "../config";
-import { getNavGrid, getDungeonGrid, addMessage, getMessages } from "../scenes/play";
+import { addMessage, getDungeonGrid, getMessages, getNavGrid } from "../scenes/play";
 
 let hasMoved = false;
 

@@ -8,6 +8,7 @@
 
 import {
   defineScene,
+  type Engine,
   GridMap,
   gridToWorld,
   pick,
@@ -15,7 +16,6 @@ import {
   save,
   setStoragePrefix,
   sfx,
-  type Engine,
 } from "@engine";
 import { useStore } from "@ui/store";
 import { GAME } from "../config";
@@ -104,7 +104,11 @@ export const playScene = defineScene({
     visibleCells = new Set();
 
     // Spawn player
-    const playerWorld = gridToWorld(dungeon.playerStart.col, dungeon.playerStart.row, GAME.cellSize);
+    const playerWorld = gridToWorld(
+      dungeon.playerStart.col,
+      dungeon.playerStart.row,
+      GAME.cellSize,
+    );
     const playerHealth = data.playerHealth ?? GAME.player.maxHealth;
     const playerMaxHealth = data.playerMaxHealth ?? GAME.player.maxHealth;
     const playerStats = data.playerStats ?? {
@@ -207,8 +211,8 @@ export const playScene = defineScene({
       // Show intro dialog on first play
       engine.dialog.show(
         "You stand at the entrance of an ancient dungeon. " +
-        "Dark corridors stretch before you, and the air is thick with danger.\n\n" +
-        "Find the stairs to descend deeper. Beware the creatures lurking in the shadows.",
+          "Dark corridors stretch before you, and the air is thick with danger.\n\n" +
+          "Find the stairs to descend deeper. Beware the creatures lurking in the shadows.",
         {
           speaker: "Narrator",
           typeSpeed: 40,

@@ -6,14 +6,7 @@
  * for pathfinding and gridDistance for range checks.
  */
 
-import {
-  FONTS,
-  findPath,
-  gridDistance,
-  transition,
-  type Entity,
-  type GridMap,
-} from "@engine";
+import { type Entity, FONTS, findPath, type GridMap, gridDistance, transition } from "@engine";
 import { GAME } from "../config";
 
 interface EnemyConfig {
