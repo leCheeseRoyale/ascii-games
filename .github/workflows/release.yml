@@ -33,6 +33,8 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
+      - run: bun run init:game blank
+
       - name: Full gate
         run: bun run check && bun test && bun run lint && bun run build && bun run export
 
