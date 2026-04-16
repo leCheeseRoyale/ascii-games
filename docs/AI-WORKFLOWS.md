@@ -50,6 +50,19 @@ bun run ai:juice "boss death"
 
 Output: `game/helpers/<slug>.ts` — an `export function onX(engine, x, y)` call from your collision/event handler.
 
+### `ai:game` — generate a full game from a pitch
+
+Generates a complete `defineGame<TState>({...})` module (state + moves + turns + endIf + render + `setupGame`) from a natural-language pitch.
+
+```bash
+bun run ai:game "2-player strategy where you place walls to maze a runner"
+bun run ai:game "hotseat battle: place cards on a 3x3 grid, highest sum in a row wins"
+```
+
+Output: a complete defineGame module at `game/<slug>.ts`. Wire it as your starting scene in `game/index.ts` (the script prints the import lines to paste).
+
+Token-cost note: higher than the other AI scripts — expect ~10–20k tokens per call with sonnet because the full engine + new-game skill context ships in the system prompt and a full game module comes back.
+
 ## Flags (all scripts)
 
 | Flag | Default | Notes |

@@ -22,6 +22,7 @@
     "ai:sprite": "bun run scripts/ai-sprite.ts",
     "ai:mechanic": "bun run scripts/ai-mechanic.ts",
     "ai:juice": "bun run scripts/ai-juice.ts",
+    "ai:game": "bun run scripts/ai-game.ts",
     "test": "bun test",
     "bench": "bun run engine/__bench__/run.ts"
   },

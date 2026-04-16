@@ -11,12 +11,13 @@
  * phase transitions, and game-over reporting.
  */
 
-import { defineGame, type Engine } from "@engine";
+import { defineGame, type Engine, type MoveInputCtx } from "@engine";
 import { GAME } from "./config";
 
 const Empty = () => null;
 
 type Mark = "X" | "O" | null;
+type Player = "X" | "O";
 type State = { board: Mark[] };
 
 const LINES = [
@@ -35,15 +36,15 @@ function checkWinner(b: Mark[]): Mark {
   return null;
 }
 
-export const ticTacToe = defineGame<State>({
+export const ticTacToe = defineGame({
   name: "tic-tac-toe",
   players: { min: 2, max: 2, default: 2 },
-  setup: () => ({ board: Array(9).fill(null) }),
+  setup: (): State => ({ board: Array(9).fill(null) }),
   turns: { order: ["X", "O"] },
   moves: {
     place(ctx, idx: number) {
       if (ctx.state.board[idx] !== null) return "invalid";
-      ctx.state.board[idx] = ctx.currentPlayer as Mark;
+      ctx.state.board[idx] = ctx.currentPlayer;
     },
     reset(ctx) {
       ctx.state.board = Array(9).fill(null);
@@ -55,12 +56,12 @@ export const ticTacToe = defineGame<State>({
     if (ctx.state.board.every((c) => c !== null)) return { draw: true };
   },
   render(ctx) {
-    drawBoard(ctx.engine, ctx.state.board, ctx.currentPlayer as string, ctx.result);
+    drawBoard(ctx.engine, ctx.state.board, ctx.currentPlayer, ctx.result);
     handleInput(ctx);
   },
 });
 
-function drawBoard(engine: Engine, board: Mark[], current: string, result: any) {
+function drawBoard(engine: Engine, board: Mark[], current: Player, result: any) {
   const cell = GAME.board.size / 3;
   const ox = Math.floor(engine.width / 2 - GAME.board.size / 2);
   const oy = Math.floor(engine.height / 2 - GAME.board.size / 2);
@@ -94,11 +95,7 @@ function drawBoard(engine: Engine, board: Mark[], current: string, result: any) 
   });
 }
 
-function handleInput(ctx: {
-  engine: Engine;
-  moves: Record<string, (...a: any[]) => any>;
-  result: any;
-}) {
+function handleInput(ctx: MoveInputCtx<State, Player>) {
   const engine = ctx.engine;
   if (engine.keyboard.pressed("KeyR")) ctx.moves.reset();
   if (!engine.mouse.justDown || ctx.result) return;

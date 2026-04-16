@@ -57,13 +57,17 @@ import { defineScene, type Scene } from "./scene";
 export type MoveResult = void | "invalid";
 
 /** A single move — receives a live `ctx` and any caller arguments. */
-export type MoveFn<TState, TArgs extends any[] = any[]> = (
-  ctx: GameContext<TState>,
-  ...args: TArgs
-) => MoveResult;
+export type MoveFn<
+  TState,
+  TArgs extends any[] = any[],
+  TPlayer extends string | number = string | number,
+> = (ctx: GameContext<TState, TPlayer>, ...args: TArgs) => MoveResult;
 
 /** Map of move name → move function. */
-export type MovesMap<TState> = Record<string, MoveFn<TState>>;
+export type MovesMap<TState, TPlayer extends string | number = string | number> = Record<
+  string,
+  MoveFn<TState, any[], TPlayer>
+>;
 
 /** Bound moves: same names, with the ctx pre-bound so callers just pass args. */
 export type BoundMoves<TState, TMoves extends MovesMap<TState>> = {
@@ -76,7 +80,7 @@ export type BoundMoves<TState, TMoves extends MovesMap<TState>> = {
 export type GameResult = { winner?: string | number; draw?: boolean } & Record<string, unknown>;
 
 /** Context passed to every callback. */
-export interface GameContext<TState> {
+export interface GameContext<TState, TPlayer extends string | number = string | number> {
   /** Full engine instance for imperative operations (spawn, ui, toast, etc.). */
   engine: Engine;
   /** Mutable game state. Mutate directly inside moves. */
@@ -86,7 +90,7 @@ export interface GameContext<TState> {
   /** 1-based turn number. */
   turn: number;
   /** Current player id (value from `turns.order`, or 1-based index if no order). */
-  currentPlayer: string | number;
+  currentPlayer: TPlayer;
   /** 1-based index into `players` (fallback when `turns.order` is unset). */
   playerIndex: number;
   /** Number of players. */
@@ -108,28 +112,39 @@ export interface GameContext<TState> {
   goToPhase: (phaseName: string) => void;
 }
 
+/**
+ * Convenience alias for the subset of `GameContext` that move-input helpers
+ * typically need (engine + bound moves + live state/result + current player).
+ * Lets callers type locally-declared input helpers without redeclaring the
+ * full context shape.
+ */
+export type MoveInputCtx<TState, TPlayer extends string | number = string | number> = Pick<
+  GameContext<TState, TPlayer>,
+  "engine" | "moves" | "state" | "result" | "currentPlayer"
+>;
+
 /** Per-phase config. */
-export interface PhaseConfig<TState> {
+export interface PhaseConfig<TState, TPlayer extends string | number = string | number> {
   /** Called when entering this phase. */
-  onEnter?: (ctx: GameContext<TState>) => void;
+  onEnter?: (ctx: GameContext<TState, TPlayer>) => void;
   /** Called when leaving this phase. */
-  onExit?: (ctx: GameContext<TState>) => void;
+  onExit?: (ctx: GameContext<TState, TPlayer>) => void;
   /**
    * Checked after each move. Return a phase name to switch, or anything
    * falsy to stay. Useful for `winner ? 'gameOver' : null`.
    */
-  endIf?: (ctx: GameContext<TState>) => string | null | undefined;
+  endIf?: (ctx: GameContext<TState, TPlayer>) => string | null | undefined;
   /** Restrict moves to a whitelist while this phase is active. */
   moves?: string[];
 }
 
 /** Turn-order config. */
-export interface TurnsConfig {
+export interface TurnsConfig<TPlayer extends string | number = string | number> {
   /**
    * Ordered list of player ids. `currentPlayer` rotates through these.
    * Defaults to 1..numPlayers if omitted.
    */
-  order?: Array<string | number>;
+  order?: readonly TPlayer[];
   /**
    * Auto-advance turn after each successful move. Default `true`. Set false
    * to let moves call `ctx.endTurn()` explicitly (e.g. multi-action turns).
@@ -152,7 +167,7 @@ export interface SetupContext {
 }
 
 /** The full game definition. */
-export interface GameDefinition<TState = any> {
+export interface GameDefinition<TState = any, TPlayer extends string | number = string | number> {
   name: string;
   players?: PlayersConfig;
   /** Optional deterministic seed — if set, `ctx.random()` is reproducible across runs. */
@@ -160,7 +175,7 @@ export interface GameDefinition<TState = any> {
   /** Construct initial state. Called once on game start. */
   setup: (ctx: SetupContext) => TState;
   /** Turn rotation config. */
-  turns?: TurnsConfig;
+  turns?: TurnsConfig<TPlayer>;
   /**
    * Named phases. The `order` array lists phase names; additional keys
    * provide per-phase config. Typed loosely so TypeScript doesn't complain
@@ -169,16 +184,16 @@ export interface GameDefinition<TState = any> {
   phases?: {
     /** Ordered phase names. The first is entered on start. */
     order: string[];
-    [phaseName: string]: PhaseConfig<TState> | string[];
+    [phaseName: string]: PhaseConfig<TState, TPlayer> | string[];
   };
   /** All moves, keyed by name. */
-  moves: MovesMap<TState>;
+  moves: MovesMap<TState, TPlayer>;
   /** If truthy, the game is over. Return value is stored on `ctx.result`. */
-  endIf?: (ctx: GameContext<TState>) => GameResult | null | undefined | void;
+  endIf?: (ctx: GameContext<TState, TPlayer>) => GameResult | null | undefined | void;
   /** Extra systems to register alongside the built-in ones. */
   systems?: System[];
   /** Called every frame from the scene's update hook. Use `engine.ui.*` to draw. */
-  render?: (ctx: GameContext<TState>) => void;
+  render?: (ctx: GameContext<TState, TPlayer>) => void;
   /** Override the generated scene name. Default `'play'`. */
   startScene?: string;
 }
@@ -186,8 +201,14 @@ export interface GameDefinition<TState = any> {
 /**
  * Identity helper that captures the generic state type so users get
  * full autocomplete on `ctx.state` inside moves without manual type args.
+ *
+ * The `const` modifier on `TPlayer` lets TypeScript infer literal-union
+ * player types from an inline `turns.order: ['X', 'O']` — no `as const`
+ * needed — so `ctx.currentPlayer` narrows to `'X' | 'O'` automatically.
  */
-export function defineGame<TState = any>(def: GameDefinition<TState>): GameDefinition<TState> {
+export function defineGame<TState = any, const TPlayer extends string | number = string | number>(
+  def: GameDefinition<TState, TPlayer>,
+): GameDefinition<TState, TPlayer> {
   return def;
 }
 
@@ -197,8 +218,8 @@ export function defineGame<TState = any>(def: GameDefinition<TState>): GameDefin
  * Internal runtime that owns game state and dispatches moves. Exposed via
  * `engine.runGame(def)` — games almost never instantiate this directly.
  */
-export class GameRuntime<TState> {
-  readonly def: GameDefinition<TState>;
+export class GameRuntime<TState, TPlayer extends string | number = string | number> {
+  readonly def: GameDefinition<TState, TPlayer>;
   private engine: Engine;
   private state!: TState;
   private _turn = 1;
@@ -206,13 +227,13 @@ export class GameRuntime<TState> {
   private _result: GameResult | null = null;
   private _history: string[] = [];
   private _random: () => number;
-  private _order: Array<string | number>;
+  private _order: TPlayer[];
   private _numPlayers: number;
   private _phaseOrder: string[] = [];
   private _currentPhase: string | null = null;
   private _boundMoves: Record<string, (...args: any[]) => MoveResult | "game-over"> = {};
 
-  constructor(def: GameDefinition<TState>, engine: Engine) {
+  constructor(def: GameDefinition<TState, TPlayer>, engine: Engine) {
     this.def = def;
     this.engine = engine;
     this._random = createSeededRandom(def.seed);
@@ -220,8 +241,8 @@ export class GameRuntime<TState> {
     // Default turn order: use configured ids or 1..N.
     this._order =
       def.turns?.order && def.turns.order.length > 0
-        ? [...def.turns.order]
-        : Array.from({ length: this._numPlayers }, (_, i) => i + 1);
+        ? ([...def.turns.order] as TPlayer[])
+        : (Array.from({ length: this._numPlayers }, (_, i) => i + 1) as TPlayer[]);
     this._phaseOrder = def.phases?.order ?? [];
     for (const name of Object.keys(def.moves)) {
       this._boundMoves[name] = (...args: any[]) => this.dispatch(name, args);
@@ -244,7 +265,7 @@ export class GameRuntime<TState> {
   }
 
   /** Current player id. */
-  get currentPlayer(): string | number {
+  get currentPlayer(): TPlayer {
     return this._order[this._playerIndex];
   }
 
@@ -279,11 +300,11 @@ export class GameRuntime<TState> {
   }
 
   /** Look up a phase config by name. Typed narrowly so TS trusts it. */
-  private phaseCfg(name: string): PhaseConfig<TState> | undefined {
+  private phaseCfg(name: string): PhaseConfig<TState, TPlayer> | undefined {
     const p = this.def.phases;
     if (!p) return undefined;
     const v = p[name];
-    return Array.isArray(v) ? undefined : (v as PhaseConfig<TState> | undefined);
+    return Array.isArray(v) ? undefined : (v as PhaseConfig<TState, TPlayer> | undefined);
   }
 
   /**
@@ -375,7 +396,7 @@ export class GameRuntime<TState> {
   }
 
   /** Build a fresh ctx object. Cheap — called per callback invocation. */
-  buildCtx(): GameContext<TState> {
+  buildCtx(): GameContext<TState, TPlayer> {
     return {
       engine: this.engine,
       state: this.state,
@@ -403,9 +424,9 @@ export class GameRuntime<TState> {
  * Build the auto-generated scene that `engine.runGame` registers. Exposed
  * so tests and tools can introspect what got registered.
  */
-export function buildGameScene<TState>(
-  def: GameDefinition<TState>,
-  runtime: GameRuntime<TState>,
+export function buildGameScene<TState, TPlayer extends string | number = string | number>(
+  def: GameDefinition<TState, TPlayer>,
+  runtime: GameRuntime<TState, TPlayer>,
 ): Scene {
   const sceneName = def.startScene ?? "play";
   return defineScene({

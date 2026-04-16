@@ -215,6 +215,7 @@ export {
   type GameResult,
   GameRuntime,
   type MoveFn,
+  type MoveInputCtx,
   type MoveResult,
   type MovesMap,
   type PhaseConfig,

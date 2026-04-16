@@ -439,10 +439,10 @@ export class Engine {
   // ── Declarative game helper ───────────────────────────────────
 
   /** Active `defineGame` runtime — set by `runGame`, read by render/input code. */
-  private _gameRuntime: GameRuntime<any> | null = null;
+  private _gameRuntime: GameRuntime<any, any> | null = null;
 
   /** The currently-running declarative game runtime, if any. */
-  get game(): GameRuntime<any> | null {
+  get game(): GameRuntime<any, any> | null {
     return this._gameRuntime;
   }
 
@@ -457,8 +457,10 @@ export class Engine {
    * }
    * ```
    */
-  runGame<TState>(def: GameDefinition<TState>): string {
-    const runtime = new GameRuntime<TState>(def, this);
+  runGame<TState, TPlayer extends string | number = string | number>(
+    def: GameDefinition<TState, TPlayer>,
+  ): string {
+    const runtime = new GameRuntime<TState, TPlayer>(def, this);
     this._gameRuntime = runtime;
     const scene = buildGameScene(def, runtime);
     this.registerScene(scene);

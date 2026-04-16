@@ -283,6 +283,37 @@ describe("defineGame", () => {
     // (Full engine.runGame path is covered in the template smoke test.)
   });
 
+  test("turns.order narrows ctx.currentPlayer to the literal union (no 'as const' needed)", () => {
+    // Compile-time assertion: `ctx.currentPlayer` must be inferred as the
+    // literal union of `turns.order`, not the default `string | number`.
+    // We assert this by assigning to a narrowly-typed variable inside the
+    // move — a widening type would produce a TS error on the `current`
+    // assignment below, which would fail `bun run check`.
+    const seen: Array<"alpha" | "beta"> = [];
+    const def = defineGame({
+      name: "narrow-player",
+      setup: () => ({ last: null as "alpha" | "beta" | null }),
+      turns: { order: ["alpha", "beta"] },
+      moves: {
+        record(ctx) {
+          // This assignment only typechecks when `ctx.currentPlayer` is
+          // narrowed to `"alpha" | "beta"`. If it stayed `string | number`
+          // tsc would fail on `bun run check`.
+          const current: "alpha" | "beta" = ctx.currentPlayer;
+          ctx.state.last = current;
+          seen.push(current);
+        },
+      },
+    });
+    const engine = stubEngine();
+    const runtime = new GameRuntime(def, engine);
+    runtime.start();
+    runtime.dispatch("record", []);
+    runtime.dispatch("record", []);
+    expect(seen).toEqual(["alpha", "beta"]);
+    expect(runtime.gameState.last).toBe("beta");
+  });
+
   test("autoEnd: false keeps the same player until endTurn is called", () => {
     const def = defineGame<{ attacks: number }>({
       name: "no-auto-end",
