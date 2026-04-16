@@ -4,10 +4,11 @@
   "description": "Create a new ASCII game in seconds",
   "type": "module",
   "bin": {
-    "create-ascii-game": "./index.mjs"
+    "create-ascii-game": "index.mjs"
   },
   "files": [
-    "index.mjs"
+    "index.mjs",
+    "README.md"
   ],
   "keywords": [
     "ascii",
@@ -21,6 +22,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/leCheeseRoyale/ascii-games"
+    "url": "git+https://github.com/leCheeseRoyale/ascii-games.git",
+    "directory": "packages/create-ascii-game"
+  },
+  "homepage": "https://github.com/leCheeseRoyale/ascii-games#readme",
+  "bugs": {
+    "url": "https://github.com/leCheeseRoyale/ascii-games/issues"
   }
 }
