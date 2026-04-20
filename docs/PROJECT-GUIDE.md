@@ -12,6 +12,8 @@ An ASCII game engine and framework. Users create games by picking a template (`b
 bun dev              # Start dev server (auto-runs template picker if game/ is missing)
 bun dev:fast         # Start Vite directly (skip auto-detect)
 bun run check        # TypeScript type-check (no emit)
+bun run check:bounds # Enforce import boundaries between engine/game/ui/shared
+bun run check:all    # check + check:bounds + lint (full verification)
 bun run test         # Run test suite (bun:test, 1140+ tests)
 bun run build        # Production build
 bun run preview      # Preview production build
@@ -33,7 +35,8 @@ bun run list:games         # List available game templates
 ```
 engine/   -- Framework code. Do NOT put game logic here.
 game/     -- User game code (gitignored, created from templates via init:game).
-games/    -- Source-of-truth game templates (blank, asteroid-field, platformer, roguelike).
+games/    -- Source-of-truth game templates (blank, asteroid-field, platformer, roguelike, tic-tac-toe, connect-four).
+           tic-tac-toe & connect-four use defineGame (declarative); others use defineScene (ECS).
 ui/       -- React UI layer. Mounted independently of the canvas.
 shared/   -- Types, constants, events shared across all layers.
 scripts/  -- Bun scaffolding scripts.
@@ -45,13 +48,25 @@ docs/     -- API reference. docs/API-generated.md is auto-generated, don't edit 
 ### Data flow & boundaries
 
 ```
-game/ --uses--> engine/   (game code calls engine API)
-game/ --writes-> ui/store  (zustand store is the ONLY bridge to React)
-ui/   --reads--> ui/store  (React reads store reactively via hooks)
+engine/  --uses--> @shared    (engine re-exports shared types/constants/events)
+game/    --uses--> @engine    (game code calls engine API)
+game/    --writes-> @ui/store  (zustand store is the ONLY bridge to React)
+ui/      --reads--> @ui/store  (React reads store reactively via hooks)
+ui/      --calls--> @game/index (entry point only — calls setupGame)
+shared/  --no deps-->         (zero imports from engine/game/ui)
 ```
 
-- **Never import `ui/` from `engine/` or `game/`** (except the zustand store).
-- **Never import `engine/` or `game/` from `ui/`** components.
+Import boundaries are **enforced** by `bun run check:bounds`:
+
+| Layer | May import | Must NOT import |
+|---|---|---|
+| `engine/` | `@shared`, `@engine` | `@game`, `@ui` |
+| `game/`, `games/` | `@engine`, `@shared`, `@ui/store` | `@ui/*` (except store) |
+| `ui/` | `@engine`, `@shared`, `@ui/*`, `@game/index` | `@game/*` (except index) |
+| `shared/` | nothing from `@engine`/`@game`/`@ui` | `@engine`, `@game`, `@ui` |
+
+- Game code and templates should import from `@engine` (which re-exports `@shared`), not directly from `@shared`.
+- `engine/` itself imports from `@shared` because it IS the re-export layer.
 - Game state lives on entities or in the zustand store -- never in React component state.
 
 ### Entry point flow

@@ -1,0 +1,54 @@
+{
+  "name": "@ascii-games/engine",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "ASCII game engine — miniplex ECS + Pretext canvas text + React overlay UI",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./core/*": "./core/*.ts",
+    "./ecs/*": "./ecs/*.ts",
+    "./render/*": "./render/*.ts",
+    "./input/*": "./input/*.ts",
+    "./physics/*": "./physics/*.ts",
+    "./audio/*": "./audio/*.ts",
+    "./behaviors/*": "./behaviors/*.ts",
+    "./net/*": "./net/*.ts",
+    "./storage/*": "./storage/*.ts",
+    "./tiles/*": "./tiles/*.ts",
+    "./utils/*": "./utils/*.ts",
+    "./data/*": "./data/*.ts"
+  },
+  "dependencies": {
+    "@chenglou/pretext": "^0.0.4",
+    "miniplex": "^2.0.0",
+    "mitt": "^3.0.1",
+    "zustand": "^5.0.12",
+    "zzfx": "^1.3.2"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": { "optional": true },
+    "react-dom": { "optional": true }
+  },
+  "files": [
+    "**/*.ts",
+    "!__tests__/**",
+    "!__bench__/**"
+  ],
+  "keywords": [
+    "ascii",
+    "game",
+    "engine",
+    "ecs",
+    "canvas",
+    "text",
+    "roguelike",
+    "retro"
+  ],
+  "license": "MIT"
+}

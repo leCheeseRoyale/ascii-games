@@ -9,6 +9,8 @@
     "build": "bunx vite build",
     "preview": "bunx vite preview",
     "check": "bunx tsc --noEmit",
+    "check:bounds": "bun run scripts/check-boundaries.ts",
+    "check:all": "bun run check && bun run check:bounds && bun run lint",
     "lint": "bunx biome check .",
     "lint:fix": "bunx biome check --fix .",
     "knip": "bunx knip",

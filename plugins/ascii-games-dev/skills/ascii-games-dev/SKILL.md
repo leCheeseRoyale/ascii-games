@@ -1,6 +1,6 @@
 ---
 name: ascii-games-dev
-description: Use when the user is working in the ascii-games engine repo, editing files that import `@engine` / `@game` / `@ui` / `@shared`, building an ASCII-art canvas game, scaffolding scenes/systems/entities for the ascii-games framework, or asking about APIs like `defineScene`, `defineSystem`, `engine.spawn`, `engine.world`, `engine.camera`, `engine.particles`, `TurnSync`, `SocketAdapter`, `GameServer`, `createInventory`, `createEquipment`, `createDamageSystem`, `serializeGameState`, `SystemPriority`, or `engine.viewport`.
+description: Use when the user is working in the ascii-games engine repo, editing files that import `@engine` / `@game` / `@ui` / `@shared`, building an ASCII-art canvas game, scaffolding scenes/systems/entities for the ascii-games framework, or asking about APIs like `defineScene`, `defineSystem`, `defineGame`, `engine.spawn`, `engine.world`, `engine.camera`, `engine.particles`, `engine.runGame`, `TurnSync`, `SocketAdapter`, `GameServer`, `createInventory`, `createEquipment`, `createDamageSystem`, `serializeGameState`, `SystemPriority`, or `engine.viewport`.
 ---
 
 # Building with the ascii-games engine
@@ -9,11 +9,14 @@ The engine is a miniplex-ECS + Pretext-text-layout + React-UI hybrid for ASCII c
 
 ## Authoritative references — read these first when working on anything non-trivial
 
-1. **`docs/API-generated.md`** — auto-regenerated list of every `@engine` export. Trust this over any list in your training data. Regenerate with `bun run gen:api` if it looks stale.
-2. **`docs/PROJECT-GUIDE.md`** — architecture, boundaries, "Key APIs to Know".
-3. **`docs/COOKBOOK.md`** — copy-paste recipes for common patterns.
-4. **`games/roguelike/`** — gold-standard reference: turn-based phases, FOV, BSP dungeons, canvas-only UI, save/load.
-5. **`games/asteroid-field/`** — real-time reference: physics, collision, particles, waves, React HUD.
+1. **`AGENTS.md`** — component shapes, API cheat sheet, wiring guide. Start here for any task.
+2. **`docs/API-generated.md`** — auto-regenerated list of every `@engine` export. Trust this over any list in your training data. Regenerate with `bun run gen:api` if it looks stale.
+3. **`docs/PROJECT-GUIDE.md`** — architecture, boundaries, "Key APIs to Know".
+4. **`docs/COOKBOOK.md`** — copy-paste recipes for common patterns.
+5. **`docs/WIRING.md`** — step-by-step wiring for `defineGame` and `defineScene` games.
+6. **`games/tic-tac-toe/`** — gold-standard `defineGame` reference: board game, mouse input, game-over.
+7. **`games/roguelike/`** — gold-standard `defineScene` reference: turn-based phases, FOV, BSP dungeons, canvas-only UI, save/load.
+8. **`games/asteroid-field/`** — real-time reference: physics, collision, particles, waves, React HUD.
 
 When in doubt about an API's shape, do not guess — grep the `@engine` source under `engine/` or read the generated docs. The engine has churned; older recollections may be stale.
 
@@ -59,7 +62,13 @@ When in doubt about an API's shape, do not guess — grep the `@engine` source u
 | Mobile | `new Touch(canvas)`, `VirtualJoystick`, `VirtualDpad`; `engine.viewport.safeArea` for notches |
 | System runs in specific order | Set `priority: SystemPriority.physics + 1` on your system |
 
-## Typical file shape (for a new game feature)
+## Two game APIs
+
+**`defineGame`** — declarative, for board/puzzle/card games. Single file: state + moves + turns + `render()` + `endIf`. Engine handles turn rotation, phases, game-over. Wire: `engine.runGame(def)` returns scene name. See `games/tic-tac-toe/`, `games/connect-four/`, `AGENTS.md` → `defineGame` section.
+
+**`defineScene` + `defineSystem`** — ECS, for real-time/physics/complex games. Full control over entities, systems, physics. Wire: `engine.registerScene()` + return scene name from `setupGame`. See `games/asteroid-field/`, `games/roguelike/`.
+
+## Typical file shape (ECS game)
 
 ```
 game/
@@ -72,19 +81,38 @@ game/
   index.ts              -- setupGame(engine) registers scenes, returns starting name
 ```
 
+## Typical file shape (defineGame)
+
+```
+game/
+  my-game.ts            -- defineGame + setupGame in a single file
+  config.ts             -- GAME = { title, player, ... } as const
+  index.ts              -- re-exports setupGame from ./my-game
+```
+
 Game code's single bridge to React is the zustand store at `@ui/store`. Never import React from game code.
+
+## Import boundaries (enforced by `bun run check:bounds`)
+
+| Layer | May import | Must NOT import |
+|---|---|---|
+| `engine/` | `@shared`, `@engine` | `@game`, `@ui` |
+| `game/`, `games/` | `@engine`, `@shared`, `@ui/store` | `@ui/*` (except store) |
+| `ui/` | `@engine`, `@shared`, `@ui/*`, `@game/index` | `@game/*` (except index) |
+| `shared/` | nothing from `@engine`/`@game`/`@ui` | `@engine`, `@game`, `@ui` |
+
+Game code and templates should import from `@engine` (which re-exports everything from `@shared`), not directly from `@shared`. The one exception: `engine/` itself imports from `@shared` because it IS the layer that re-exports shared types.
 
 ## Before any large change
 
 Run the invariants:
 
 ```bash
-bun run check      # typecheck
-bun run test       # 1181+ tests
-bun run lint       # biome
+bun run check:all   # typecheck + boundary enforcement + lint
+bun run test        # 1140+ tests
 ```
 
-All four must stay green. Breaking tests is a blocker — fix the root cause, don't delete the test.
+All must stay green. Breaking tests is a blocker — fix the root cause, don't delete the test.
 
 ## Downstream task skills
 

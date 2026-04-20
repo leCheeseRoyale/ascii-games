@@ -14,6 +14,8 @@ ASCII game engine + framework. `engine/` is the reusable library; `game/` is per
 bun dev                 # Dev server (auto-runs template picker if game/ missing)
 bun dev:fast            # Vite directly (skip auto-detect)
 bun run check           # tsc --noEmit
+bun run check:bounds    # Enforce import boundaries between engine/game/ui/shared
+bun run check:all       # check + check:bounds + lint (full verification)
 bun test                # Full suite (bun:test, 1140+ tests in engine/__tests__/)
 bun test <path>         # Single file: bun test engine/__tests__/physics.test.ts
 bun test -t "<name>"    # Filter by test name
@@ -23,26 +25,43 @@ bun run build           # Production build |  bun run export     # single-file d
 bun run bench           # engine/__bench__/run.ts
 bun run gen:api         # Regenerate docs/API-generated.md
 bun run new:scene|new:system|new:entity <name>    # Scaffold
-bun run init:game [blank|asteroid-field|platformer|roguelike]
+bun run init:game [blank|asteroid-field|platformer|roguelike|tic-tac-toe|connect-four]
+bun run ai:game "<pitch>"      # AI-generated defineGame module (needs ANTHROPIC_API_KEY)
+bun run ai:sprite "<prompt>"   # AI-generated sprite factory
+bun run ai:mechanic "<desc>"   # AI-generated behavior system
+bun run ai:juice "<event>"     # AI-generated juice/feedback helper
 ```
 
-**Verification loop** before declaring work done: `bun run check` → `bun test` (or targeted `bun test <path>`) → `bun run lint`. Type-check + tests are the mechanical contract. UI/render correctness is **not** verifiable headlessly — state that limitation explicitly instead of claiming success.
+**Verification loop** before declaring work done: `bun run check:all` → `bun test` (or targeted `bun test <path>`). This runs typecheck + boundary enforcement + lint. Type-check + tests are the mechanical contract. UI/render correctness is **not** verifiable headlessly — state that limitation explicitly instead of claiming success.
 
 ## Architecture
 
-Four layers, strict boundaries enforced via path aliases (`@engine`, `@game`, `@ui`, `@shared`):
+Four layers, strict boundaries enforced via path aliases (`@engine`, `@game`, `@ui`, `@shared`) and verified by `bun run check:bounds`:
 
 ```
 engine/   Framework: core, ecs, render, input, physics, audio, behaviors, net, storage, tiles, utils.
 game/     Per-project game code (gitignored). Derived from games/<template>/.
-games/    Source-of-truth templates (blank, asteroid-field, platformer, roguelike).
+games/    Source-of-truth templates (blank, asteroid-field, platformer, roguelike, tic-tac-toe, connect-four).
           Edit THESE to change template content — `game/` is a working copy.
+          tic-tac-toe & connect-four use `defineGame` (declarative); others use `defineScene` (ECS).
 ui/       React overlay. zustand store is the ONLY bridge between engine/game and UI.
 shared/   Types (shared/types.ts = Entity + every component shape), constants, events (shared/events.ts).
 ```
 
-- **Never** import `ui/` from `engine/` or `game/` except the zustand store. **Never** import `engine/` or `game/` from `ui/` components.
+- **Import boundaries** (enforced by `bun run check:bounds`):
+  - `engine/` → may import `@shared`, `@engine`. NEVER `@game` or `@ui`.
+  - `game/`, `games/` → may import `@engine`, `@shared`, `@ui/store` ONLY. NEVER `@ui/*` (except store).
+  - `ui/` → may import `@engine`, `@shared`, `@ui/*`, `@game/index` (entry point only). NEVER `@game/*`.
+  - `shared/` → may NOT import `@engine`, `@game`, `@ui`. Zero dependencies on other layers.
 - **Entry point:** `game/index.ts` exports `setupGame(engine)` → returns a scene name or `{ startScene, screens?, hud?, store? }`. Canvas-only games suppress the React overlay by returning `screens: { menu: Empty, playing: Empty, gameOver: Empty }, hud: []` where `const Empty = () => null` (see `games/roguelike/index.ts`).
+
+## Two Game APIs: `defineGame` vs `defineScene`
+
+**`defineGame`** — declarative, boardgame.io-style. Best for turn-based, board games, puzzles, hotseat. Single file, 30–80 lines. Engine handles turn rotation, phase transitions, game-over. Wire with `engine.runGame(def)` → returns scene name. See `games/tic-tac-toe/` and `games/connect-four/`.
+
+**`defineScene` + `defineSystem`** — ECS, full control. Best for real-time, physics-heavy, or complex games (roguelikes, platformers, shooters). See `games/asteroid-field/`, `games/platformer/`, `games/roguelike/`.
+
+When `defineGame` games need canvas-only UI (no React), `setupGame` returns `{ startScene: engine.runGame(def), screens: { menu: Empty, playing: Empty, gameOver: Empty }, hud: [] }`.
 
 ## ECS Rules
 
@@ -77,10 +96,13 @@ Engine defensiveness you can rely on (don't reinvent): `engine.spawn()` validate
 - `AGENTS.md` — terse API cheat sheet organized for agents.
 - `docs/API-generated.md` — auto-generated API reference (regenerate, don't edit).
 - `docs/COOKBOOK.md` — patterns and recipes.
+- `docs/WIRING.md` — step-by-step wiring for `defineGame` and `defineScene` games.
 - `docs/QUICKSTART.md`, `docs/TUTORIAL.md` — hands-on walkthroughs.
 - `docs/PERF.md` — performance notes.
 - `shared/types.ts` — `Entity` + every component shape.
 - `shared/events.ts` — full typed event catalog.
 - `engine/index.ts` — the entire public export surface.
 - `engine/ecs/systems.ts` — built-in system priorities + ordering model.
-- `games/<template>/` — working reference games to mimic.
+- `games/<template>/` — working reference games to mimic. Use `tic-tac-toe`/`connect-four` for `defineGame` patterns; `asteroid-field`/`platformer` for real-time ECS; `roguelike` for turn-based ECS with phases + FOV.
+- `engine/core/define-game.ts` — `defineGame` API, `GameContext`, `GameRuntime`, phase/move/turn types.
+- `plugins/ascii-games-dev/` — Claude plugin skills + ECS reviewer agent.
