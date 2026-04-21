@@ -9,22 +9,16 @@
 
 import { describe, expect, test } from "bun:test";
 import { setupGame } from "../../../games/roguelike";
-import { mockTemplateEngine } from "./_engine";
+import { createTestEngine } from "./_engine";
 
 describe("smoke: roguelike", () => {
   test("setupGame boots, ticks 60 frames, spawns player + enemies, runs cleanup", async () => {
-    const engine = mockTemplateEngine();
-
-    // The roguelike title scene uses `UIMenu`, whose draw path calls
-    // `ui._queue.push(...)`. The mock engine's `ui` is a no-op stub and
-    // doesn't include `_queue`, so patch it locally here (without
-    // touching the shared _engine.ts helper used by existing tests).
-    (engine.ui as unknown as { _queue: Array<() => void> })._queue = [];
+    const engine = createTestEngine();
 
     let setupThrew: unknown = null;
     let startScene: string | undefined;
     try {
-      const result = setupGame(engine as unknown as Parameters<typeof setupGame>[0]);
+      const result = setupGame(engine);
       // Roguelike returns the object shape.
       expect(typeof result).toBe("object");
       startScene = typeof result === "string" ? result : result.startScene;

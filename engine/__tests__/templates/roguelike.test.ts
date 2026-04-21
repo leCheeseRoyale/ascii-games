@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { setupGame } from "../../../games/roguelike";
-import { mockTemplateEngine } from "./_engine";
+import { createTestEngine } from "./_engine";
 
 describe("template: roguelike", () => {
   test("boots, loads play scene, and produces expected entity tags", async () => {
-    const engine = mockTemplateEngine();
+    const engine = createTestEngine();
     const errors: unknown[] = [];
 
-    const result = setupGame(engine as unknown as Parameters<typeof setupGame>[0]);
+    const result = setupGame(engine);
     expect(result.startScene).toBe("title");
 
     await engine.loadScene("play", { data: { floor: 1 } });

@@ -10,18 +10,18 @@ describe("SystemRunner ordering by priority", () => {
 
     runner.add(
       defineSystem({ name: "late", priority: 80, update: () => order.push("late") }),
-      engine as any,
+      engine,
     );
     runner.add(
       defineSystem({ name: "early", priority: 10, update: () => order.push("early") }),
-      engine as any,
+      engine,
     );
     runner.add(
       defineSystem({ name: "mid", priority: 40, update: () => order.push("mid") }),
-      engine as any,
+      engine,
     );
 
-    runner.update(engine as any, 0.016);
+    runner.update(engine, 0.016);
     expect(order).toEqual(["early", "mid", "late"]);
   });
 
@@ -30,20 +30,11 @@ describe("SystemRunner ordering by priority", () => {
     const order: string[] = [];
     const runner = new SystemRunner();
 
-    runner.add(
-      defineSystem({ name: "a", priority: 5, update: () => order.push("a") }),
-      engine as any,
-    );
-    runner.add(
-      defineSystem({ name: "b", priority: 5, update: () => order.push("b") }),
-      engine as any,
-    );
-    runner.add(
-      defineSystem({ name: "c", priority: 5, update: () => order.push("c") }),
-      engine as any,
-    );
+    runner.add(defineSystem({ name: "a", priority: 5, update: () => order.push("a") }), engine);
+    runner.add(defineSystem({ name: "b", priority: 5, update: () => order.push("b") }), engine);
+    runner.add(defineSystem({ name: "c", priority: 5, update: () => order.push("c") }), engine);
 
-    runner.update(engine as any, 0.016);
+    runner.update(engine, 0.016);
     expect(order).toEqual(["a", "b", "c"]);
   });
 
@@ -58,11 +49,11 @@ describe("SystemRunner ordering by priority", () => {
         priority: SystemPriority.physics,
         update: () => order.push("physics"),
       }),
-      engine as any,
+      engine,
     );
-    runner.add(defineSystem({ name: "custom", update: () => order.push("custom") }), engine as any);
+    runner.add(defineSystem({ name: "custom", update: () => order.push("custom") }), engine);
 
-    runner.update(engine as any, 0.016);
+    runner.update(engine, 0.016);
     expect(order).toEqual(["custom", "physics"]);
   });
 
@@ -77,7 +68,7 @@ describe("SystemRunner ordering by priority", () => {
         priority: SystemPriority.physics,
         update: () => order.push("physics"),
       }),
-      engine as any,
+      engine,
     );
     runner.add(
       defineSystem({
@@ -85,7 +76,7 @@ describe("SystemRunner ordering by priority", () => {
         priority: SystemPriority.tween,
         update: () => order.push("tween"),
       }),
-      engine as any,
+      engine,
     );
     runner.add(
       defineSystem({
@@ -93,10 +84,10 @@ describe("SystemRunner ordering by priority", () => {
         priority: SystemPriority.physics + 1,
         update: () => order.push("collision"),
       }),
-      engine as any,
+      engine,
     );
 
-    runner.update(engine as any, 0.016);
+    runner.update(engine, 0.016);
     expect(order).toEqual(["physics", "collision", "tween"]);
   });
 });

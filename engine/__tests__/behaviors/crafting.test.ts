@@ -573,7 +573,7 @@ describe("events", () => {
 
     events.on("craft:complete" as any, handler);
     const result = craft(swordRecipe, inv, itemLookup, {
-      engine: engine as any,
+      engine: engine,
       entity: { tags: { values: new Set() } } as any,
     });
     events.off("craft:complete" as any, handler);
@@ -597,7 +597,7 @@ describe("events", () => {
     const handler = (e: any) => received.push(e);
 
     events.on("craft:failed" as any, handler);
-    craft(swordRecipe, inv, itemLookup, { engine: engine as any });
+    craft(swordRecipe, inv, itemLookup, { engine: engine });
     events.off("craft:failed" as any, handler);
 
     expect(received.length).toBe(1);
@@ -615,7 +615,7 @@ describe("events", () => {
 
     events.on("craft:failed" as any, handler);
     craft(recipe, inv, itemLookup, {
-      engine: engine as any,
+      engine: engine,
       rng: () => 0.9, // 0.9 >= 0.1 → failure
     });
     events.off("craft:failed" as any, handler);

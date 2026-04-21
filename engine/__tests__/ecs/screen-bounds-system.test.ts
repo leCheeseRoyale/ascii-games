@@ -16,8 +16,8 @@ describe("screenBoundsSystem", () => {
         screenWrap: {},
       });
 
-      screenBoundsSystem.update(engine as any, 0.016);
-      expect(e.position.x).toBeCloseTo(0);
+      screenBoundsSystem.update(engine, 0.016);
+      expect(e.position!.x).toBeCloseTo(0);
     });
 
     test("wraps entity going off left edge", () => {
@@ -26,8 +26,8 @@ describe("screenBoundsSystem", () => {
         screenWrap: {},
       });
 
-      screenBoundsSystem.update(engine as any, 0.016);
-      expect(e.position.x).toBe(800);
+      screenBoundsSystem.update(engine, 0.016);
+      expect(e.position!.x).toBe(800);
     });
 
     test("wraps entity going off bottom edge", () => {
@@ -36,8 +36,8 @@ describe("screenBoundsSystem", () => {
         screenWrap: {},
       });
 
-      screenBoundsSystem.update(engine as any, 0.016);
-      expect(e.position.y).toBeCloseTo(0);
+      screenBoundsSystem.update(engine, 0.016);
+      expect(e.position!.y).toBeCloseTo(0);
     });
 
     test("wraps entity going off top edge", () => {
@@ -46,8 +46,8 @@ describe("screenBoundsSystem", () => {
         screenWrap: {},
       });
 
-      screenBoundsSystem.update(engine as any, 0.016);
-      expect(e.position.y).toBe(600);
+      screenBoundsSystem.update(engine, 0.016);
+      expect(e.position!.y).toBe(600);
     });
 
     test("respects margin", () => {
@@ -57,13 +57,13 @@ describe("screenBoundsSystem", () => {
       });
 
       // x=810 > 800+20=820? No (810 < 820), so no wrap
-      screenBoundsSystem.update(engine as any, 0.016);
-      expect(e.position.x).toBe(810);
+      screenBoundsSystem.update(engine, 0.016);
+      expect(e.position!.x).toBe(810);
 
       // Now move past margin
-      e.position.x = 821;
-      screenBoundsSystem.update(engine as any, 0.016);
-      expect(e.position.x).toBe(-20);
+      e.position!.x = 821;
+      screenBoundsSystem.update(engine, 0.016);
+      expect(e.position!.x).toBe(-20);
     });
 
     test("does not wrap entity inside screen", () => {
@@ -72,9 +72,9 @@ describe("screenBoundsSystem", () => {
         screenWrap: {},
       });
 
-      screenBoundsSystem.update(engine as any, 0.016);
-      expect(e.position.x).toBe(400);
-      expect(e.position.y).toBe(300);
+      screenBoundsSystem.update(engine, 0.016);
+      expect(e.position!.x).toBe(400);
+      expect(e.position!.y).toBe(300);
     });
   });
 
@@ -85,8 +85,8 @@ describe("screenBoundsSystem", () => {
         screenClamp: {},
       });
 
-      screenBoundsSystem.update(engine as any, 0.016);
-      expect(e.position.x).toBeCloseTo(0);
+      screenBoundsSystem.update(engine, 0.016);
+      expect(e.position!.x).toBeCloseTo(0);
     });
 
     test("clamps entity at right boundary", () => {
@@ -95,8 +95,8 @@ describe("screenBoundsSystem", () => {
         screenClamp: {},
       });
 
-      screenBoundsSystem.update(engine as any, 0.016);
-      expect(e.position.x).toBe(800);
+      screenBoundsSystem.update(engine, 0.016);
+      expect(e.position!.x).toBe(800);
     });
 
     test("clamps entity at top boundary", () => {
@@ -105,8 +105,8 @@ describe("screenBoundsSystem", () => {
         screenClamp: {},
       });
 
-      screenBoundsSystem.update(engine as any, 0.016);
-      expect(e.position.y).toBeCloseTo(0);
+      screenBoundsSystem.update(engine, 0.016);
+      expect(e.position!.y).toBeCloseTo(0);
     });
 
     test("clamps entity at bottom boundary", () => {
@@ -115,8 +115,8 @@ describe("screenBoundsSystem", () => {
         screenClamp: {},
       });
 
-      screenBoundsSystem.update(engine as any, 0.016);
-      expect(e.position.y).toBe(600);
+      screenBoundsSystem.update(engine, 0.016);
+      expect(e.position!.y).toBe(600);
     });
 
     test("respects padding", () => {
@@ -125,9 +125,9 @@ describe("screenBoundsSystem", () => {
         screenClamp: { padding: 10 },
       });
 
-      screenBoundsSystem.update(engine as any, 0.016);
-      expect(e.position.x).toBe(10);
-      expect(e.position.y).toBe(10);
+      screenBoundsSystem.update(engine, 0.016);
+      expect(e.position!.x).toBe(10);
+      expect(e.position!.y).toBe(10);
     });
 
     test("clamps right/bottom with padding", () => {
@@ -136,9 +136,9 @@ describe("screenBoundsSystem", () => {
         screenClamp: { padding: 10 },
       });
 
-      screenBoundsSystem.update(engine as any, 0.016);
-      expect(e.position.x).toBe(790); // 800 - 10
-      expect(e.position.y).toBe(590); // 600 - 10
+      screenBoundsSystem.update(engine, 0.016);
+      expect(e.position!.x).toBe(790); // 800 - 10
+      expect(e.position!.y).toBe(590); // 600 - 10
     });
 
     test("does not clamp entity inside bounds", () => {
@@ -147,9 +147,9 @@ describe("screenBoundsSystem", () => {
         screenClamp: {},
       });
 
-      screenBoundsSystem.update(engine as any, 0.016);
-      expect(e.position.x).toBe(400);
-      expect(e.position.y).toBe(300);
+      screenBoundsSystem.update(engine, 0.016);
+      expect(e.position!.x).toBe(400);
+      expect(e.position!.y).toBe(300);
     });
   });
 
@@ -160,8 +160,8 @@ describe("screenBoundsSystem", () => {
         offScreenDestroy: {},
       });
 
-      screenBoundsSystem.update(engine as any, 0.016);
-      expect(engine._destroyed).toContain(e);
+      screenBoundsSystem.update(engine, 0.016);
+      expect(engine.world.entities).not.toContain(e as any);
     });
 
     test("destroys entity off the left edge", () => {
@@ -170,8 +170,8 @@ describe("screenBoundsSystem", () => {
         offScreenDestroy: {},
       });
 
-      screenBoundsSystem.update(engine as any, 0.016);
-      expect(engine._destroyed).toContain(e);
+      screenBoundsSystem.update(engine, 0.016);
+      expect(engine.world.entities).not.toContain(e as any);
     });
 
     test("destroys entity off the top edge", () => {
@@ -180,8 +180,8 @@ describe("screenBoundsSystem", () => {
         offScreenDestroy: {},
       });
 
-      screenBoundsSystem.update(engine as any, 0.016);
-      expect(engine._destroyed).toContain(e);
+      screenBoundsSystem.update(engine, 0.016);
+      expect(engine.world.entities).not.toContain(e as any);
     });
 
     test("destroys entity off the bottom edge", () => {
@@ -190,8 +190,8 @@ describe("screenBoundsSystem", () => {
         offScreenDestroy: {},
       });
 
-      screenBoundsSystem.update(engine as any, 0.016);
-      expect(engine._destroyed).toContain(e);
+      screenBoundsSystem.update(engine, 0.016);
+      expect(engine.world.entities).not.toContain(e as any);
     });
 
     test("respects custom margin", () => {
@@ -201,8 +201,8 @@ describe("screenBoundsSystem", () => {
       });
 
       // 820 > 800 + 10 = 810 => destroyed
-      screenBoundsSystem.update(engine as any, 0.016);
-      expect(engine._destroyed).toContain(e);
+      screenBoundsSystem.update(engine, 0.016);
+      expect(engine.world.entities).not.toContain(e as any);
     });
 
     test("does not destroy entity within margin", () => {
@@ -212,8 +212,8 @@ describe("screenBoundsSystem", () => {
       });
 
       // 830 > 800 + 50 = 850? No => not destroyed
-      screenBoundsSystem.update(engine as any, 0.016);
-      expect(engine._destroyed).not.toContain(e);
+      screenBoundsSystem.update(engine, 0.016);
+      expect(engine.world.entities).toContain(e as any);
     });
 
     test("default margin is 50", () => {
@@ -223,18 +223,18 @@ describe("screenBoundsSystem", () => {
       });
 
       // 845 > 800 + 50 = 850? No => not destroyed
-      screenBoundsSystem.update(engine as any, 0.016);
-      expect(engine._destroyed).not.toContain(e);
+      screenBoundsSystem.update(engine, 0.016);
+      expect(engine.world.entities).toContain(e as any);
     });
 
     test("does not destroy entity on screen", () => {
-      engine.spawn({
+      const e = engine.spawn({
         position: { x: 400, y: 300 },
         offScreenDestroy: {},
       });
 
-      screenBoundsSystem.update(engine as any, 0.016);
-      expect(engine._destroyed).toHaveLength(0);
+      screenBoundsSystem.update(engine, 0.016);
+      expect(engine.world.entities).toContain(e as any);
     });
   });
 

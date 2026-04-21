@@ -416,13 +416,9 @@ describe("event emission", () => {
     events.off("equipment:equip" as any, silentHandler);
 
     events.on("equipment:equip" as any, loudHandler);
-    equipItem(
-      createEquipment(["weapon"]),
-      shortsword,
-      undefined,
-      engine as any,
-      { tags: { values: new Set() } } as any,
-    );
+    equipItem(createEquipment(["weapon"]), shortsword, undefined, engine, {
+      tags: { values: new Set() },
+    } as any);
     events.off("equipment:equip" as any, loudHandler);
 
     expect(silent.length).toBe(0);
@@ -439,7 +435,7 @@ describe("event emission", () => {
     const received: any[] = [];
     const handler = (e: any) => received.push(e);
     events.on("equipment:unequip" as any, handler);
-    unequipItem(eq, "weapon", undefined, engine as any);
+    unequipItem(eq, "weapon", undefined, engine);
     events.off("equipment:unequip" as any, handler);
 
     expect(received.length).toBe(1);
@@ -459,7 +455,7 @@ describe("event emission", () => {
 
     events.on("equipment:equip" as any, equipHandler);
     events.on("equipment:unequip" as any, unequipHandler);
-    equipItem(eq, greatsword, undefined, engine as any);
+    equipItem(eq, greatsword, undefined, engine);
     events.off("equipment:equip" as any, equipHandler);
     events.off("equipment:unequip" as any, unequipHandler);
 
@@ -479,7 +475,7 @@ describe("event emission", () => {
     const received: any[] = [];
     const handler = (e: any) => received.push(e);
     events.on("equipment:unequip" as any, handler);
-    clearEquipment(eq, undefined, engine as any);
+    clearEquipment(eq, undefined, engine);
     events.off("equipment:unequip" as any, handler);
 
     expect(received.length).toBe(2);

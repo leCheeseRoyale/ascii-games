@@ -2,13 +2,6 @@ import { describe, expect, test } from "bun:test";
 import { createWaveSpawner } from "../../behaviors/wave-spawner";
 import { mockEngine } from "../helpers";
 
-function makeMockEngine() {
-  const engine = mockEngine() as any;
-  // Add spawn method on top of mockEngine
-  engine.randomEdgePosition = () => ({ x: 0, y: 0, edge: "top" as const });
-  return engine;
-}
-
 describe("createWaveSpawner", () => {
   test("returns a System", () => {
     const sys = createWaveSpawner({ waves: [] });
@@ -17,7 +10,7 @@ describe("createWaveSpawner", () => {
   });
 
   test("fires onWaveStart callback when wave begins", () => {
-    const engine = makeMockEngine();
+    const engine = mockEngine();
     let waveStarted = -1;
     const sys = createWaveSpawner({
       waves: [
@@ -39,7 +32,7 @@ describe("createWaveSpawner", () => {
   });
 
   test("spawns enemies with the configured tag", () => {
-    const engine = makeMockEngine();
+    const engine = mockEngine();
     const sys = createWaveSpawner({
       waves: [
         {
@@ -69,7 +62,7 @@ describe("createWaveSpawner", () => {
   });
 
   test("fires onAllWavesComplete when final wave clears", () => {
-    const engine = makeMockEngine();
+    const engine = mockEngine();
     let allDone = false;
     const sys = createWaveSpawner({
       waves: [
@@ -105,7 +98,7 @@ describe("createWaveSpawner", () => {
   });
 
   test("init resets wave state (safe to re-add)", () => {
-    const engine = makeMockEngine();
+    const engine = mockEngine();
     const sys = createWaveSpawner({ waves: [] });
 
     expect(() => {

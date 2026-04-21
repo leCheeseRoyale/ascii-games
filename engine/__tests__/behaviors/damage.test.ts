@@ -19,7 +19,7 @@ describe("createDamageSystem", () => {
       damage: { amount: 3 },
     });
 
-    sys.update(engine as any, 0.016);
+    sys.update(engine, 0.016);
     expect(entity.health.current).toBe(7);
   });
 
@@ -32,7 +32,7 @@ describe("createDamageSystem", () => {
       damage: { amount: 3 },
     });
 
-    sys.update(engine as any, 0.016);
+    sys.update(engine, 0.016);
     expect(entity.damage).toBeUndefined();
   });
 
@@ -45,7 +45,7 @@ describe("createDamageSystem", () => {
       damage: { amount: 100 },
     });
 
-    sys.update(engine as any, 0.016);
+    sys.update(engine, 0.016);
     expect(entity.health.current).toBe(0);
   });
 
@@ -59,12 +59,12 @@ describe("createDamageSystem", () => {
     });
 
     // First damage should apply
-    sys.update(engine as any, 0.016);
+    sys.update(engine, 0.016);
     expect(entity.health.current).toBe(7);
 
     // Second damage during i-frames should be ignored
     entity.damage = { amount: 3 };
-    sys.update(engine as any, 0.016);
+    sys.update(engine, 0.016);
     expect(entity.health.current).toBe(7);
   });
 
@@ -80,7 +80,7 @@ describe("createDamageSystem", () => {
       damage: { amount: 3 },
     });
 
-    sys.update(engine as any, 0.016);
+    sys.update(engine, 0.016);
     expect(entity.health.current).toBe(10);
   });
 
@@ -99,7 +99,7 @@ describe("createDamageSystem", () => {
       damage: { amount: 10 },
     });
 
-    sys.update(engine as any, 0.016);
+    sys.update(engine, 0.016);
     expect(died).toBe(true);
   });
 
@@ -114,7 +114,7 @@ describe("createDamageSystem", () => {
       health: { current: 10, max: 10 },
       damage: { amount: 3, type: "fire" },
     });
-    sys.update(engine as any, 0.016);
+    sys.update(engine, 0.016);
     events.off("combat:damage-taken", handler);
 
     expect(received.length).toBe(1);
@@ -134,7 +134,7 @@ describe("createDamageSystem", () => {
       health: { current: 5, max: 10 },
       damage: { amount: 10 },
     });
-    sys.update(engine as any, 0.016);
+    sys.update(engine, 0.016);
     events.off("combat:entity-defeated", handler);
 
     expect(defeated.length).toBe(1);
@@ -151,9 +151,9 @@ describe("createDamageSystem", () => {
       health: { current: 10, max: 10 },
       damage: { amount: 3 },
     });
-    sys.update(engine as any, 0.016);
+    sys.update(engine, 0.016);
     entity.damage = { amount: 3 };
-    sys.update(engine as any, 0.016);
+    sys.update(engine, 0.016);
     events.off("combat:damage-taken", handler);
 
     expect(received.length).toBe(1); // only the first hit

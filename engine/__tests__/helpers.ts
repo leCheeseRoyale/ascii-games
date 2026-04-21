@@ -1,30 +1,15 @@
 /**
- * Shared test helpers — mock engine factory for system tests.
+ * Shared test helpers — headless engine factory for system tests.
+ *
+ * Uses the real Engine in headless mode (no canvas). All ECS, physics,
+ * systems, timers, scene management, and game logic work; rendering is
+ * a no-op. Tests call `engine.tick(dt)` to advance frames.
  */
-import { createWorld } from "../ecs/world";
+import { Engine } from "../core/engine";
 
-export function mockEngine(opts?: { width?: number; height?: number }) {
-  const world = createWorld();
-  const destroyed: any[] = [];
-
-  return {
-    world,
-    width: opts?.width ?? 800,
-    height: opts?.height ?? 600,
-    spawn(data: Record<string, any>) {
-      return world.add(data as any);
-    },
-    destroy(entity: any) {
-      world.remove(entity);
-      destroyed.push(entity);
-    },
-    _destroyed: destroyed,
-    turns: { active: false, currentPhase: null as string | null },
-    systems: {
-      clear(_engine: any) {},
-    },
-    debug: {
-      showError(_msg: string, _dur?: number) {},
-    },
-  };
+export function mockEngine(opts?: { width?: number; height?: number }): Engine {
+  return new Engine(null, {
+    headlessWidth: opts?.width ?? 800,
+    headlessHeight: opts?.height ?? 600,
+  });
 }

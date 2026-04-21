@@ -377,7 +377,7 @@ describe("event emission", () => {
     events.off("inventory:add", silentHandler);
 
     events.on("inventory:add", loudHandler);
-    addItem(inv, potion, 3, engine as any, { tags: { values: new Set() } });
+    addItem(inv, potion, 3, engine, { tags: { values: new Set() } });
     events.off("inventory:add", loudHandler);
 
     expect(silent.length).toBe(0);
@@ -394,7 +394,7 @@ describe("event emission", () => {
     const received: any[] = [];
     const handler = (e: any) => received.push(e);
     events.on("inventory:remove", handler);
-    removeItem(inv, "potion", 2, engine as any);
+    removeItem(inv, "potion", 2, engine);
     events.off("inventory:remove", handler);
 
     expect(received.length).toBe(1);
@@ -410,7 +410,7 @@ describe("event emission", () => {
     const received: any[] = [];
     const handler = (e: any) => received.push(e);
     events.on("inventory:full", handler);
-    const ok = addItem(inv, sword, 1, engine as any);
+    const ok = addItem(inv, sword, 1, engine);
     events.off("inventory:full", handler);
 
     expect(ok).toBe(false);

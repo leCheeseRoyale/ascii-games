@@ -33,24 +33,24 @@ describe("SystemRunner timing instrumentation", () => {
 
   describe("setTimingEnabled", () => {
     test("is disabled by default (no samples recorded)", () => {
-      runner.add(defineSystem({ name: "noop", update: () => busyWait(1) }), engine as any);
-      runner.update(engine as any, 0.016);
+      runner.add(defineSystem({ name: "noop", update: () => busyWait(1) }), engine);
+      runner.update(engine, 0.016);
       expect(runner.getTimings().size).toBe(0);
       expect(runner.isTimingEnabled).toBe(false);
     });
 
     test("enabling causes samples to be recorded", () => {
-      runner.add(defineSystem({ name: "s1", update: () => {} }), engine as any);
+      runner.add(defineSystem({ name: "s1", update: () => {} }), engine);
       runner.setTimingEnabled(true);
-      runner.update(engine as any, 0.016);
+      runner.update(engine, 0.016);
       expect(runner.getTimings().has("s1")).toBe(true);
       expect(runner.isTimingEnabled).toBe(true);
     });
 
     test("disabling clears previously collected samples", () => {
-      runner.add(defineSystem({ name: "s1", update: () => {} }), engine as any);
+      runner.add(defineSystem({ name: "s1", update: () => {} }), engine);
       runner.setTimingEnabled(true);
-      runner.update(engine as any, 0.016);
+      runner.update(engine, 0.016);
       expect(runner.getTimings().size).toBe(1);
 
       runner.setTimingEnabled(false);
@@ -59,21 +59,21 @@ describe("SystemRunner timing instrumentation", () => {
     });
 
     test("samples are not recorded after disable", () => {
-      runner.add(defineSystem({ name: "s1", update: () => {} }), engine as any);
+      runner.add(defineSystem({ name: "s1", update: () => {} }), engine);
       runner.setTimingEnabled(true);
-      runner.update(engine as any, 0.016);
+      runner.update(engine, 0.016);
       runner.setTimingEnabled(false);
-      runner.update(engine as any, 0.016);
+      runner.update(engine, 0.016);
       expect(runner.getTimings().size).toBe(0);
     });
   });
 
   describe("per-system recording", () => {
     test("records a timing entry for each system that runs", () => {
-      runner.add(defineSystem({ name: "a", update: () => {} }), engine as any);
-      runner.add(defineSystem({ name: "b", update: () => {} }), engine as any);
+      runner.add(defineSystem({ name: "a", update: () => {} }), engine);
+      runner.add(defineSystem({ name: "b", update: () => {} }), engine);
       runner.setTimingEnabled(true);
-      runner.update(engine as any, 0.016);
+      runner.update(engine, 0.016);
 
       const timings = runner.getTimings();
       expect(timings.has("a")).toBe(true);
@@ -81,9 +81,9 @@ describe("SystemRunner timing instrumentation", () => {
     });
 
     test("timing entry has last, avg, and max fields populated", () => {
-      runner.add(defineSystem({ name: "work", update: () => busyWait(1) }), engine as any);
+      runner.add(defineSystem({ name: "work", update: () => busyWait(1) }), engine);
       runner.setTimingEnabled(true);
-      runner.update(engine as any, 0.016);
+      runner.update(engine, 0.016);
 
       const t = runner.getTimings().get("work");
       expect(t).toBeDefined();
@@ -96,19 +96,13 @@ describe("SystemRunner timing instrumentation", () => {
     });
 
     test("does not record timings for systems skipped by phase gating", () => {
-      engine.turns.active = true;
-      engine.turns.currentPhase = "play";
+      engine.turns.configure({ phases: ["play", "attack"] });
+      engine.turns.start(); // starts on "play"
 
-      runner.add(
-        defineSystem({ name: "attack-only", phase: "attack", update: () => {} }),
-        engine as any,
-      );
-      runner.add(
-        defineSystem({ name: "play-sys", phase: "play", update: () => {} }),
-        engine as any,
-      );
+      runner.add(defineSystem({ name: "attack-only", phase: "attack", update: () => {} }), engine);
+      runner.add(defineSystem({ name: "play-sys", phase: "play", update: () => {} }), engine);
       runner.setTimingEnabled(true);
-      runner.update(engine as any, 0.016);
+      runner.update(engine, 0.016);
 
       const timings = runner.getTimings();
       expect(timings.has("attack-only")).toBe(false);
@@ -116,32 +110,32 @@ describe("SystemRunner timing instrumentation", () => {
     });
 
     test("remove() drops stale timings for that system", () => {
-      runner.add(defineSystem({ name: "s1", update: () => {} }), engine as any);
+      runner.add(defineSystem({ name: "s1", update: () => {} }), engine);
       runner.setTimingEnabled(true);
-      runner.update(engine as any, 0.016);
+      runner.update(engine, 0.016);
       expect(runner.getTimings().has("s1")).toBe(true);
 
-      runner.remove("s1", engine as any);
+      runner.remove("s1", engine);
       expect(runner.getTimings().has("s1")).toBe(false);
     });
 
     test("clear() drops all timings", () => {
-      runner.add(defineSystem({ name: "a", update: () => {} }), engine as any);
-      runner.add(defineSystem({ name: "b", update: () => {} }), engine as any);
+      runner.add(defineSystem({ name: "a", update: () => {} }), engine);
+      runner.add(defineSystem({ name: "b", update: () => {} }), engine);
       runner.setTimingEnabled(true);
-      runner.update(engine as any, 0.016);
+      runner.update(engine, 0.016);
       expect(runner.getTimings().size).toBe(2);
 
-      runner.clear(engine as any);
+      runner.clear(engine);
       expect(runner.getTimings().size).toBe(0);
     });
   });
 
   describe("exponential moving average", () => {
     test("avg is seeded with the first sample (does not start at 0)", () => {
-      runner.add(defineSystem({ name: "steady", update: () => busyWait(2) }), engine as any);
+      runner.add(defineSystem({ name: "steady", update: () => busyWait(2) }), engine);
       runner.setTimingEnabled(true);
-      runner.update(engine as any, 0.016);
+      runner.update(engine, 0.016);
 
       const t = runner.getTimings().get("steady")!;
       // Seed avg with first sample so it doesn't ramp up from 0.
@@ -158,13 +152,13 @@ describe("SystemRunner timing instrumentation", () => {
           name: "converging",
           update: () => busyWait(1),
         }),
-        engine as any,
+        engine,
       );
       runner.setTimingEnabled(true);
 
       // Run many iterations; EMA should settle near the actual per-frame cost.
       for (let i = 0; i < 100; i++) {
-        runner.update(engine as any, 0.016);
+        runner.update(engine, 0.016);
       }
 
       const t = runner.getTimings().get("converging")!;
@@ -186,17 +180,17 @@ describe("SystemRunner timing instrumentation", () => {
           name: "variable",
           update: () => busyWait(cost),
         }),
-        engine as any,
+        engine,
       );
       runner.setTimingEnabled(true);
 
       cost = 3;
-      for (let i = 0; i < 50; i++) runner.update(engine as any, 0.016);
+      for (let i = 0; i < 50; i++) runner.update(engine, 0.016);
       const hotAvg = runner.getTimings().get("variable")!.avg;
 
       // Now switch to a much cheaper cost and run many more frames.
       cost = 0;
-      for (let i = 0; i < 300; i++) runner.update(engine as any, 0.016);
+      for (let i = 0; i < 300; i++) runner.update(engine, 0.016);
       const cooledAvg = runner.getTimings().get("variable")!.avg;
 
       // The cooled avg should be lower than the hot avg (trending toward 0).
@@ -212,7 +206,7 @@ describe("SystemRunner timing instrumentation", () => {
           name: "spiky",
           update: () => busyWait(cost),
         }),
-        engine as any,
+        engine,
       );
       runner.setTimingEnabled(true);
 
@@ -220,21 +214,21 @@ describe("SystemRunner timing instrumentation", () => {
 
       // Frame 1 — cheap.
       cost = 0;
-      runner.update(engine as any, 0.016);
+      runner.update(engine, 0.016);
       maxHistory.push(runner.getTimings().get("spiky")!.max);
 
       // Frame 2 — spike.
       cost = 5;
-      runner.update(engine as any, 0.016);
+      runner.update(engine, 0.016);
       maxHistory.push(runner.getTimings().get("spiky")!.max);
 
       // Frame 3 — cheap again; max should NOT drop.
       cost = 0;
-      runner.update(engine as any, 0.016);
+      runner.update(engine, 0.016);
       maxHistory.push(runner.getTimings().get("spiky")!.max);
 
       // Frame 4 — cheap again.
-      runner.update(engine as any, 0.016);
+      runner.update(engine, 0.016);
       maxHistory.push(runner.getTimings().get("spiky")!.max);
 
       // Monotonic non-decreasing.
@@ -248,9 +242,9 @@ describe("SystemRunner timing instrumentation", () => {
 
     test("max resets to 0 only when tracking is disabled/re-enabled", () => {
       let cost = 2;
-      runner.add(defineSystem({ name: "s", update: () => busyWait(cost) }), engine as any);
+      runner.add(defineSystem({ name: "s", update: () => busyWait(cost) }), engine);
       runner.setTimingEnabled(true);
-      runner.update(engine as any, 0.016);
+      runner.update(engine, 0.016);
       const highMax = runner.getTimings().get("s")!.max;
       expect(highMax).toBeGreaterThan(0);
 
@@ -260,7 +254,7 @@ describe("SystemRunner timing instrumentation", () => {
 
       runner.setTimingEnabled(true);
       cost = 0;
-      runner.update(engine as any, 0.016);
+      runner.update(engine, 0.016);
       const freshMax = runner.getTimings().get("s")!.max;
       // After clear, max starts from the new first sample — not carried over.
       expect(freshMax).toBeLessThan(highMax + 1);

@@ -19,14 +19,14 @@ describe("SceneManager", () => {
       });
       sm.register(scene);
       // Can load it without error
-      expect(sm.load("title", engine as any)).resolves.toBeUndefined();
+      expect(sm.load("title", engine)).resolves.toBeUndefined();
     });
 
     test("can register multiple scenes", () => {
       sm.register(defineScene({ name: "a", setup: () => {} }));
       sm.register(defineScene({ name: "b", setup: () => {} }));
-      expect(sm.load("a", engine as any)).resolves.toBeUndefined();
-      expect(sm.load("b", engine as any)).resolves.toBeUndefined();
+      expect(sm.load("a", engine)).resolves.toBeUndefined();
+      expect(sm.load("b", engine)).resolves.toBeUndefined();
     });
   });
 
@@ -41,21 +41,21 @@ describe("SceneManager", () => {
           },
         }),
       );
-      await sm.load("test", engine as any);
+      await sm.load("test", engine);
       expect(setupCalled).toBe(true);
     });
 
     test("sets current scene", async () => {
       const scene = defineScene({ name: "play", setup: () => {} });
       sm.register(scene);
-      await sm.load("play", engine as any);
+      await sm.load("play", engine);
       expect(sm.current).toBe(scene);
     });
 
     test("throws for unknown scene name", async () => {
       sm.register(defineScene({ name: "real", setup: () => {} }));
       try {
-        await sm.load("fake", engine as any);
+        await sm.load("fake", engine);
         expect(true).toBe(false); // should not reach
       } catch (e: any) {
         expect(e.message).toContain("fake");
@@ -67,7 +67,7 @@ describe("SceneManager", () => {
       sm.register(defineScene({ name: "alpha", setup: () => {} }));
       sm.register(defineScene({ name: "beta", setup: () => {} }));
       try {
-        await sm.load("gamma", engine as any);
+        await sm.load("gamma", engine);
         expect(true).toBe(false);
       } catch (e: any) {
         expect(e.message).toContain("alpha");
@@ -88,10 +88,10 @@ describe("SceneManager", () => {
       );
       sm.register(defineScene({ name: "new", setup: () => {} }));
 
-      await sm.load("old", engine as any);
+      await sm.load("old", engine);
       expect(cleanedUp).toBe(false);
 
-      await sm.load("new", engine as any);
+      await sm.load("new", engine);
       expect(cleanedUp).toBe(true);
     });
 
@@ -99,10 +99,10 @@ describe("SceneManager", () => {
       sm.register(defineScene({ name: "a", setup: () => {} }));
       sm.register(defineScene({ name: "b", setup: () => {} }));
 
-      await sm.load("a", engine as any);
+      await sm.load("a", engine);
       engine.spawn({ position: { x: 0, y: 0 } });
 
-      await sm.load("b", engine as any);
+      await sm.load("b", engine);
       // World should have been cleared
       const entities = [...engine.world.entities];
       expect(entities).toHaveLength(0);
@@ -121,9 +121,9 @@ describe("SceneManager", () => {
           },
         }),
       );
-      await sm.load("play", engine as any);
+      await sm.load("play", engine);
 
-      sm.update(engine as any, 0.016);
+      sm.update(engine, 0.016);
       expect(updateCalled).toBe(true);
     });
 
@@ -138,23 +138,23 @@ describe("SceneManager", () => {
           },
         }),
       );
-      await sm.load("play", engine as any);
+      await sm.load("play", engine);
 
-      sm.update(engine as any, 0.033);
+      sm.update(engine, 0.033);
       expect(receivedArgs[0]).toBe(engine);
       expect(receivedArgs[1]).toBe(0.033);
     });
 
     test("does nothing if no scene is loaded", () => {
       // Should not throw
-      sm.update(engine as any, 0.016);
+      sm.update(engine, 0.016);
     });
 
     test("does nothing if scene has no update", async () => {
       sm.register(defineScene({ name: "static", setup: () => {} }));
-      await sm.load("static", engine as any);
+      await sm.load("static", engine);
       // Should not throw
-      sm.update(engine as any, 0.016);
+      sm.update(engine, 0.016);
     });
   });
 });

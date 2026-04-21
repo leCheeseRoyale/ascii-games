@@ -24,7 +24,7 @@ describe("stateMachineSystem", () => {
       },
     });
 
-    stateMachineSystem.update(engine as any, 0.016);
+    stateMachineSystem.update(engine, 0.016);
     expect(updated).toBe(true);
   });
 
@@ -43,7 +43,7 @@ describe("stateMachineSystem", () => {
       },
     });
 
-    stateMachineSystem.update(engine as any, 0.033);
+    stateMachineSystem.update(engine, 0.033);
     expect(receivedArgs[0]).toBe(entity);
     expect(receivedArgs[1]).toBe(engine);
     expect(receivedArgs[2]).toBe(0.033);
@@ -67,7 +67,7 @@ describe("stateMachineSystem", () => {
         },
       });
 
-      stateMachineSystem.update(engine as any, 0.016);
+      stateMachineSystem.update(engine, 0.016);
       expect(log).toEqual(["exit:idle", "enter:running"]);
     });
 
@@ -83,8 +83,8 @@ describe("stateMachineSystem", () => {
         },
       });
 
-      stateMachineSystem.update(engine as any, 0.016);
-      expect(entity.stateMachine.current).toBe("running");
+      stateMachineSystem.update(engine, 0.016);
+      expect(entity.stateMachine!.current).toBe("running");
     });
 
     test("clears next after transition", () => {
@@ -99,8 +99,8 @@ describe("stateMachineSystem", () => {
         },
       });
 
-      stateMachineSystem.update(engine as any, 0.016);
-      expect(entity.stateMachine.next).toBeUndefined();
+      stateMachineSystem.update(engine, 0.016);
+      expect(entity.stateMachine!.next).toBeUndefined();
     });
 
     test("runs new state update after transition", () => {
@@ -120,7 +120,7 @@ describe("stateMachineSystem", () => {
         },
       });
 
-      stateMachineSystem.update(engine as any, 0.016);
+      stateMachineSystem.update(engine, 0.016);
       expect(newStateUpdated).toBe(true);
     });
 
@@ -139,7 +139,7 @@ describe("stateMachineSystem", () => {
         },
       });
 
-      stateMachineSystem.update(engine as any, 0.016);
+      stateMachineSystem.update(engine, 0.016);
       expect(log).toEqual([]);
     });
 
@@ -156,7 +156,7 @@ describe("stateMachineSystem", () => {
         },
       });
 
-      stateMachineSystem.update(engine as any, 0.016);
+      stateMachineSystem.update(engine, 0.016);
       expect(log).toEqual([]);
     });
   });
@@ -170,7 +170,7 @@ describe("transition helper", () => {
   test("sets next on entity stateMachine", () => {
     const entity = { stateMachine: { current: "idle", states: {} } } as any;
     transition(entity, "running");
-    expect(entity.stateMachine.next).toBe("running");
+    expect(entity.stateMachine!.next).toBe("running");
   });
 
   test("does nothing if entity has no stateMachine", () => {

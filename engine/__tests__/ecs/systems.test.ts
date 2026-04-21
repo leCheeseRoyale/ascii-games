@@ -17,7 +17,7 @@ describe("SystemRunner", () => {
         name: "test-sys",
         update: () => {},
       });
-      runner.add(sys, engine as any);
+      runner.add(sys, engine);
       expect(runner.list()).toContain("test-sys");
     });
 
@@ -30,7 +30,7 @@ describe("SystemRunner", () => {
         },
         update: () => {},
       });
-      runner.add(sys, engine as any);
+      runner.add(sys, engine);
       expect(inited).toBe(true);
     });
 
@@ -51,8 +51,8 @@ describe("SystemRunner", () => {
         update: () => {},
       });
 
-      runner.add(sys1, engine as any);
-      runner.add(sys2, engine as any);
+      runner.add(sys1, engine);
+      runner.add(sys2, engine);
       expect(initCount).toBe(1);
       expect(runner.list()).toHaveLength(1);
     });
@@ -61,8 +61,8 @@ describe("SystemRunner", () => {
   describe("remove", () => {
     test("removes a system by name", () => {
       const sys = defineSystem({ name: "removable", update: () => {} });
-      runner.add(sys, engine as any);
-      runner.remove("removable", engine as any);
+      runner.add(sys, engine);
+      runner.remove("removable", engine);
       expect(runner.list()).not.toContain("removable");
     });
 
@@ -75,23 +75,23 @@ describe("SystemRunner", () => {
           cleaned = true;
         },
       });
-      runner.add(sys, engine as any);
-      runner.remove("removable", engine as any);
+      runner.add(sys, engine);
+      runner.remove("removable", engine);
       expect(cleaned).toBe(true);
     });
 
     test("removing non-existent name does not throw", () => {
-      expect(() => runner.remove("nope", engine as any)).not.toThrow();
+      expect(() => runner.remove("nope", engine)).not.toThrow();
     });
   });
 
   describe("update", () => {
     test("calls update on all systems", () => {
       const log: string[] = [];
-      runner.add(defineSystem({ name: "a", update: () => log.push("a") }), engine as any);
-      runner.add(defineSystem({ name: "b", update: () => log.push("b") }), engine as any);
+      runner.add(defineSystem({ name: "a", update: () => log.push("a") }), engine);
+      runner.add(defineSystem({ name: "b", update: () => log.push("b") }), engine);
 
-      runner.update(engine as any, 0.016);
+      runner.update(engine, 0.016);
       expect(log).toEqual(["a", "b"]);
     });
 
@@ -106,10 +106,10 @@ describe("SystemRunner", () => {
             receivedDt = dt;
           },
         }),
-        engine as any,
+        engine,
       );
 
-      runner.update(engine as any, 0.033);
+      runner.update(engine, 0.033);
       expect(receivedEngine).toBe(engine);
       expect(receivedDt).toBe(0.033);
     });
@@ -117,8 +117,8 @@ describe("SystemRunner", () => {
 
   describe("phase gating", () => {
     test("skips system with wrong phase when turns are active", () => {
-      engine.turns.active = true;
-      engine.turns.currentPhase = "play";
+      engine.turns.configure({ phases: ["play", "attack"] });
+      engine.turns.start(); // starts on "play"
 
       let ran = false;
       runner.add(
@@ -129,16 +129,16 @@ describe("SystemRunner", () => {
             ran = true;
           },
         }),
-        engine as any,
+        engine,
       );
 
-      runner.update(engine as any, 0.016);
+      runner.update(engine, 0.016);
       expect(ran).toBe(false);
     });
 
     test("runs system with matching phase when turns are active", () => {
-      engine.turns.active = true;
-      engine.turns.currentPhase = "play";
+      engine.turns.configure({ phases: ["play", "attack"] });
+      engine.turns.start(); // starts on "play"
 
       let ran = false;
       runner.add(
@@ -149,16 +149,16 @@ describe("SystemRunner", () => {
             ran = true;
           },
         }),
-        engine as any,
+        engine,
       );
 
-      runner.update(engine as any, 0.016);
+      runner.update(engine, 0.016);
       expect(ran).toBe(true);
     });
 
     test("always runs systems without a phase (even when turns are active)", () => {
-      engine.turns.active = true;
-      engine.turns.currentPhase = "play";
+      engine.turns.configure({ phases: ["play", "attack"] });
+      engine.turns.start(); // starts on "play"
 
       let ran = false;
       runner.add(
@@ -168,15 +168,15 @@ describe("SystemRunner", () => {
             ran = true;
           },
         }),
-        engine as any,
+        engine,
       );
 
-      runner.update(engine as any, 0.016);
+      runner.update(engine, 0.016);
       expect(ran).toBe(true);
     });
 
     test("all systems run when turns are not active (phase ignored)", () => {
-      engine.turns.active = false;
+      // turns are not active by default — no configure/start called
 
       let phasedRan = false;
       let normalRan = false;
@@ -188,7 +188,7 @@ describe("SystemRunner", () => {
             phasedRan = true;
           },
         }),
-        engine as any,
+        engine,
       );
       runner.add(
         defineSystem({
@@ -197,10 +197,10 @@ describe("SystemRunner", () => {
             normalRan = true;
           },
         }),
-        engine as any,
+        engine,
       );
 
-      runner.update(engine as any, 0.016);
+      runner.update(engine, 0.016);
       expect(phasedRan).toBe(true);
       expect(normalRan).toBe(true);
     });
@@ -208,9 +208,9 @@ describe("SystemRunner", () => {
 
   describe("clear", () => {
     test("removes all systems", () => {
-      runner.add(defineSystem({ name: "a", update: () => {} }), engine as any);
-      runner.add(defineSystem({ name: "b", update: () => {} }), engine as any);
-      runner.clear(engine as any);
+      runner.add(defineSystem({ name: "a", update: () => {} }), engine);
+      runner.add(defineSystem({ name: "b", update: () => {} }), engine);
+      runner.clear(engine);
       expect(runner.list()).toHaveLength(0);
     });
 
@@ -218,13 +218,13 @@ describe("SystemRunner", () => {
       const log: string[] = [];
       runner.add(
         defineSystem({ name: "a", update: () => {}, cleanup: () => log.push("a") }),
-        engine as any,
+        engine,
       );
       runner.add(
         defineSystem({ name: "b", update: () => {}, cleanup: () => log.push("b") }),
-        engine as any,
+        engine,
       );
-      runner.clear(engine as any);
+      runner.clear(engine);
       expect(log).toContain("a");
       expect(log).toContain("b");
     });
@@ -232,9 +232,9 @@ describe("SystemRunner", () => {
 
   describe("list", () => {
     test("returns names in add order", () => {
-      runner.add(defineSystem({ name: "first", update: () => {} }), engine as any);
-      runner.add(defineSystem({ name: "second", update: () => {} }), engine as any);
-      runner.add(defineSystem({ name: "third", update: () => {} }), engine as any);
+      runner.add(defineSystem({ name: "first", update: () => {} }), engine);
+      runner.add(defineSystem({ name: "second", update: () => {} }), engine);
+      runner.add(defineSystem({ name: "third", update: () => {} }), engine);
       expect(runner.list()).toEqual(["first", "second", "third"]);
     });
 

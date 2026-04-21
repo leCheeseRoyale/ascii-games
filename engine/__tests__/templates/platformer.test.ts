@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { setupGame } from "../../../games/platformer";
-import { mockTemplateEngine } from "./_engine";
+import { createTestEngine } from "./_engine";
 
 describe("template: platformer", () => {
   test("boots, loads play scene, and produces expected entity tags", async () => {
-    const engine = mockTemplateEngine();
+    const engine = createTestEngine();
     const errors: unknown[] = [];
 
-    const start = setupGame(engine as unknown as Parameters<typeof setupGame>[0]);
+    const start = setupGame(engine);
     expect(start).toBe("title");
 
     await engine.loadScene("play");

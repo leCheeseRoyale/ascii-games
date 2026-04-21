@@ -10,18 +10,16 @@
 
 import { describe, expect, test } from "bun:test";
 import { setupGame } from "../../../games/asteroid-field";
-import { mockTemplateEngine } from "./_engine";
+import { createTestEngine } from "./_engine";
 
 describe("smoke: asteroid-field", () => {
   test("setupGame boots, ticks 60 frames, spawns player + asteroids, runs cleanup", async () => {
-    const engine = mockTemplateEngine();
+    const engine = createTestEngine();
 
     let setupThrew: unknown = null;
     let startScene: string | undefined;
     try {
-      const result = setupGame(engine as unknown as Parameters<typeof setupGame>[0]) as
-        | string
-        | { startScene: string };
+      const result = setupGame(engine) as string | { startScene: string };
       startScene = typeof result === "string" ? result : result.startScene;
     } catch (err) {
       setupThrew = err;

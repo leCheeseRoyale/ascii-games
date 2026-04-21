@@ -394,7 +394,7 @@ describe("event emission", () => {
     events.off("currency:gained" as any, silentHandler);
 
     events.on("currency:gained" as any, loudHandler);
-    add(w, "gold", 25, "reward", engine as any, { tags: { values: new Set() } });
+    add(w, "gold", 25, "reward", engine, { tags: { values: new Set() } });
     events.off("currency:gained" as any, loudHandler);
 
     expect(silent.length).toBe(0);
@@ -411,7 +411,7 @@ describe("event emission", () => {
     const received: any[] = [];
     const handler = (e: any) => received.push(e);
     events.on("currency:spent" as any, handler);
-    spend(w, "gold", 30, "shop", engine as any);
+    spend(w, "gold", 30, "shop", engine);
     events.off("currency:spent" as any, handler);
 
     expect(received.length).toBe(1);
@@ -427,7 +427,7 @@ describe("event emission", () => {
     const received: any[] = [];
     const handler = (e: any) => received.push(e);
     events.on("currency:insufficient" as any, handler);
-    spend(w, "gold", 50, "fail", engine as any);
+    spend(w, "gold", 50, "fail", engine);
     events.off("currency:insufficient" as any, handler);
 
     expect(received.length).toBe(1);
@@ -444,7 +444,7 @@ describe("event emission", () => {
     const received: any[] = [];
     const handler = (e: any) => received.push(e);
     events.on("currency:spent" as any, handler);
-    spendMulti(w, { gold: 50, gems: 2 }, "craft", engine as any);
+    spendMulti(w, { gold: 50, gems: 2 }, "craft", engine);
     events.off("currency:spent" as any, handler);
 
     expect(received.length).toBe(2);
@@ -462,7 +462,7 @@ describe("event emission", () => {
     const insHandler = (e: any) => insufficient.push(e);
     events.on("currency:spent" as any, spentHandler);
     events.on("currency:insufficient" as any, insHandler);
-    const ok = spendMulti(w, { gold: 50, gems: 5 }, "craft", engine as any);
+    const ok = spendMulti(w, { gold: 50, gems: 5 }, "craft", engine);
     events.off("currency:spent" as any, spentHandler);
     events.off("currency:insufficient" as any, insHandler);
 
@@ -481,7 +481,7 @@ describe("event emission", () => {
     const gained: any[] = [];
     events.on("currency:spent" as any, (e: any) => spent.push(e));
     events.on("currency:gained" as any, (e: any) => gained.push(e));
-    transfer(from, to, "gold", 25, "gift", engine as any);
+    transfer(from, to, "gold", 25, "gift", engine);
     // Clean up.
     events.off("currency:spent" as any);
     events.off("currency:gained" as any);

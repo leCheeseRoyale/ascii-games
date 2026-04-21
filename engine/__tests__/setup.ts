@@ -33,22 +33,57 @@ globalThis.localStorage = localStorageStub;
 // Stub AudioContext so zzfx (imported via @engine) doesn't crash on load.
 // Real playback is still impossible under bun:test, but templates and engine
 // modules can now be imported without blowing up at module init.
+// The stub must cover the Web Audio API surface used by zzfx: createBuffer,
+// createBufferSource, createGain, StereoPannerNode, connect chains.
 if (typeof (globalThis as { AudioContext?: unknown }).AudioContext === "undefined") {
+  /** A connectable audio node stub — connect() returns the target for chaining. */
+  const audioNodeStub = () => ({
+    connect(target?: Record<string, unknown>) {
+      return target ?? audioNodeStub();
+    },
+  });
+
   class AudioContextStub {
-    readonly destination = {};
+    readonly destination = audioNodeStub();
     readonly sampleRate = 44100;
     readonly currentTime = 0;
     createBufferSource(): Record<string, unknown> {
-      return { buffer: null, connect: () => {}, start: () => {}, onended: null };
+      return {
+        buffer: null,
+        playbackRate: { value: 1 },
+        loop: false,
+        connect(target?: Record<string, unknown>) {
+          return target ?? audioNodeStub();
+        },
+        start() {},
+        stop() {},
+        onended: null,
+      };
     }
-    createBuffer(_ch: number, _len: number, _sr: number): Record<string, unknown> {
-      return { getChannelData: () => new Float32Array(0) };
+    createBuffer(_ch: number, len: number, _sr: number): Record<string, unknown> {
+      return { getChannelData: () => new Float32Array(len || 1) };
+    }
+    createGain(): Record<string, unknown> {
+      return { gain: { value: 1 }, ...audioNodeStub() };
     }
     resume(): Promise<void> {
       return Promise.resolve();
     }
   }
   (globalThis as { AudioContext: unknown }).AudioContext = AudioContextStub;
+
+  // StereoPannerNode is used directly via `new StereoPannerNode(ctx, {pan})` in zzfx.
+  if (typeof (globalThis as { StereoPannerNode?: unknown }).StereoPannerNode === "undefined") {
+    (globalThis as { StereoPannerNode: unknown }).StereoPannerNode = class StereoPannerNodeStub {
+      pan = { value: 0 };
+      constructor(_ctx: unknown, opts?: { pan?: number }) {
+        if (opts?.pan !== undefined) this.pan.value = opts.pan;
+      }
+      connect(target?: Record<string, unknown>) {
+        return target ?? audioNodeStub();
+      }
+    };
+  }
 }
 
 // Stub window for engine modules that attach listeners at import time (Keyboard,
