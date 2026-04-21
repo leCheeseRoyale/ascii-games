@@ -1,7 +1,7 @@
 ---
 title: Renderer
 created: 2026-04-07
-updated: 2026-04-07
+updated: 2026-04-21
 type: architecture
 tags:
   - engine
@@ -204,6 +204,40 @@ private render(): void {
 
 See [[particles]] for the ParticlePool API.
 
+## Sprite Bitmap Cache
+
+Static sprites are pre-rendered to offscreen canvases and drawn as a single `drawImage()` call per frame, avoiding repeated `fillText()` calls. The cache is keyed on `lines + font + color + colorMap + glow` -- opacity is NOT baked in so that tweening opacity does not thrash the cache.
+
+- **LRU eviction** with a max size of 128 entries.
+- **Space transparency:** spaces in sprite lines are skipped during rendering, letting the background show through.
+- **Per-character colorMap:** each character in a sprite can map to a different color via `sprite.colorMap`.
+- Entities with a `textEffect` component bypass the cache so per-character transforms update every frame.
+
+See [[sprite-cache]] for the full API (`getCachedSprite`, `invalidateSpriteCache`, `spriteCacheSize`).
+
+## Text Effects
+
+The `textEffect` component enables per-character visual transforms on `ascii` and `sprite` entities. Attach a `TextEffectFn` that receives `(charIndex, totalChars, time)` and returns positional/visual offsets (`dx`, `dy`, `color`, `opacity`, `scale`, `char`).
+
+```ts
+engine.spawn({
+  position: { x: 400, y: 300 },
+  ascii: { char: 'HELLO', font: '32px monospace', color: '#fff' },
+  textEffect: {
+    fn: (i, total, t) => ({
+      dx: 0,
+      dy: Math.sin(t * 3 + i * 0.5) * 4,
+    }),
+  },
+})
+```
+
+The renderer applies these transforms per character per frame. For sprite entities, this forces per-character rendering (bypassing the [[sprite-cache]]). See [[component-reference]] for the full `TextEffectComponent` and `CharTransform` types.
+
+## Art Assets
+
+Reusable ASCII art can be defined as `ArtAsset` objects and spawned with `engine.spawnArt(asset, opts)` (static) or `engine.spawnInteractiveArt(asset, opts)` (physics-driven per-character entities with spring-to-home). See [[art-assets]] for the convention and API.
+
 ## Auto-Rendering
 
 A key design principle: **entities render automatically.** You never call a draw function. The renderer queries the ECS world each frame and draws everything it finds. To make something visible, give it `position` + one of `ascii`, `sprite`, `textBlock`, or `image`. To hide it, remove the visual component. To make it invisible, set `opacity: 0`.
@@ -214,3 +248,5 @@ A key design principle: **entities render automatically.** You never call a draw
 - [[camera]] — Camera transform applied before rendering
 - [[particles]] — Particle entities use the same ASCII rendering
 - [[engine-overview]] — Where rendering fits in the frame lifecycle
+- [[sprite-cache]] — LRU offscreen canvas caching for sprites
+- [[art-assets]] — ArtAsset type and spawnArt/spawnInteractiveArt

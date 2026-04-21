@@ -1,7 +1,7 @@
 ---
 title: Engine Overview
 created: 2026-04-07
-updated: 2026-04-07
+updated: 2026-04-21
 type: architecture
 tags:
   - engine
@@ -147,6 +147,53 @@ The engine also supports `pause()` / `resume()`. When paused, the game loop cont
 | `get time` | Elapsed time since engine start |
 | `get width` / `get height` | Canvas dimensions |
 | `get isPaused` | Whether engine is paused |
+
+## Interactive Text
+
+The engine can decompose text and sprite art into per-character entities, each with its own position, velocity, collider, and spring-to-home physics. This enables physics-driven typography — characters that scatter on collision, ripple away from the cursor, and drift back to their home positions.
+
+| Method | Description |
+|--------|-------------|
+| `spawnText(opts)` | Decompose a string into per-character entities with spring physics |
+| `spawnSprite(opts)` | Same as spawnText but from a `string[]` (multi-line ASCII art) |
+| `spawnArt(asset, opts)` | Spawn an `ArtAsset` as a static sprite entity |
+| `spawnInteractiveArt(asset, opts)` | Spawn an `ArtAsset` as individual character entities with spring physics |
+
+Spring presets (`SpringPresets.stiff`, `.snappy`, `.bouncy`, `.smooth`, `.floaty`, `.gentle`) provide named configs for common feel profiles. One-line helper systems like `createCursorRepelSystem(opts?)` and `createAmbientDriftSystem(opts?)` add interactivity without custom code.
+
+See [[interactive-text]] for full API details.
+
+## Juice Helpers
+
+v0.3 adds built-in methods for common game-feel effects, so game code does not need to implement them manually:
+
+| Method | Description |
+|--------|-------------|
+| `flash(color?, duration?)` | Full-screen color flash overlay (damage, powerup pickup) |
+| `blink(entity, duration?, interval?)` | Oscillate entity opacity (i-frames, warnings) |
+| `knockback(entity, fromX, fromY, force)` | Impulse away from a point |
+| `timeScale` | Global time multiplier. `0.3` = slow-mo, `1` = normal, `2` = fast-forward |
+
+See [[juice-helpers]] for usage patterns.
+
+## Declarative Collisions
+
+`engine.onCollide(tagA, tagB, callback)` registers a callback that fires on the first overlap frame between two tagged entity groups. Returns an unsubscribe function. The underlying `_collisionEvents` system is lazy-registered on the first call — zero cost if unused.
+
+```ts
+const unsub = engine.onCollide('bullet', 'enemy', (bullet, enemy) => {
+  engine.destroy(bullet)
+  enemy.health!.current -= 1
+})
+```
+
+This replaces manual overlap checking in custom systems for the common case. See [[collision-events]] for details.
+
+## Declarative Game API
+
+`defineGame` provides a boardgame.io-style declarative API for turn-based and board games. A single 30-80 line module defines setup, moves, turn order, phases, and win conditions. The engine handles turn rotation, phase transitions, and game-over detection. Wire with `engine.runGame(def)`.
+
+See [[define-game]] for the full API and examples.
 
 ## Related Pages
 

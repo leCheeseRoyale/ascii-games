@@ -1289,3 +1289,289 @@ engine.spawn({
   }),
 })
 ```
+
+## Enemy AI Patterns
+
+AI behaviors return `StateMachineState` objects. Attach them via the `stateMachine` component and the built-in `_stateMachine` system handles the rest. Behaviors set `velocity`; `_physics` integrates. Use `transition(entity, stateName)` to switch states at runtime.
+
+### Patrol + chase with detection range
+```ts
+import {
+  createPatrolBehavior,
+  createChaseBehavior,
+  createFleeBehavior,
+  createWanderBehavior,
+  transition,
+  FONTS,
+} from "@engine";
+
+// Guard that patrols between waypoints and chases on sight
+engine.spawn({
+  position: { x: 100, y: 200 }, velocity: { vx: 0, vy: 0 },
+  ascii: { char: "G", font: FONTS.large, color: "#ff8800" },
+  tags: { values: new Set(["enemy"]) },
+  stateMachine: {
+    current: "patrol",
+    states: {
+      patrol: createPatrolBehavior(
+        [{ x: 100, y: 200 }, { x: 400, y: 200 }, { x: 400, y: 400 }],
+        { speed: 60, waitTime: 1.0, loop: true },
+      ),
+      chase: createChaseBehavior({
+        targetTag: "player", speed: 120, range: 200, onLostTarget: "patrol",
+      }),
+    },
+  },
+});
+```
+
+### Detection system that triggers chase
+```ts
+import { defineSystem, transition } from "@engine";
+export const detectionSystem = defineSystem({
+  name: "detection",
+  update(engine) {
+    const player = engine.findByTag("player");
+    if (!player?.position) return;
+    for (const e of engine.world.with("position", "stateMachine")) {
+      if (!e.tags?.values.has("enemy")) continue;
+      const dx = e.position.x - player.position.x;
+      const dy = e.position.y - player.position.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 150 && e.stateMachine.current === "patrol") transition(e, "chase");
+    }
+  },
+});
+```
+
+### Flee when low health, wander when idle
+```ts
+engine.spawn({
+  position: { x: 300, y: 300 }, velocity: { vx: 0, vy: 0 },
+  ascii: { char: "s", font: FONTS.normal, color: "#88ff88" },
+  health: { current: 20, max: 20 },
+  tags: { values: new Set(["enemy"]) },
+  stateMachine: {
+    current: "wander",
+    states: {
+      wander: createWanderBehavior({ speed: 30, changeInterval: 2 }),
+      flee: createFleeBehavior({
+        targetTag: "player", speed: 100, range: 250, onSafe: "wander",
+      }),
+    },
+  },
+});
+// In a system: if (enemy.health.current < 5) transition(enemy, "flee");
+```
+
+## Scene Transitions
+
+`engine.loadScene` accepts a `transition` option that fades/wipes between scenes. The transition runs half out (old scene fades away), swaps the scene at the midpoint, then runs half in (new scene fades up). Available types: `fade`, `fadeWhite`, `wipe`, `dissolve`, `scanline`, `none`.
+
+### Fade to black between scenes
+```ts
+await engine.loadScene("play", { transition: "fade", duration: 0.5 });
+```
+
+### White flash into game over
+```ts
+await engine.loadScene("gameOver", {
+  transition: "fadeWhite",
+  duration: 0.3,
+  data: { score: 1500 },
+});
+// In gameOver scene setup:
+const { score = 0 } = engine.sceneData;
+```
+
+### Dissolve with ASCII characters
+The dissolve effect fills the screen with random box-drawing characters (`░▒▓█╬...`) that wipe across at varying thresholds per cell.
+```ts
+await engine.loadScene("dungeon", { transition: "dissolve", duration: 0.8 });
+```
+
+### CRT-style scanline transition
+Horizontal scanlines sweep down the screen.
+```ts
+await engine.loadScene("title", { transition: "scanline", duration: 0.6 });
+```
+
+### Wipe (left-to-right curtain)
+```ts
+await engine.loadScene("nextLevel", { transition: "wipe", duration: 0.4 });
+```
+
+## Pause Menu Pattern
+
+The engine has dedicated `pause()` / `resume()` methods. When paused, the game loop stops ticking systems and physics but still renders the current frame, so your pause overlay draws on top of the frozen scene.
+
+### Basic pause toggle
+```ts
+import { defineSystem, UIMenu, sfx, events } from "@engine";
+
+let pauseMenu: UIMenu | null = null;
+
+export const pauseSystem = defineSystem({
+  name: "pause",
+  update(engine) {
+    if (engine.keyboard.pressed("Escape")) {
+      if (engine.isPaused) {
+        engine.resume();
+        pauseMenu = null;
+      } else {
+        engine.pause();
+        pauseMenu = new UIMenu(["Resume", "Quit to Title"], {
+          border: "double", title: "PAUSED", anchor: "center", onMove: () => sfx.menu(),
+        });
+      }
+    }
+    // Draw menu while paused (render still runs)
+    if (engine.isPaused && pauseMenu) {
+      engine.ui.panel(0, 0, engine.width, engine.height, { bg: "rgba(0,0,0,0.6)" });
+      pauseMenu.update(engine);
+      pauseMenu.draw(engine.ui, engine.centerX, engine.centerY);
+      if (pauseMenu.confirmed) {
+        if (pauseMenu.selectedIndex === 0) {
+          engine.resume();
+          pauseMenu = null;
+        } else {
+          engine.resume();
+          engine.loadScene("title", { transition: "fade", duration: 0.3 });
+        }
+      }
+    }
+  },
+});
+```
+
+### Soft pause with timeScale (gameplay slows but UI stays responsive)
+Use `timeScale = 0` instead of `pause()` when you want systems to still run (e.g. animated backgrounds, particle effects at zero speed) but freeze game logic.
+```ts
+// Freeze game time (systems still tick, but dt is 0)
+engine.timeScale = 0;
+// Resume
+engine.timeScale = 1;
+```
+
+## Save/Load with Compression
+
+`SaveSlotManager` with `compress: true` uses lz-string compression on slot data. The index and active-slot tracker stay uncompressed for fast listing. Loading handles both compressed and uncompressed data transparently, so enabling compression on an existing game won't break old saves.
+
+### Compressed multi-slot saves with autosave
+```ts
+import { SaveSlotManager } from "@engine";
+
+interface GameState {
+  floor: number;
+  hp: number;
+  inventory: string[];
+  mapData: number[][];
+}
+
+const saves = new SaveSlotManager<GameState>({
+  maxSlots: 5,
+  version: "1.2.0",
+  compress: true, // lz-string compression — good for large mapData
+  onMigrate: (old) => {
+    if (old.metadata.version === "1.0.0") {
+      return { ...old, data: { ...old.data, inventory: [] } };
+    }
+    return null; // unreadable version
+  },
+});
+
+// Manual save
+saves.save("slot-1", gameState, {
+  name: "Floor 5 - Before Boss",
+  sceneName: "dungeon",
+  playtime: engine.time.elapsed,
+});
+
+// Autosave (doesn't count toward maxSlots)
+saves.autosave(gameState, { sceneName: "dungeon", playtime: engine.time.elapsed });
+
+// List all slots for a save/load UI
+for (const meta of saves.list()) {
+  console.log(meta.name, new Date(meta.timestamp).toLocaleString());
+}
+
+// Load active slot
+saves.setActive("slot-1");
+const slot = saves.loadActive();
+if (slot) {
+  engine.loadScene(slot.metadata.sceneName ?? "dungeon", {
+    data: slot.data,
+  });
+}
+```
+
+### Export/import for cloud sync
+```ts
+const json = saves.exportSlot("slot-1");
+// Send `json` to a server / clipboard / file
+// Later:
+if (json) saves.importSlot("slot-1", json);
+```
+
+## Interactive Physics Text
+
+`engine.spawnText()` decomposes a string into per-character physics entities with spring-to-home behavior. Combined with `createCursorRepelSystem` and `createAmbientDriftSystem`, this creates interactive title screens and menus in a few lines.
+
+### Complete interactive title screen
+```ts
+import {
+  defineScene,
+  SpringPresets,
+  createCursorRepelSystem,
+  createAmbientDriftSystem,
+  type Engine,
+} from "@engine";
+
+export const titleScene = defineScene({
+  name: "title",
+  setup(engine: Engine) {
+    // Title text — each character is a physics entity
+    const titleChars = engine.spawnText({
+      text: "DUNGEON QUEST",
+      font: '32px "Fira Code", monospace',
+      position: { x: engine.centerX - 180, y: 120 },
+      color: "#ffcc00",
+      spring: SpringPresets.bouncy,
+      tags: ["title"],
+    });
+
+    // Subtitle with gentler spring
+    engine.spawnText({
+      text: "Press SPACE to begin",
+      font: '16px "Fira Code", monospace',
+      position: { x: engine.centerX - 120, y: 200 },
+      color: "#888888",
+      spring: SpringPresets.gentle,
+      tags: ["title"],
+    });
+
+    // Characters flee the cursor, then spring back
+    engine.addSystem(createCursorRepelSystem({ radius: 120, force: 400, tag: "title" }));
+
+    // Gentle floating motion
+    engine.addSystem(createAmbientDriftSystem({ amplitude: 0.4, speed: 0.6, tag: "title" }));
+
+    // Scatter on click, then watch them spring home
+    engine.addSystem({
+      name: "click-scatter",
+      update(eng) {
+        if (eng.mouse.justDown) {
+          for (const ch of titleChars) {
+            ch.velocity!.vx = (Math.random() - 0.5) * 800;
+            ch.velocity!.vy = (Math.random() - 0.5) * 800;
+          }
+        }
+      },
+    });
+  },
+  update(engine) {
+    if (engine.keyboard.pressed("Space")) {
+      engine.loadScene("play", { transition: "dissolve", duration: 0.6 });
+    }
+  },
+});

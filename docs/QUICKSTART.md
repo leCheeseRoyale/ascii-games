@@ -18,6 +18,8 @@ Open the URL Vite prints. You should see the title screen — press **Space** to
 
 *Why this works:* `create-ascii-game` scaffolds a fresh project from the `blank` template. `bun dev` starts Vite with hot reload.
 
+**Tip:** Press backtick (`` ` ``) to toggle the debug overlay — shows collider bounds, entity counts, system timing, and engine warnings.
+
 ---
 
 ## What's possible
@@ -235,10 +237,32 @@ Full recipes in [COOKBOOK.md](COOKBOOK.md#game-feel--juice).
 
 ---
 
-## Next steps
+## AI-assisted development
 
-- [`TUTORIAL.md`](TUTORIAL.md) — a longer-form walkthrough that builds a complete game.
+The engine includes AI scaffolding commands (requires `ANTHROPIC_API_KEY`):
+
+```bash
+bun run ai:game "your pitch"       # generates a complete game module
+bun run ai:sprite "description"    # generates entity art
+bun run ai:mechanic "description"  # generates a behavior system
+bun run ai:juice "event"           # generates juice/feedback helper
+```
+
+See [Game Authoring Workflows](guides/game-authoring-workflows.md) for details.
+
+---
+
+## What's next
+
+- [`TUTORIAL.md`](TUTORIAL.md) — a full guided build from blank template to complete game.
+- [`COOKBOOK.md`](COOKBOOK.md) — copy-paste recipes for common patterns.
+- [`guides/`](guides/) — deep dives on specific systems:
+  - [Engine Core & Architecture](guides/engine-core-architecture.md)
+  - [Physics, Input & Audio](guides/physics-input-audio.md)
+  - [Rendering Pipeline](guides/rendering-pipeline.md)
+  - [Behaviors System](guides/behaviors-system.md)
+  - [UI & Store Bridge](guides/ui-and-store-bridge.md)
+  - [Multiplayer & Networking](guides/multiplayer-networking.md)
+- [`AGENTS.md`](../AGENTS.md) — terse API cheat sheet for quick reference.
 - [`PROJECT-GUIDE.md`](PROJECT-GUIDE.md) — architecture, conventions, and critical gotchas.
 - [`API-generated.md`](API-generated.md) — full auto-generated API reference.
-- [`API.md`](API.md) — curated hand-written API notes.
-- [`DEVELOPER.md`](DEVELOPER.md) — contributing to the engine itself.

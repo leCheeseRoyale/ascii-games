@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Deep reference: [`docs/PROJECT-GUIDE.md`](docs/PROJECT-GUIDE.md). Agent quick-reference: [`AGENTS.md`](AGENTS.md). Full API: [`docs/API-generated.md`](docs/API-generated.md) (auto-generated — regenerate via `bun run gen:api`, do not hand-edit).
+Engine internals: [`wiki/_index.md`](wiki/_index.md). Agent quick-reference: [`AGENTS.md`](AGENTS.md). Full API: [`docs/API-generated.md`](docs/API-generated.md) (auto-generated — regenerate via `bun run gen:api`, do not hand-edit).
 
 ## What This Is
 
@@ -88,6 +88,8 @@ When `defineGame` games need canvas-only UI (no React), `setupGame` returns `{ s
 - **Auto-stop music on scene change:** `stopMusic()` is called automatically when leaving a scene. Scenes that want continuous music re-start it in `setup()`.
 - **Art assets:** Define reusable ASCII art with `ArtAsset` type. Spawn static art with `engine.spawnArt(asset, opts)`. Spawn interactive physics art with `engine.spawnInteractiveArt(asset, opts)`.
 - **Art files convention:** Store art in `game/art/*.ts` exporting `ArtAsset` objects. Import in scenes.
+- **Timers/schedulers:** `engine.after(sec, fn)` (one-shot), `engine.every(sec, fn)` (repeating), `engine.spawnEvery(sec, factory)` (repeating spawn). `engine.sequence([...])` chains timed callbacks. `Cooldown` class: advance with `cd.update(dt)`, fire with `if (cd.fire()) { ... }`, check `cd.ready`.
+- **Debug overlay:** Toggle with backtick (`` ` ``) or `engine.debug.toggle()`. Shows collider bounds, entity counts, per-system timing, and errors. Warnings from `engine.spawn()` validation and system errors surface here and in the browser console.
 
 ## Critical Gotchas
 
@@ -106,13 +108,12 @@ Engine defensiveness you can rely on (don't reinvent): `engine.spawn()` validate
 
 ## Where to Look for Depth
 
-- `docs/PROJECT-GUIDE.md` — full architecture, every major API, design rationale.
+- `wiki/_index.md` — engine architecture and internals.
 - `AGENTS.md` — terse API cheat sheet organized for agents.
 - `docs/API-generated.md` — auto-generated API reference (regenerate, don't edit).
 - `docs/COOKBOOK.md` — patterns and recipes.
 - `docs/WIRING.md` — step-by-step wiring for `defineGame` and `defineScene` games.
 - `docs/QUICKSTART.md`, `docs/TUTORIAL.md` — hands-on walkthroughs.
-- `docs/PERF.md` — performance notes.
 - `shared/types.ts` — `Entity` + every component shape.
 - `shared/events.ts` — full typed event catalog.
 - `engine/index.ts` — the entire public export surface.

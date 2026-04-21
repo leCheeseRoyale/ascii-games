@@ -1,7 +1,7 @@
 ---
 title: Collision Detection
 created: 2026-04-07
-updated: 2026-04-07
+updated: 2026-04-21
 type: subsystem
 tags: [physics, collision, overlap, detection]
 sources: [engine/physics/collision.ts, shared/types.ts]
@@ -143,6 +143,54 @@ for (const enemy of hits) {
 - No physics response (bouncing, pushing, sliding) — see [[physics-system]] for that
 - No continuous collision detection (fast objects can tunnel through)
 - No spatial partitioning (checks are brute-force O(n))
-- No collision layers or masks
 
 For most ASCII games, this is sufficient. The engine now includes a built-in [[physics-system]] that handles velocity integration, bounce/response off boundaries, and friction. That system uses these detection functions internally but adds actual physics response on top. This module (`collision.ts`) remains purely detection — it answers "are these overlapping?" but does not move or separate entities.
+
+## Collision Groups (Bitmask Filtering)
+
+v0.3 adds collision group/mask bitmask filtering to the `Collider` component. Entities only register as overlapping when both sides pass the bitmask check:
+
+```
+(a.group & b.mask) !== 0  AND  (b.group & a.mask) !== 0
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `group` | number | `1` | Bitmask identifying which group(s) this entity belongs to |
+| `mask` | number | `0xFFFFFFFF` | Bitmask of groups this entity can collide with |
+
+The check runs as an early-out inside `overlaps()` before any shape math:
+
+```ts
+const ag = a.collider.group ?? 1;
+const am = a.collider.mask ?? 0xffffffff;
+const bg = b.collider.group ?? 1;
+const bm = b.collider.mask ?? 0xffffffff;
+if ((ag & bm) === 0 || (bg & am) === 0) return false;
+```
+
+### Example: Three Collision Layers
+
+```ts
+const PLAYER = 1;   // 0b001
+const ENEMY  = 2;   // 0b010
+const PICKUP = 4;   // 0b100
+
+// Player collides with enemies and pickups
+engine.spawn({
+  collider: { width: 20, height: 20, group: PLAYER, mask: ENEMY | PICKUP },
+  ...
+})
+
+// Enemies collide with player only (not each other, not pickups)
+engine.spawn({
+  collider: { width: 16, height: 16, group: ENEMY, mask: PLAYER },
+  ...
+})
+```
+
+Entities without explicit `group`/`mask` fields use the defaults (`group: 1`, `mask: 0xFFFFFFFF`) and collide with everything, preserving backward compatibility.
+
+## Declarative Collision Callbacks
+
+For tag-based collision handling without manual overlap loops, see [[collision-events]] (`engine.onCollide(tagA, tagB, callback)`).

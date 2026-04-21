@@ -1,7 +1,7 @@
 ---
 title: Component Reference
 created: 2026-04-07
-updated: 2026-04-07
+updated: 2026-04-21
 type: reference
 tags: [ecs, components, types, entities]
 sources: [shared/types.ts]
@@ -38,6 +38,18 @@ export interface Entity {
   image: ImageComponent
   parent: Parent
   child: Child
+  stateMachine: StateMachine
+  screenWrap: ScreenWrap
+  screenClamp: ScreenClamp
+  offScreenDestroy: OffScreenDestroy
+  gauge: Gauge
+  typewriter: TypewriterComponent
+  interactive: Interactive
+  tilemap: TilemapComponent
+  textEffect: TextEffectComponent
+  trail: Trail
+  visualBounds: VisualBounds
+  spring: Spring
 }
 ```
 
@@ -153,15 +165,25 @@ export interface Collider {
   width: number
   height: number
   sensor?: boolean
+  _auto?: boolean
+  group?: number
+  mask?: number
 }
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `type` | 'circle' \| 'rect' | Shape type. Circle uses `width` as diameter |
-| `width` | number | Width (or diameter for circles) |
-| `height` | number | Height (ignored for circles) |
-| `sensor` | boolean | If true, detects overlaps but game logic can treat differently |
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `type` | 'circle' \| 'rect' | required | Shape type. Circle uses `width` as diameter |
+| `width` | number | required | Width (or diameter for circles) |
+| `height` | number | required | Height (ignored for circles) |
+| `sensor` | boolean | false | If true, detects overlaps but game logic can treat differently |
+| `_auto` | boolean | false | Internal marker, set when collider was resolved from `"auto"` |
+| `group` | number | `1` | Bitmask identifying which collision group(s) this entity belongs to |
+| `mask` | number | `0xFFFFFFFF` | Bitmask of groups this entity can collide with |
+
+Collision group filtering: entities only overlap when `(a.group & b.mask) !== 0` AND `(b.group & a.mask) !== 0`. See [[collision-detection]] for details.
+
+Pass `"auto"` as the collider value in `engine.spawn()` to auto-size from the entity's text bounds via Pretext measurement. The [[measure-system]] updates auto-colliders each frame if text changes.
 
 **Used by:** Collision system (see [[collision-detection]])
 
@@ -380,6 +402,107 @@ Attach a loaded image. Renders at entity position respecting camera and layers. 
 | anchor | string | 'center' | 'center' or 'topLeft' |
 | rotation | number | 0 | Rotation in radians |
 | tint | string | none | Available for game logic |
+
+**Used by:** Renderer (see [[renderer]])
+
+### Spring
+
+```typescript
+export interface Spring {
+  targetX: number
+  targetY: number
+  strength: number
+  damping: number
+}
+```
+
+Applies a spring force pulling the entity toward a target position. Used by `engine.spawnText()` and `engine.spawnInteractiveArt()` to give each character a "home" position it returns to after being displaced.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `targetX` | number | X coordinate the spring pulls toward |
+| `targetY` | number | Y coordinate the spring pulls toward |
+| `strength` | number | Spring stiffness (higher = snappier return) |
+| `damping` | number | Velocity damping (higher = less oscillation) |
+
+Named presets are available via `SpringPresets.stiff`, `.snappy`, `.bouncy`, `.smooth`, `.floaty`, `.gentle`.
+
+**Used by:** `_spring` system (see [[spring-system]])
+
+### Trail
+
+```typescript
+export interface Trail {
+  interval?: number
+  lifetime?: number
+  color?: string
+  opacity?: number
+  _acc?: number
+}
+```
+
+Spawns fading afterimage entities behind the parent entity as it moves.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `interval` | number | 0.05 | Spawn interval in seconds |
+| `lifetime` | number | 0.3 | Lifetime of each trail entity in seconds |
+| `color` | string | entity color | Trail color. If omitted, uses the entity's ascii/sprite color |
+| `opacity` | number | 0.5 | Opacity of trail when spawned (fades to 0 over lifetime) |
+| `_acc` | number | 0 | Internal accumulator (do not set manually) |
+
+**Used by:** `_trail` system (see [[trail-system]])
+
+### VisualBounds
+
+```typescript
+export interface VisualBounds {
+  width: number
+  height: number
+  halfW: number
+  halfH: number
+  _key: string
+}
+```
+
+Auto-computed bounding dimensions from Pretext text measurement. Set and maintained by the `_measure` system each frame. Read-only for game code.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `width` | number | Total measured width in pixels |
+| `height` | number | Total measured height in pixels |
+| `halfW` | number | Half-width (convenience for collision/centering) |
+| `halfH` | number | Half-height (convenience for collision/centering) |
+| `_key` | string | Internal dirty-tracking key (hash of text + font + scale) |
+
+**Used by:** `_measure` system (see [[measure-system]])
+
+### TextEffectComponent
+
+```typescript
+export type TextEffectFn = (charIndex: number, totalChars: number, time: number) => CharTransform
+
+export interface CharTransform {
+  dx: number
+  dy: number
+  color?: string
+  opacity?: number
+  scale?: number
+  char?: string
+}
+
+export interface TextEffectComponent {
+  fn: TextEffectFn
+}
+```
+
+Attach to an entity with `ascii` or `sprite` to apply per-character visual transforms each frame. The function receives the character index, total count, and elapsed time, and returns positional/visual offsets.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `fn` | TextEffectFn | Function called per character per frame, returns a `CharTransform` |
+
+Entities with `textEffect` bypass the [[sprite-cache]] so that transforms update every frame.
 
 **Used by:** Renderer (see [[renderer]])
 

@@ -1,7 +1,7 @@
 ---
 title: ECS Architecture
 created: 2026-04-07
-updated: 2026-04-07
+updated: 2026-04-21
 type: architecture
 tags:
   - engine
@@ -147,6 +147,42 @@ engine.spawn(createBullet(player.position.x, player.position.y, 0, -300))
 ```
 
 This keeps entity definitions reusable and testable.
+
+## Built-in Systems
+
+The engine auto-registers these systems on every scene load. Do **not** add them manually. They run in priority order (lower = earlier):
+
+| System | Priority | Description |
+|--------|----------|-------------|
+| `_measure` | 5 | Auto-sizes `collider: "auto"` from Pretext text measurement; tracks [[measure-system\|VisualBounds]] |
+| `_parent` | 10 | Syncs child entity positions to parent + offset |
+| `_spring` | 15 | Applies spring force pulling entities toward their `spring.targetX/Y` — see [[spring-system]] |
+| `_physics` | 20 | Integrates velocity, applies gravity/friction/drag/bounce/maxSpeed |
+| `_tween` | 30 | Advances tween interpolation on numeric properties |
+| `_animation` | 40 | Advances frame-by-frame animation |
+| `_emitter` | 50 | Spawns particles from `ParticleEmitter` components |
+| `_stateMachine` | 60 | Ticks entity state machines |
+| `_lifetime` | 70 | Decrements `lifetime.remaining`, destroys entities at zero |
+| `_screenBounds` | 80 | Handles `screenWrap`, `screenClamp`, `offScreenDestroy` |
+| `_trail` | after animation | Spawns fading afterimage entities from the `trail` component — see [[trail-system]] |
+
+One additional system is **lazy-registered** (zero cost unless used):
+
+| System | Registered when | Description |
+|--------|-----------------|-------------|
+| `_collisionEvents` | First `engine.onCollide()` call | Tracks tag-pair overlaps and fires callbacks — see [[collision-events]] |
+
+Custom systems default to `priority: 0`, so they run before all built-ins. Use `SystemPriority` constants to interleave:
+
+```ts
+import { SystemPriority } from '@engine/ecs/systems'
+
+defineSystem({
+  name: 'my-post-physics',
+  priority: SystemPriority.physics + 1, // runs after physics, before tweens
+  update(engine, dt) { /* ... */ },
+})
+```
 
 ## Important Rules
 

@@ -43,13 +43,13 @@ if (flags.help) {
     -h, --help              Show this help message
 
   \x1b[1mTemplates:\x1b[0m
-    blank            Empty starter template
-    asteroid-field   Real-time action (ECS)
-    platformer       Side-scrolling platformer (ECS)
-    roguelike        Turn-based dungeon crawler (ECS)
-    physics-text     Interactive ASCII art with physics (ECS)
-    tic-tac-toe      Classic board game (defineGame)
-    connect-four     Drop-disc board game (defineGame)
+    blank            Empty starter with title and play scenes
+    asteroid-field   Dodge and shoot asteroids (ECS)
+    platformer       Gravity, jumping, and platforms (ECS)
+    roguelike        Dungeon crawler with BSP dungeons and fog of war (ECS)
+    physics-text     Physics-driven ASCII art that reacts to your cursor (ECS)
+    tic-tac-toe      Two-player local tic-tac-toe (defineGame)
+    connect-four     Two-player local Connect Four (defineGame)
 
   \x1b[1mExamples:\x1b[0m
     npx create-ascii-game my-game

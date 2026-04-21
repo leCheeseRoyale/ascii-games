@@ -279,9 +279,9 @@ for (const e of engine.world.with("health")) if (e.health.current <= 0) toKill.p
 for (const e of toKill) engine.destroy(e);
 ```
 
-### Scene data (pass between scenes)
+### Scene transitions + data
 ```ts
-// Sender:
+// Transition types: "fade" | "fadeWhite" | "wipe" | "dissolve" | "scanline" | "none"
 engine.loadScene("play", { transition: "fade", duration: 0.4, data: { floor: 2, hp: 50 } });
 // Receiver (in scene setup):
 const { floor = 1, hp = 100 } = engine.sceneData;
@@ -443,6 +443,10 @@ const server = new GameServer({ port: 3000 });
 | `roguelike` | ECS + canvas-only UI | Turn phases, FOV, BSP dungeon, pathfinding, save/load, dialog | Turn-based RPG |
 | `tic-tac-toe` | `defineGame` | Mouse input, board rendering, game-over detection | Board/puzzle games |
 | `connect-four` | `defineGame` | Gravity, 4-in-a-row detection, 2D grid | Grid strategy games |
+
+## Debug Overlay
+
+Backtick (`` ` ``) toggles the debug overlay (`engine.debug.toggle()`). Shows collider bounds, entity inspector, system profiler, and error log.
 
 ## Verification Loop
 

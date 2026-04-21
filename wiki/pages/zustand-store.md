@@ -120,6 +120,35 @@ const { health, maxHealth } = useStore(s => ({
 }))
 ```
 
+## Game-Specific State
+
+The `gameState` bag and `StoreSlice` pattern allow games to extend the store without modifying core types.
+
+**Quick approach** -- key-value bag (no type safety):
+
+```ts
+store.setGameState('ammo', 30)
+store.getGameState<number>('ammo')
+```
+
+**Typed approach** -- `StoreSlice` returned from `setupGame`:
+
+```ts
+const gameSlice: StoreSlice<MyGameState> = {
+  initialState: { ammo: 30, wave: 1 },
+  actions: (set, get) => ({
+    setAmmo: (n: number) => set({ ammo: n }),
+    nextWave: () => set({ wave: get().wave + 1 }),
+  }),
+}
+
+export function setupGame(engine: Engine) {
+  return { startScene: 'play', store: gameSlice }
+}
+```
+
+`GameCanvas` calls `extendStore()` automatically when `setupGame` returns a `store` field. Access typed state via `typedStore<MyGameState>()`.
+
 ## Why Zustand
 
 - Works outside React (getState/setState are plain functions)

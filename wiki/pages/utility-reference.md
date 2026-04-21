@@ -1,10 +1,10 @@
 ---
 title: Utility Reference
 created: 2026-04-07
-updated: 2026-04-07
+updated: 2026-04-21
 type: reference
 tags: [utilities, math, timer, color, constants]
-sources: [engine/utils/math.ts, engine/utils/timer.ts, engine/utils/color.ts, engine/utils/grid.ts, engine/core/scheduler.ts, shared/constants.ts]
+sources: [engine/utils/math.ts, engine/utils/timer.ts, engine/utils/color.ts, engine/utils/grid.ts, engine/core/scheduler.ts, engine/utils/pathfinding.ts, engine/utils/dungeon.ts, engine/utils/noise.ts, engine/utils/cutscene.ts, shared/constants.ts]
 ---
 
 # Utility Reference
@@ -349,5 +349,57 @@ engine.cancelTimer(spawnerId)
 ```
 
 The scheduler is automatically updated by the engine each frame and cleared on scene transitions. Use these instead of `setTimeout`/`setInterval` — they respect pause state and scene boundaries.
+
+## Pathfinding (A*)
+
+Source: `engine/utils/pathfinding.ts`
+
+Grid-based A* pathfinder operating on `GridMap<T>`. Returns `{col, row}[]` from start to goal (inclusive), or `null` if no path exists.
+
+```ts
+findPath(grid, start, goal, options?)
+```
+
+Options: `diagonal` (boolean, default false), `isWalkable` predicate, `maxIterations` safety cap. Heuristic auto-selects Manhattan (4-dir) or Chebyshev (8-dir). Diagonal steps cost `Math.SQRT2`. Early-rejects out-of-bounds or unwalkable goals.
+
+## Dungeon Generation
+
+Source: `engine/utils/dungeon.ts`
+
+BSP-based dungeon generator for roguelikes. Produces a `GridMap<string>` with rooms, corridors, doors, and spawn points.
+
+```ts
+generateDungeon(opts: DungeonOptions): DungeonResult
+```
+
+Returns the grid, room list, door positions, and spawn points. Options control dimensions, room size ranges, corridor width, and door probability.
+
+## Noise Generation
+
+Source: `engine/utils/noise.ts`
+
+Simplex-style noise for procedural terrain and effects.
+
+```ts
+createNoise2D(seed?): (x: number, y: number) => number  // returns [-1, 1]
+```
+
+Deterministic when seeded. Use for terrain height maps, fog-of-war variation, or procedural color shifts.
+
+## Cutscene System
+
+Source: `engine/utils/cutscene.ts`
+
+Sequential scripting for cutscenes and tutorials.
+
+```ts
+engine.sequence([
+  [0, () => showDialog('Welcome...')],
+  [2, () => panCamera(target)],
+  [1, () => spawnBoss()],
+])
+```
+
+The `waitForInput(engine)` helper pauses a sequence until the player presses a key. Cutscene steps integrate with the scheduler and respect scene boundaries.
 
 See also: [[engine-overview]], [[scene-lifecycle]]

@@ -31,3 +31,29 @@
 - tween-system: Tween/TweenEntry interfaces, dot-path targeting, 4 easing functions, destroyOnComplete, engine.tweenEntity helper
 - Updated _index.md (total pages: 26 → 29)
 - Cleared _queue.md (no pending updates)
+
+## [2026-04-21] update | v0.3 feature pass across 3 existing pages
+- Updated component-reference: expanded Entity listing to all 30+ components, added group/mask/auto fields to Collider, added 4 new component entries (Spring, Trail, VisualBounds, TextEffectComponent)
+- Updated renderer: added Sprite Bitmap Cache, Text Effects, and Art Assets sections; added links to sprite-cache and art-assets pages
+- Updated scaffolding-tools: added frontmatter, 5 new templates (platformer, roguelike, physics-text, tic-tac-toe, connect-four), AI scaffolding commands (ai:game, ai:sprite, ai:mechanic, ai:juice), link to define-game
+
+## [2026-04-21] create | v0.3 new pages — systems, features, patterns
+- Added 13 new wiki pages:
+  - Architecture (1): define-game
+  - Components (3): art-assets, sprite-cache, save-slots
+  - Systems (7): spring-system, trail-system, measure-system, collision-events, platform-system, ambient-drift-system, cursor-repel-system
+  - Patterns (1): interactive-text
+  - References (1): juice-helpers
+- Updated _index.md (total pages: 29 → 42)
+
+## [2026-04-21] consolidate | Absorbed docs/guides/ into wiki, deleted guide files
+- Audited 11 guide files (~400KB) against 42 wiki pages
+- Created 3 new wiki pages:
+  - References (2): behaviors, testing
+  - Architecture (1): multiplayer
+- Updated 2 existing pages:
+  - scaffolding-tools: added build/export commands, quality/CI commands, AI tool flags
+  - utility-reference: added pathfinding, dungeon generation, noise, cutscene sections
+  - zustand-store: added gameState bag and StoreSlice extension pattern
+- Deleted all 11 files in docs/guides/ (content fully absorbed or superseded by wiki)
+- Updated _index.md (total pages: 42 → 45)

@@ -100,6 +100,8 @@ You'll see "MY GAME" on screen with a "Press Space" prompt. Press Space and you 
 
 **That's a working game in 4 files.** Everything from here builds on this.
 
+**Tip:** Press backtick (`` ` ``) to toggle the debug overlay — shows collider bounds, entity counts, system timing, and engine warnings. It's invaluable when things aren't behaving as expected.
+
 ---
 
 ## 4. Your first entity
@@ -152,6 +154,8 @@ Save the file. A yellow `*` appears at position (200, 150). It just sits there b
 | `offScreenDestroy` | Auto-remove when off screen | `{ margin: 50 }` |
 
 You only add the components you need. An entity with just `position` + `ascii` is a static decoration. Add `velocity` and it moves. Add `collider` and it can collide with things.
+
+> **Deep dive:** [Engine Core & Architecture](guides/engine-core-architecture.md) covers the ECS model, entity lifecycle, and system ordering in detail.
 
 ---
 
@@ -490,6 +494,8 @@ const off = engine.onCollide("bullet", "enemy", (bullet, enemy) => {
 
 `onCollide` registers a per-frame check internally -- it fires once per overlap pair per contact (not every frame they stay overlapping). It returns an unsubscribe function you can call to stop checking. The manual `overlaps()` loop above is still useful when you need full control (custom filtering, multi-step responses, etc.).
 
+> **Deep dive:** [Physics, Input & Audio](guides/physics-input-audio.md) covers collision groups, bitmask filtering, spatial hashing, and advanced input handling.
+
 ---
 
 ## 10. Scoring and UI
@@ -763,6 +769,8 @@ trail: { lifetime: 0.3, color: "#ffcc00" }
 ```
 
 See [COOKBOOK.md](COOKBOOK.md) for full recipes with each of these.
+
+> **Deep dive:** [Rendering Pipeline](guides/rendering-pipeline.md) covers the Pretext integration, text measurement, camera, and draw ordering.
 
 ### Decomposed text (advanced)
 
@@ -1370,6 +1378,14 @@ defineSystem({ name: 'player-input', phase: 'play', update(engine, dt) { ... } }
 ### Study the asteroid-field example
 
 The full asteroid-field game in `games/asteroid-field/` demonstrates all these concepts working together — entity factories, systems, scoring, collisions, particles, difficulty ramping, and screen management. It's a great reference.
+
+### Further reading
+
+- [`COOKBOOK.md`](COOKBOOK.md) — copy-paste recipes for common patterns (spawning, collision groups, juice, etc.).
+- [`guides/`](guides/) — deep dives on specific systems:
+  - [Engine Core & Architecture](guides/engine-core-architecture.md) | [Physics, Input & Audio](guides/physics-input-audio.md) | [Rendering Pipeline](guides/rendering-pipeline.md)
+  - [Behaviors System](guides/behaviors-system.md) | [UI & Store Bridge](guides/ui-and-store-bridge.md) | [Multiplayer & Networking](guides/multiplayer-networking.md)
+- [`AGENTS.md`](../AGENTS.md) — terse API cheat sheet for quick reference.
 
 ---
 
