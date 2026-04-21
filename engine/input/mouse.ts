@@ -10,6 +10,7 @@ export class Mouse {
   justDown = false;
   justUp = false;
   wheelDelta = 0;
+  button = 0;
 
   private pendingDown = false;
   private pendingUp = false;
@@ -29,6 +30,7 @@ export class Mouse {
     };
     this.onDown = (e: MouseEvent) => {
       this.down = true;
+      this.button = e.button;
       this.pendingDown = true;
       this.onMove(e);
     };

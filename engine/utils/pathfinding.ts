@@ -12,6 +12,62 @@
 
 import type { GridMap } from "./grid";
 
+/** Binary min-heap for O(log n) insert/extract-min. */
+class MinHeap<T> {
+  private data: T[] = [];
+  constructor(private compare: (a: T, b: T) => number) {}
+
+  push(item: T): void {
+    this.data.push(item);
+    this.siftUp(this.data.length - 1);
+  }
+
+  pop(): T | undefined {
+    const { data } = this;
+    if (data.length === 0) return undefined;
+    const top = data[0];
+    const last = data.pop()!;
+    if (data.length > 0) {
+      data[0] = last;
+      this.siftDown(0);
+    }
+    return top;
+  }
+
+  get size(): number {
+    return this.data.length;
+  }
+
+  private siftUp(i: number): void {
+    const { data, compare } = this;
+    while (i > 0) {
+      const parent = (i - 1) >> 1;
+      if (compare(data[i], data[parent]) >= 0) break;
+      const tmp = data[i];
+      data[i] = data[parent];
+      data[parent] = tmp;
+      i = parent;
+    }
+  }
+
+  private siftDown(i: number): void {
+    const { data, compare } = this;
+    const n = data.length;
+    while (true) {
+      let smallest = i;
+      const left = 2 * i + 1;
+      const right = 2 * i + 2;
+      if (left < n && compare(data[left], data[smallest]) < 0) smallest = left;
+      if (right < n && compare(data[right], data[smallest]) < 0) smallest = right;
+      if (smallest === i) break;
+      const tmp = data[i];
+      data[i] = data[smallest];
+      data[smallest] = tmp;
+      i = smallest;
+    }
+  }
+}
+
 export interface PathOptions {
   /** Allow diagonal movement. Default false. */
   diagonal?: boolean;
@@ -67,8 +123,8 @@ export function findPath<T>(
     parent: null,
   };
 
-  // Binary min-heap for the open set
-  const open: PathNode[] = [startNode];
+  const openHeap = new MinHeap<PathNode>((a, b) => a.f - b.f);
+  openHeap.push(startNode);
   const closed = new Set<number>();
   const gScores = new Map<number, number>();
   gScores.set(key(start.col, start.row), 0);
@@ -93,17 +149,10 @@ export function findPath<T>(
 
   let iterations = 0;
 
-  while (open.length > 0 && iterations < maxIter) {
+  while (openHeap.size > 0 && iterations < maxIter) {
     iterations++;
 
-    // Pop node with lowest f
-    let bestIdx = 0;
-    for (let i = 1; i < open.length; i++) {
-      if (open[i].f < open[bestIdx].f) bestIdx = i;
-    }
-    const current = open[bestIdx];
-    open[bestIdx] = open[open.length - 1];
-    open.pop();
+    const current = openHeap.pop()!;
 
     if (current.col === goal.col && current.row === goal.row) {
       // Reconstruct path
@@ -131,7 +180,7 @@ export function findPath<T>(
       if (!isWalkable(nc, nr, grid.get(nc, nr))) continue;
 
       // Diagonal movement costs sqrt(2) ≈ 1.41
-      const moveCost = dx !== 0 && dy !== 0 ? 1.414 : 1;
+      const moveCost = dx !== 0 && dy !== 0 ? Math.SQRT2 : 1;
       const tentativeG = current.g + moveCost;
 
       const existingG = gScores.get(nk);
@@ -139,7 +188,7 @@ export function findPath<T>(
 
       gScores.set(nk, tentativeG);
       const h = heuristic({ col: nc, row: nr }, goal);
-      open.push({
+      openHeap.push({
         col: nc,
         row: nr,
         g: tentativeG,

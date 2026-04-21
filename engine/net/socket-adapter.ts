@@ -72,6 +72,7 @@ type ClientFrame =
   | { type: "leave" }
   | { type: "send"; to: string | "all"; data: unknown }
   | { type: "ping"; t: number }
+  | { type: "pong"; t: number }
   | { type: "list-rooms"; filter?: RoomListingFilter };
 
 type ServerFrame =
@@ -468,7 +469,7 @@ export class SocketAdapter implements NetworkAdapter {
       }
       case "ping": {
         // Respond to server ping with pong echo
-        const pong: ClientFrame = { type: "ping", t: frame.t };
+        const pong: ClientFrame = { type: "pong", t: frame.t };
         if (this.ws && this.ws.readyState === this.opts.WebSocket.OPEN) {
           try {
             this.ws.send(JSON.stringify(pong));

@@ -24,8 +24,8 @@ export function HUD({ debug = false }: HUDProps) {
           zIndex: 10,
         }}
       >
-        {components.map((C) => (
-          <C key={C.displayName || C.name || C.toString()} />
+        {components.map((C, i) => (
+          <C key={i} />
         ))}
       </div>
       {debug && <Debug />}

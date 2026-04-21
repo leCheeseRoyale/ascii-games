@@ -33,6 +33,12 @@ type CutsceneStep =
 
 export class Cutscene {
   private steps: CutsceneStep[] = [];
+  private _cancelled = false;
+
+  /** Cancel the cutscene. Pending waitForInput/wait promises will reject. */
+  cancel(): void {
+    this._cancelled = true;
+  }
 
   /** Wait for a number of seconds. */
   wait(seconds: number): this {
@@ -73,7 +79,9 @@ export class Cutscene {
 
   /** Execute all steps sequentially. Returns a promise that resolves when complete. */
   async play(engine: Engine): Promise<void> {
+    this._cancelled = false;
     for (const step of this.steps) {
+      if (this._cancelled) return;
       switch (step.type) {
         case "wait":
           await waitSeconds(engine, step.seconds);
@@ -88,7 +96,7 @@ export class Cutscene {
           break;
 
         case "waitForInput":
-          await waitForKey(engine, step.key);
+          await waitForKey(engine, step.key, () => this._cancelled);
           break;
 
         case "tween": {
@@ -115,9 +123,13 @@ function waitSeconds(engine: Engine, seconds: number): Promise<void> {
   });
 }
 
-function waitForKey(engine: Engine, key: string): Promise<void> {
-  return new Promise((resolve) => {
+function waitForKey(engine: Engine, key: string, isCancelled?: () => boolean): Promise<void> {
+  return new Promise<void>((resolve) => {
     const check = () => {
+      if (isCancelled?.()) {
+        resolve();
+        return;
+      }
       if (engine.keyboard.pressed(key)) {
         resolve();
       } else {

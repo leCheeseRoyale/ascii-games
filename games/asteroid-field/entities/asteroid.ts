@@ -1,4 +1,4 @@
-import { FONTS, pick, rng, type Entity } from "@engine";
+import { type Entity, FONTS, pick, rng } from "@engine";
 import { GAME } from "../config";
 
 export function createAsteroid(x: number, y: number, vx: number, vy: number): Partial<Entity> {

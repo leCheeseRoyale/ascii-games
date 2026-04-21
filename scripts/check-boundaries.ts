@@ -125,6 +125,9 @@ async function checkFile(filePath: string): Promise<Violation[]> {
       const importPath = match[1];
       if (!importPath.startsWith("@")) continue;
 
+      // Skip scoped npm packages — only check project path aliases (@shared, @engine, @game, @ui)
+      if (!importPath.startsWith("@shared") && !importPath.startsWith("@engine") && !importPath.startsWith("@game") && !importPath.startsWith("@ui")) continue;
+
       // Check denied first (overrides allowed)
       // Entries ending with '/' are prefix matches; others are exact matches.
       const denied = rule.denied.find((d) => {

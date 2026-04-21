@@ -1,4 +1,4 @@
-import { FONTS, type Entity } from "@engine";
+import { type Entity, FONTS } from "@engine";
 import { GAME } from "../config";
 
 export function createPlayer(x: number, y: number): Partial<Entity> {

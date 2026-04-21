@@ -271,6 +271,53 @@ engine.ui.inlineRun(16, 20, [
 ], { gap: 6 });
 ```
 
+### Multi-line text block entity
+Spawn a `textBlock` entity for auto-wrapping paragraphs in world space. Supports styled tags, alignment, justified layout, and obstacle flow.
+```ts
+engine.spawn({
+  position: { x: 100, y: 50 },
+  textBlock: {
+    text: "The [b]Ancient Door[/b] is locked. [dim]A faint glow seeps through the cracks.[/dim]",
+    font: '16px "Fira Code", monospace',
+    maxWidth: 400,
+    lineHeight: 22,
+    color: "#d0d0d0",
+    align: "left", // "left" | "center" | "right" | "justify"
+  },
+});
+```
+
+### Text flowing around obstacles
+Any entity with `position` + `obstacle` automatically pushes `textBlock` layout aside.
+```ts
+engine.spawn({ position: { x: 300, y: 120 }, obstacle: { radius: 60 } });
+engine.spawn({
+  position: { x: 50, y: 80 },
+  textBlock: { text: longDescription, font: FONTS.normal, maxWidth: 500, lineHeight: 20, color: "#ccc" },
+});
+```
+
+### Text effects on entities
+Attach `textEffect` to any `ascii` entity for per-character animation.
+```ts
+import { wave, shake, rainbow, compose } from "@engine";
+engine.spawn({
+  position: { x: 400, y: 200 },
+  ascii: { char: "GAME OVER", font: '48px "Fira Code"', color: "#ff4444" },
+  textEffect: { fn: compose(shake(3), rainbow(2)) },
+});
+```
+
+### Text measurement helpers
+Use Pretext-powered measurement without spawning entities.
+```ts
+import { measureHeight, shrinkwrap, getLineCount, measureLineWidth } from "@engine";
+const h = measureHeight(text, font, 400, 20);
+const tightW = shrinkwrap(text, font, 400);
+const lines = getLineCount(text, font, 400);
+const singleLineW = measureLineWidth("Score: 1234", font);
+```
+
 ### Camera follow + deadzone + bounds
 ```ts
 const player = engine.findByTag("player")!;
@@ -295,6 +342,90 @@ engine.camera.shake(6);
 ```ts
 engine.loadScene("gameOver", { transition: "fade", duration: 0.4, data: { score } });
 // fade | fadeWhite | wipe | dissolve | scanline
+```
+
+## Game Feel & Juice
+
+### Screen flash
+Flash the entire screen with a color overlay that fades out. Useful for damage feedback, powerup pickups, or lightning effects.
+```ts
+// Flash red on player damage
+engine.flash("#ff4444", 0.15);
+
+// Flash white on powerup pickup
+engine.flash("#ffffff", 0.1);
+```
+
+### Entity blinking (i-frames)
+Oscillate an entity's opacity for invincibility frames, warnings, or low-health indicators.
+```ts
+// Blink player for 1 second after taking damage
+engine.blink(player, 1.0, 0.08);
+```
+
+### Knockback
+Apply an impulse that pushes an entity away from a point. The entity needs `velocity` for this to work.
+```ts
+// Push enemy away from explosion center
+engine.knockback(enemy, explosionX, explosionY, 500);
+
+// Push enemy away from bullet on hit
+engine.knockback(enemy, bullet.position!.x, bullet.position!.y, 300);
+```
+
+### Slow motion
+`engine.timeScale` multiplies `dt` for all systems. Set below 1 for slowmo, above 1 for fast-forward. Combine with `engine.after` to auto-restore.
+```ts
+// Dramatic slowmo for 0.5 seconds
+engine.timeScale = 0.2;
+engine.after(0.5, () => { engine.timeScale = 1; });
+```
+
+### Trail effect
+The `trail` component auto-spawns fading afterimage entities behind any moving entity. Add it at spawn time.
+```ts
+// Add trail to any moving entity
+engine.spawn({
+  position: { x, y },
+  velocity: { vx: 0, vy: -400 },
+  ascii: { char: "•", font, color: "#ffcc00" },
+  trail: { interval: 0.03, lifetime: 0.2, color: "#ff8800", opacity: 0.5 },
+  lifetime: { remaining: 3 },
+});
+```
+
+### Declarative collision handling
+`engine.onCollide` replaces the manual nested-loop pattern with a one-liner. It fires on the first overlap frame per pair and returns an unsubscribe function.
+```ts
+// Instead of writing a collision system with nested loops:
+engine.onCollide("bullet", "enemy", (bullet, enemy) => {
+  engine.destroy(bullet);
+  engine.destroy(enemy);
+  engine.particles.explosion(enemy.position!.x, enemy.position!.y);
+  sfx.explode();
+  score += 100;
+});
+
+// Filter by collision groups (bitmask):
+engine.spawn({
+  ...createBullet(x, y),
+  collider: { type: "circle", width: 6, height: 6, group: 2, mask: 0b100 },
+  // group 2 = player bullets, mask 0b100 = only hits group 3 (enemies)
+});
+```
+
+### Quick HUD
+`drawQuickHud` renders a score/health/lives display in one call. Useful for prototyping or jam games where you don't want to wire up React.
+```ts
+// In your scene's update or a HUD system:
+import { drawQuickHud } from '@engine';
+
+drawQuickHud(engine.ui, engine.width, engine.height, {
+  score: useStore.getState().score,
+  health: { current: 80, max: 100 },
+  lives: 3,
+  position: "topLeft",
+});
 ```
 
 ## Input
@@ -743,3 +874,418 @@ engine.debug.setEnabled(true);
 
 ### Pool bullets / particles, spatial hash
 See `Entity pool for bullets / particles` under Entities and `Spatial hash for N-body collision` under Gameplay Systems.
+
+## Text-Aware Physics & Auto-Colliders
+
+The engine measures text via Pretext to derive pixel-accurate bounding boxes.
+Three features build on this: auto-sized colliders, spring physics, and
+text/sprite decomposition into per-character physics entities.
+
+### Auto-sized colliders
+
+Before auto-colliders, you had to guess pixel dimensions for every text entity:
+
+```ts
+// Before (manual, fragile — sizes are eyeballed):
+engine.spawn({
+  position: { x: 100, y: 50 },
+  ascii: { char: "@", font: '16px "Fira Code", monospace', color: "#0f0" },
+  collider: { type: "circle", width: 20, height: 20 },
+});
+```
+
+Pass `collider: "auto"` and the engine measures the text for you:
+
+```ts
+// After (Pretext-measured, exact):
+engine.spawn({
+  position: { x: 100, y: 50 },
+  ascii: { char: "@", font: '16px "Fira Code", monospace', color: "#0f0" },
+  collider: "auto",
+});
+```
+
+Works for `ascii`, `sprite`, and `textBlock` entities. Single characters get a
+circle collider; multi-line sprites and text blocks get a rect collider. The
+`_measure` built-in system (priority 5) runs every frame and updates both
+`visualBounds` and the auto-collider whenever the text content, font, or scale
+changes — so if you mutate `entity.ascii.char` at runtime, the collider resizes
+automatically.
+
+If the entity has no measurable text component, `"auto"` falls back to a 16x16
+rect.
+
+### Spring physics
+
+The `spring` component pulls any entity toward a target position. It is not
+text-specific -- attach it to anything with `position` and `velocity`.
+
+Use `SpringPresets` for common feels:
+
+```ts
+import { SpringPresets } from "@engine";
+
+engine.spawn({
+  position: { x: 0, y: 0 },
+  velocity: { vx: 0, vy: 0 },
+  ascii: { char: "◆", font: '16px "Fira Code", monospace', color: "#ff0" },
+  spring: { targetX: 200, targetY: 150, ...SpringPresets.bouncy },
+});
+```
+
+**Spring preset reference:**
+
+| Preset | Strength | Damping | Feel |
+|---|---|---|---|
+| `SpringPresets.stiff` | 0.12 | 0.90 | Fast snap-back |
+| `SpringPresets.snappy` | 0.10 | 0.91 | Quick return |
+| `SpringPresets.bouncy` | 0.08 | 0.88 | Playful overshoot |
+| `SpringPresets.smooth` | 0.06 | 0.93 | Balanced |
+| `SpringPresets.floaty` | 0.04 | 0.95 | Slow, dreamy |
+| `SpringPresets.gentle` | 0.02 | 0.97 | Barely perceptible |
+
+**Custom tuning** -- pass raw numbers when presets don't match:
+
+```ts
+spring: { targetX: 200, targetY: 150, strength: 0.1, damping: 0.92 },
+```
+
+The `_spring` built-in system (priority 15) runs each frame before `_physics`.
+It adds a force toward `(targetX, targetY)` scaled by `strength`, then
+multiplies velocity by `damping` to bleed energy. Higher strength = snappier
+return. Damping in the 0.90--0.97 range feels natural; below 0.90 is overdamped,
+above 0.97 is bouncy. Update `targetX`/`targetY` at runtime to move the anchor.
+
+### Interactive text with `spawnText`
+
+`engine.spawnText()` decomposes a string into individual character entities.
+Each character gets its own `position`, `velocity`, `ascii`, `spring`, and
+auto-collider. They participate in normal physics -- anything that collides with
+them pushes them away, and the spring pulls them back.
+
+```ts
+import { SpringPresets, createCursorRepelSystem } from "@engine";
+
+// Spawn text -- each character becomes its own physics entity
+const chars = engine.spawnText({
+  text: "GAME OVER",
+  font: '24px "Fira Code", monospace',
+  position: { x: 400, y: 300 },
+  color: "#ff4444",
+  spring: SpringPresets.smooth,
+  tags: ["game-over-text"],
+});
+
+// One line: characters flee the cursor and spring back
+engine.addSystem(createCursorRepelSystem())
+```
+
+Spaces are skipped (no entity spawned). Optional fields: `maxWidth` for
+line-wrapping, `lineHeight` (defaults to font size * 1.3), `layer`, and
+`collider: false` to skip auto-colliders.
+
+Apply a blast force to scatter the characters, then watch them spring home:
+
+```ts
+for (const char of chars) {
+  char.velocity!.vx = (Math.random() - 0.5) * 600;
+  char.velocity!.vy = (Math.random() - 0.5) * 600;
+}
+// Characters scatter outward, then spring back to their home positions.
+```
+
+### Interactive sprite with `spawnSprite`
+
+`engine.spawnSprite()` does the same for multi-line ASCII art. Characters are
+centered on the sprite's position:
+
+```ts
+import { SpringPresets, createCursorRepelSystem } from "@engine";
+
+const chars = engine.spawnSprite({
+  lines: [
+    "  /\\  ",
+    " /  \\ ",
+    "/____\\",
+  ],
+  font: '16px "Fira Code", monospace',
+  position: { x: 200, y: 100 },
+  color: "#88ff88",
+  spring: SpringPresets.bouncy,
+});
+
+engine.addSystem(createCursorRepelSystem())
+```
+
+Same API as `spawnText` minus `maxWidth` and `lineHeight` (line spacing is
+derived from font size * 1.2). Optional `layer`, `tags`, and `collider: false`.
+
+### Cursor repulsion and ambient drift
+
+`createCursorRepelSystem()` pushes spring entities away from the mouse cursor.
+Characters flee the cursor, then the spring pulls them back. Optional parameters:
+
+```ts
+import { createCursorRepelSystem, createAmbientDriftSystem } from "@engine";
+
+// Default settings (radius: 100, force: 300)
+engine.addSystem(createCursorRepelSystem())
+
+// Custom radius and force
+engine.addSystem(createCursorRepelSystem({ radius: 80, force: 200 }))
+
+// Only repel entities with a specific tag
+engine.addSystem(createCursorRepelSystem({ tag: "title" }))
+
+// Add gentle floating motion to spring entities
+engine.addSystem(createAmbientDriftSystem())
+
+// Drift only star-tagged entities
+engine.addSystem(createAmbientDriftSystem({ tag: "star" }))
+```
+
+The default priority (0) runs before `_spring` (15), so
+the repulsion force is applied first and the spring corrects on the same frame.
+
+**Custom repulsion system** -- when you need full control over the repulsion
+behavior, write the system by hand instead of using the factory:
+
+```ts
+import { defineSystem } from "@engine";
+
+export const cursorRepel = defineSystem({
+  name: "cursor-repel",
+  update(engine) {
+    const mx = engine.mouse.x;
+    const my = engine.mouse.y;
+    for (const e of engine.world.with("position", "velocity", "spring")) {
+      const dx = e.position.x - mx;
+      const dy = e.position.y - my;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 80 && dist > 0) {
+        const force = 300 * ((80 - dist) / 80);
+        e.velocity.vx += (dx / dist) * force;
+        e.velocity.vy += (dy / dist) * force;
+      }
+    }
+  },
+});
+```
+
+### Measuring text for custom layout
+
+Use the measurement helpers directly when you need pixel dimensions without
+spawning entities — for example, to center a HUD element or size a panel:
+
+```ts
+import { measureAsciiVisual, measureSpriteVisual, measureTextBlockVisual } from "@engine";
+
+// Single-line or multi-character ascii
+const { width, height } = measureAsciiVisual({
+  char: "SCORE: 999",
+  font: '16px "Fira Code", monospace',
+  scale: 1,
+});
+
+// Multi-line sprite
+const dragonArt = ["  /\\_/\\  ", " ( o.o ) ", "  > ^ <  "];
+const { width: spriteW, height: spriteH } = measureSpriteVisual({
+  lines: dragonArt,
+  font: '16px "Fira Code", monospace',
+});
+
+// Wrapped text block
+const { width: blockW, height: blockH } = measureTextBlockVisual({
+  text: "A long paragraph that wraps...",
+  font: '16px "Fira Code", monospace',
+  maxWidth: 400,
+  lineHeight: 22,
+});
+```
+
+These are pure measurement functions — no canvas drawing, no entity creation.
+They use the same Pretext measurement path as the renderer, so the numbers
+match exactly what you see on screen.
+
+## Art Assets & Sprite Caching
+
+The `ArtAsset` type and bitmap caching system provide a structured way to
+define, reuse, and efficiently render multi-line ASCII art. Static art is
+rendered once to an offscreen canvas and drawn via `drawImage()` every frame,
+while interactive art decomposes into per-character physics entities.
+
+### Defining Art Assets
+
+Store reusable ASCII art as exported `ArtAsset` objects. Each asset bundles
+lines, per-character colors, a base color, and optional font/glow settings:
+
+```ts
+// game/art/dragon.ts
+import type { ArtAsset } from '@engine'
+
+export const DRAGON: ArtAsset = {
+  lines: [
+    "   /\\_/\\   ",
+    "  ( o.o )  ",
+    "   > ^ <   ",
+  ],
+  colorMap: {
+    "o": "#ffcc00",  // eyes
+    "^": "#ff4444",  // nose
+    "/": "#888888",  // whiskers
+    "\\": "#888888",
+  },
+  color: "#cccccc",
+}
+```
+
+The `ArtAsset` interface:
+
+```ts
+interface ArtAsset {
+  lines: string[];
+  colorMap?: Record<string, string>;  // per-character color overrides
+  font?: string;                      // default: '16px "Fira Code", monospace'
+  color?: string;                     // base color (fallback when char not in colorMap)
+  glow?: string;                      // CSS glow color
+}
+```
+
+### Spawning Static Art (Bitmap-Cached)
+
+`engine.spawnArt()` renders the art once to an offscreen canvas, then draws
+it as a single `drawImage()` call every frame. Ideal for backgrounds,
+decorations, and any art that does not need per-character physics:
+
+```ts
+import { DRAGON } from '../art/dragon'
+
+engine.spawnArt(DRAGON, { position: { x: 400, y: 300 }, layer: 1 })
+// Rendered once to offscreen canvas, drawn as image every frame
+// Spaces are transparent — layers compose naturally
+```
+
+### Spawning Interactive Art (Physics)
+
+`engine.spawnInteractiveArt()` decomposes the art into per-character physics
+entities, each with spring-to-home behavior. Use for text or art that reacts
+to the cursor, collisions, or explosions:
+
+```ts
+import { DRAGON } from '../art/dragon'
+
+engine.spawnInteractiveArt(DRAGON, {
+  position: { x: 400, y: 300 },
+  spring: SpringPresets.bouncy,
+  tags: ["dragon"],
+})
+engine.addSystem(createCursorRepelSystem({ radius: 100 }))
+// Each character is a physics entity that reacts to cursor
+```
+
+### Using artFromString for Inline Art
+
+`artFromString()` parses a template literal into an `ArtAsset`, automatically
+stripping leading/trailing blank lines and common indentation. Convenient for
+small inline art that does not warrant its own file:
+
+```ts
+import { artFromString } from '@engine'
+
+const HOUSE = artFromString(`
+  /\\
+ /  \\
+ |  |
+ |__|
+`, { "/": "#884422", "\\": "#884422", "|": "#aa8855", "_": "#666" })
+```
+
+The second argument is an optional `colorMap`. The return value is a full
+`ArtAsset` that you can pass to `spawnArt()` or `spawnInteractiveArt()`.
+
+### ColorMap for Multi-Colored Sprites
+
+The `colorMap` field maps individual characters to CSS color strings. The
+base `color` field acts as the fallback for any character not present in the
+map. This lets you color specific parts of an art asset without splitting it
+into separate sprites:
+
+```ts
+const POTION: ArtAsset = {
+  lines: [
+    " _ ",
+    "[_]",
+    "|~|",
+    "|_|",
+  ],
+  color: "#aaaaaa",      // default for all characters
+  colorMap: {
+    "~": "#44ccff",      // liquid
+    "_": "#666666",      // cork / base
+    "[": "#aa8855",      // bracket left
+    "]": "#aa8855",      // bracket right
+  },
+}
+```
+
+Characters not in the `colorMap` inherit the base `color`. If neither is set,
+the renderer uses its default text color.
+
+### Space Transparency
+
+Spaces in art asset lines are **not rendered** — they are fully transparent.
+This means layered sprites compose naturally: an upper-layer sprite's spaces
+do not overwrite lower layers with invisible rectangles. You can freely
+overlap art assets at different positions and layers without masking artifacts.
+
+```ts
+// These two sprites overlap — spaces in the tree do not hide the house
+engine.spawnArt(HOUSE, { position: { x: 200, y: 300 }, layer: 0 })
+engine.spawnArt(TREE, { position: { x: 220, y: 280 }, layer: 1 })
+```
+
+This also means you can pad art lines with spaces for alignment without any
+visual cost.
+
+### Static vs Interactive — When to Use Each
+
+| Use case | API | Performance |
+|---|---|---|
+| Background scenery | `engine.spawnArt()` | One `drawImage` per frame |
+| Decorative elements | `engine.spawnArt()` | One `drawImage` per frame |
+| Interactive text | `engine.spawnInteractiveArt()` | N `fillText` calls (one per char) |
+| Breakable / scatterable art | `engine.spawnInteractiveArt()` | N `fillText` calls (one per char) |
+| Title screens (mouse-reactive) | `engine.spawnInteractiveArt()` | N `fillText` calls (one per char) |
+| Scenery with many instances | `engine.spawnArt()` | One `drawImage` per instance per frame |
+
+**Rule of thumb:** Use `spawnArt()` by default. Switch to
+`spawnInteractiveArt()` only when you need per-character physics, collisions,
+or individual character manipulation.
+
+### Combining Art Assets with Existing Sprite APIs
+
+`ArtAsset` objects are compatible with the existing `spawnSprite()` and
+`createAsciiSprite()` APIs. Use whichever entry point fits your workflow:
+
+```ts
+// ArtAsset approach (structured, reusable, bitmap-cached)
+engine.spawnArt(DRAGON, { position: { x: 400, y: 300 } })
+
+// spawnSprite approach (per-char physics, same art data)
+engine.spawnSprite({
+  lines: DRAGON.lines,
+  font: DRAGON.font ?? '16px "Fira Code", monospace',
+  position: { x: 400, y: 300 },
+  color: DRAGON.color ?? '#e0e0e0',
+  spring: SpringPresets.bouncy,
+})
+
+// createAsciiSprite approach (returns a sprite component to spread into spawn)
+engine.spawn({
+  position: { x: 400, y: 300 },
+  ...createAsciiSprite(DRAGON.lines.join('\n'), {
+    colorMap: DRAGON.colorMap,
+    color: DRAGON.color,
+  }),
+})
+```

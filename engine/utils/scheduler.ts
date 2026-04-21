@@ -19,29 +19,29 @@ interface ScheduledTimer {
   group?: number;
 }
 
-let nextId = 0;
-
 export class Scheduler {
   private timers: ScheduledTimer[] = [];
+  private nextId = 0;
 
   /** One-shot: fire callback after `seconds`. Returns cancel ID. */
   after(seconds: number, callback: () => void): number {
-    const id = nextId++;
+    const id = this.nextId++;
     this.timers.push({ remaining: seconds, interval: 0, callback, id });
     return id;
   }
 
   /** Repeating: fire callback every `seconds`. Returns cancel ID. */
   every(seconds: number, callback: () => void): number {
-    const id = nextId++;
+    const id = this.nextId++;
     this.timers.push({ remaining: seconds, interval: seconds, callback, id });
     return id;
   }
 
   /** Sequence: chain delays and callbacks. Returns cancel ID for the whole sequence. */
   sequence(steps: { delay: number; fn: () => void }[]): number {
+    if (steps.length === 0) return this.nextId++;
     let accumulated = 0;
-    const groupId = nextId++;
+    const groupId = this.nextId++;
     const ids: number[] = [];
     for (const step of steps) {
       accumulated += step.delay;
@@ -51,19 +51,24 @@ export class Scheduler {
       if (timer) timer.group = groupId;
       ids.push(id);
     }
-    return ids[0];
+    return groupId;
   }
 
   /** Cancel a scheduled timer by ID. If it belongs to a group, cancels all timers in that group. */
   cancel(id: number): void {
     const timer = this.timers.find((t) => t.id === id);
-    if (!timer) return;
-    if (timer.group != null) {
-      const group = timer.group;
-      this.timers = this.timers.filter((t) => t.group !== group);
-    } else {
-      const idx = this.timers.indexOf(timer);
-      if (idx >= 0) this.timers.splice(idx, 1);
+    if (timer) {
+      if (timer.group != null) {
+        this.timers = this.timers.filter((t) => t.group !== timer.group);
+      } else {
+        const idx = this.timers.indexOf(timer);
+        if (idx >= 0) this.timers.splice(idx, 1);
+      }
+      return;
+    }
+    // Also check if id is a groupId (for sequence cancel after steps have fired)
+    if (this.timers.some((t) => t.group === id)) {
+      this.timers = this.timers.filter((t) => t.group !== id);
     }
   }
 
@@ -73,10 +78,15 @@ export class Scheduler {
       const t = this.timers[i];
       t.remaining -= dt;
       if (t.remaining <= 0) {
-        t.callback();
         if (t.interval > 0) {
-          t.remaining += t.interval; // preserve leftover for accuracy
+          // Fire as many times as accumulated
+          while (t.remaining <= 0) {
+            t.callback();
+            t.remaining += t.interval;
+          }
         } else {
+          // One-shot: fire once and remove
+          t.callback();
           this.timers.splice(i, 1);
         }
       }

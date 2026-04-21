@@ -73,7 +73,7 @@ export const gameOverScene = defineScene({
     });
   },
 
-  update(engine, dt) {
+  update(engine, _dt) {
     if (engine.keyboard.pressed("Space")) {
       engine.loadScene("play");
     }

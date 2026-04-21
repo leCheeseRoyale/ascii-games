@@ -15,7 +15,8 @@ import type { Engine } from "../core/engine";
 import {
   layoutTextBlock,
   measureLineWidth,
-  shrinkwrap,
+  parseStyledText,
+  stripTags,
   measureHeight as tlMeasureHeight,
 } from "./text-layout";
 
@@ -173,17 +174,8 @@ function _drawBorder(
 
 // ── Char width measurement ──────────────────────────────────────
 
-const _charWidthCache = new Map<string, number>();
-
-function _charWidth(ctx: CanvasRenderingContext2D, font: string): number {
-  let cw = _charWidthCache.get(font);
-  if (cw !== undefined) return cw;
-  ctx.save();
-  ctx.font = font;
-  cw = ctx.measureText("M").width;
-  ctx.restore();
-  _charWidthCache.set(font, cw);
-  return cw;
+function _charWidth(_ctx: CanvasRenderingContext2D, font: string): number {
+  return measureLineWidth("M", font);
 }
 
 function _lineHeight(font: string): number {
@@ -305,7 +297,7 @@ export class CanvasUI {
 
   // ── Text ────────────────────────────────────────────────────────
 
-  /** Draw text at (x, y) in screen space. Supports inline color tags [#hex]...[/]. */
+  /** Draw text at (x, y) in screen space. Supports styled tags: [#hex], [b], [dim], [bg:#hex]. */
   text(x: number, y: number, text: string, opts?: UITextOpts): void {
     const font = opts?.font ?? DEFAULT_FONT;
     const color = opts?.color ?? DEFAULT_COLOR;
@@ -324,13 +316,11 @@ export class CanvasUI {
       ctx.font = font;
       ctx.textBaseline = "top";
 
-      // Handle inline color tags: [#hex]...[/]
-      const tagRe = /\[(#[0-9a-fA-F]{3,8})\](.*?)\[\/\]/g;
-      const hasColorTags = tagRe.test(text);
-      tagRe.lastIndex = 0;
+      const hasTags = /\[(#[0-9a-fA-F]{3,8}|\/|b|\/b|dim|\/dim|bg:#[0-9a-fA-F]{3,8}|\/bg)\]/.test(
+        text,
+      );
 
-      if (!hasColorTags) {
-        // Simple text — no tags
+      if (!hasTags) {
         ctx.textAlign = align;
         if (glow) {
           ctx.shadowColor = glow;
@@ -339,56 +329,40 @@ export class CanvasUI {
         ctx.fillStyle = color;
         ctx.fillText(text, x, y);
       } else {
-        // Render segments with inline color changes
-        // First strip tags to measure alignment offset
-        const stripped = text.replace(/\[(#[0-9a-fA-F]{3,8}|\/)\]/g, "");
+        const segments = parseStyledText(text, font, color);
+        const stripped = stripTags(text);
         let startX = x;
         if (align === "center") {
-          ctx.font = font;
           startX = x - measureLineWidth(stripped, font) / 2;
         } else if (align === "right") {
-          ctx.font = font;
           startX = x - measureLineWidth(stripped, font);
         }
 
         ctx.textAlign = "left";
-        if (glow) {
-          ctx.shadowColor = glow;
-          ctx.shadowBlur = 8;
-        }
-
         let cursor = startX;
-        let lastIdx = 0;
-        const colorTagRe = /\[(#[0-9a-fA-F]{3,8}|\/)\]/g;
-        let currentColor = color;
-        const colorStack: string[] = [];
-        let match: RegExpExecArray | null;
 
-        // biome-ignore lint/suspicious/noAssignInExpressions: standard regex iteration pattern
-        while ((match = colorTagRe.exec(text)) !== null) {
-          // Draw text before this tag
-          if (match.index > lastIdx) {
-            const segment = text.slice(lastIdx, match.index);
-            ctx.fillStyle = currentColor;
-            ctx.fillText(segment, cursor, y);
-            cursor += measureLineWidth(segment, font);
+        for (const seg of segments) {
+          if (!seg.text) continue;
+          const baseAlpha = ctx.globalAlpha;
+
+          if (seg.bgColor) {
+            const segW = measureLineWidth(seg.text, seg.font);
+            const fontSize = parseFloat(seg.font) || 16;
+            ctx.fillStyle = seg.bgColor;
+            ctx.globalAlpha = baseAlpha * seg.opacity;
+            ctx.fillRect(cursor, y, segW, fontSize * 1.2);
           }
 
-          const tag = match[1];
-          if (tag === "/") {
-            currentColor = colorStack.pop() ?? color;
-          } else {
-            colorStack.push(currentColor);
-            currentColor = tag;
+          ctx.globalAlpha = baseAlpha * seg.opacity;
+          ctx.font = seg.font;
+          if (glow) {
+            ctx.shadowColor = glow;
+            ctx.shadowBlur = 8;
           }
-
-          lastIdx = match.index + match[0].length;
-        }
-
-        // Draw remaining text
-        if (lastIdx < text.length) {
-          ctx.fillStyle = currentColor;
-          ctx.fillText(text.slice(lastIdx), cursor, y);
+          ctx.fillStyle = seg.color;
+          ctx.fillText(seg.text, cursor, y);
+          cursor += measureLineWidth(seg.text, seg.font);
+          ctx.globalAlpha = baseAlpha;
         }
       }
 
@@ -519,10 +493,12 @@ export class CanvasUI {
       const lh = _lineHeight(font);
       const innerMaxW = maxWidth - padding * 2;
 
-      // Measure text to compute panel size
-      const textW = shrinkwrap(text, font, innerMaxW);
       const lines = layoutTextBlock(text, font, innerMaxW, lh);
-      let contentW = Math.min(textW, innerMaxW);
+      let contentW = 0;
+      for (const l of lines) {
+        if (l.width > contentW) contentW = l.width;
+      }
+      contentW = Math.min(Math.ceil(contentW), innerMaxW);
       const contentH = lines.length * lh;
       const titleH = title ? lh + 4 : 0;
 
@@ -962,7 +938,7 @@ export class DialogManager {
     this._color = opts?.color ?? DEFAULT_COLOR;
     this._bg = opts?.bg ?? DEFAULT_BG;
     this._borderColor = opts?.borderColor ?? DEFAULT_BORDER_COLOR;
-    this._speakerColor = (opts as UIChoiceOpts | undefined)?.selectedColor ?? "#00ff88";
+    this._speakerColor = opts?.speakerColor ?? (opts as UIChoiceOpts | undefined)?.selectedColor ?? "#00ff88";
 
     this._revealed = 0;
     this._acc = 0;
@@ -986,10 +962,12 @@ export class DialogManager {
     const padding = 16;
     const innerMaxW = maxWidth - padding * 2;
 
-    const textW = shrinkwrap(this._text, this._font, innerMaxW);
     this._lines = layoutTextBlock(this._text, this._font, innerMaxW, lh);
-
-    const contentW = Math.min(textW, innerMaxW);
+    let contentW = 0;
+    for (const l of this._lines) {
+      if (l.width > contentW) contentW = l.width;
+    }
+    contentW = Math.min(Math.ceil(contentW), innerMaxW);
     let contentH = this._lines.length * lh;
 
     // Speaker label
@@ -1278,6 +1256,7 @@ export class UIScrollPanel {
   }
 
   draw(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+    ctx.save();
     const pad = this.padding;
     const lh = this.lineHeight;
     const titleH = this.title ? lh + 4 : 0;
@@ -1364,6 +1343,7 @@ export class UIScrollPanel {
       }
     }
 
+    ctx.restore();
     ctx.restore();
   }
 
@@ -1502,8 +1482,8 @@ export class UIGrid {
       if (row > 0) this.selectedIndex -= this.cols;
     }
     if (kb.pressed("ArrowDown")) {
-      const row = this.selectedRow;
-      if (row < this.rows - 1) this.selectedIndex += this.cols;
+      const nextIdx = this.selectedIndex + this.cols;
+      if (nextIdx < this.cells.length) this.selectedIndex = nextIdx;
     }
 
     // Clamp to valid range
@@ -1749,10 +1729,12 @@ export class UITooltip {
     const pad = this.padding;
     const lh = _lineHeight(this.font);
 
-    // Measure text content
-    const textW = shrinkwrap(this.text, this.font, this.maxWidth);
     const lines = layoutTextBlock(this.text, this.font, this.maxWidth, lh);
-    const contentW = Math.min(textW, this.maxWidth);
+    let contentW = 0;
+    for (const l of lines) {
+      if (l.width > contentW) contentW = l.width;
+    }
+    contentW = Math.min(Math.ceil(contentW), this.maxWidth);
     const contentH = lines.length * lh;
 
     const totalW = contentW + pad * 2;
@@ -1968,7 +1950,7 @@ export class UITabs {
     for (let i = 0; i < this.tabs.length; i++) {
       const tab = this.tabs[i];
       const label = ` ${tab.label} `;
-      const labelW = label.length * cw;
+      const labelW = measureLineWidth(label, this.font);
       const isActive = i === this.activeIndex;
 
       // Tab background

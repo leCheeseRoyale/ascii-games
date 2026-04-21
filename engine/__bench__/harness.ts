@@ -6,8 +6,10 @@ import { DEFAULT_CONFIG } from "@shared/types";
 import { animationSystem } from "../ecs/animation-system";
 import { emitterSystem } from "../ecs/emitter-system";
 import { lifetimeSystem } from "../ecs/lifetime-system";
+import { measureSystem } from "../ecs/measure-system";
 import { parentSystem } from "../ecs/parent-system";
 import { screenBoundsSystem } from "../ecs/screen-bounds-system";
+import { springSystem } from "../ecs/spring-system";
 import { stateMachineSystem } from "../ecs/state-machine-system";
 import { type System, SystemRunner } from "../ecs/systems";
 import { tweenSystem } from "../ecs/tween-system";
@@ -19,7 +21,9 @@ import { ParticlePool } from "../render/particles";
 import { makeCanvas } from "./setup";
 
 export const BUILTIN_SYSTEMS: System[] = [
+  measureSystem,
   parentSystem,
+  springSystem,
   physicsSystem,
   tweenSystem,
   animationSystem,

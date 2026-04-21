@@ -16,6 +16,7 @@ export interface ParsedFlags {
   force?: boolean;
   dryRun?: boolean;
   frames?: number;
+  physics?: boolean;
 }
 
 export interface ParsedArgs {
@@ -41,6 +42,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
     }
     if (arg === "--dry-run") {
       flags.dryRun = true;
+      continue;
+    }
+    if (arg === "--physics") {
+      flags.physics = true;
       continue;
     }
     if (arg.startsWith("--model=")) {

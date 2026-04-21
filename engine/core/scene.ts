@@ -5,6 +5,7 @@
  * The SceneManager handles transitions.
  */
 
+import { stopMusic } from "../audio/audio";
 import type { Engine } from "./engine";
 
 export interface Scene {
@@ -32,6 +33,7 @@ export class SceneManager {
   async load(name: string, engine: Engine): Promise<void> {
     // Cleanup current
     if (this.current) {
+      stopMusic();
       this.current.cleanup?.(engine);
       engine.systems.clear(engine);
       engine.world.clear();
@@ -57,6 +59,7 @@ export class SceneManager {
       const msg = `Scene "${name}" setup failed: ${err?.message ?? String(err)}`;
       console.error(`[SceneManager] ${msg}`, err);
       engine.debug.showError(msg);
+      throw err;
     }
   }
 

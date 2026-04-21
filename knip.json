@@ -5,7 +5,10 @@
     "scripts/*.ts",
     "engine/__bench__/*.bench.ts",
     "engine/__bench__/harness.ts",
-    "engine/__bench__/setup.ts"
+    "engine/__bench__/setup.ts",
+    "ui/GameCanvas.tsx",
+    "ui/store.ts",
+    "ui/screen-registry.ts"
   ],
   "project": [
     "engine/**/*.ts",

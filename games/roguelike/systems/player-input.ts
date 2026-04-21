@@ -50,7 +50,7 @@ export const playerInputSystem = defineSystem({
     const newRow = player.gridPos.row + dy;
 
     const navGrid = getNavGrid();
-    if (!navGrid || !navGrid.inBounds(newCol, newRow)) return;
+    if (!navGrid?.inBounds(newCol, newRow)) return;
 
     // Check for enemy at target position
     const enemies = engine.findAllByTag("enemy");
@@ -89,8 +89,8 @@ export const playerInputSystem = defineSystem({
 
     // Tween to new world position
     const worldPos = gridToWorld(newCol, newRow, GAME.cellSize);
-    engine.tweenEntity(player, "position.x", player.position!.x, worldPos.x, 0.1, "easeOut");
-    engine.tweenEntity(player, "position.y", player.position!.y, worldPos.y, 0.1, "easeOut");
+    engine.tweenEntity(player, "position.x", player.position?.x, worldPos.x, 0.1, "easeOut");
+    engine.tweenEntity(player, "position.y", player.position?.y, worldPos.y, 0.1, "easeOut");
 
     // Check for items at new position
     const items = engine.findAllByTag("item");

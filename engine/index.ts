@@ -16,6 +16,7 @@ export type {
   CharTransform,
   Child,
   Collider,
+  CollisionCallback,
   EngineConfig,
   Entity,
   GameEntity,
@@ -35,6 +36,8 @@ export type {
   Position,
   ScreenClamp,
   ScreenWrap,
+  SpawnInput,
+  Spring,
   Sprite,
   StateMachine,
   StateMachineState,
@@ -44,26 +47,34 @@ export type {
   TextEffectFn,
   TileLegendEntry,
   TilemapComponent,
+  Trail,
   Tween,
   TweenEntry,
   TypewriterComponent,
   Velocity,
+  VisualBounds,
 } from "@shared/types";
 export { DEFAULT_CONFIG } from "@shared/types";
 // Audio
 export {
   audio,
   beep,
+  type Channel,
   getVolume,
+  type Instrument,
   isMuted,
   mute,
+  type Pattern,
   pauseMusic,
   playMusic,
+  playTrackerMusic,
   resumeMusic,
   setMusicVolume,
   setVolume,
   sfx,
   stopMusic,
+  stopTrackerMusic,
+  type TrackerSong,
   toggleMute,
   unmute,
 } from "./audio/audio";
@@ -169,6 +180,11 @@ export {
   type LootTable,
   rollLoot,
 } from "./behaviors/loot";
+// Platform — one-way platform collision
+export {
+  createPlatformSystem,
+  type PlatformSystemOpts,
+} from "./behaviors/platform";
 export {
   type QuestDefinition,
   type QuestObjective,
@@ -208,6 +224,7 @@ export {
   type MultiplayerTransport,
 } from "./core/create-multiplayer-game";
 export {
+  type BoundMoves,
   buildGameScene,
   defineGame,
   type GameContext,
@@ -227,6 +244,14 @@ export { Engine } from "./core/engine";
 export { defineScene, type Scene } from "./core/scene";
 export { defaultHashState, fnv1a32, stableStringify } from "./core/state-hash";
 export { type TurnConfig, TurnManager } from "./core/turn-manager";
+// Data — Art assets
+export {
+  type AnimatedArtAsset,
+  type ArtAsset,
+  type SpriteSheet,
+  artFromString,
+  spriteSheetFrames,
+} from "./data/art-asset";
 // Data — Sprite library
 export {
   ASCII_SPRITES,
@@ -235,12 +260,24 @@ export {
   createAsciiSprite,
   parseAsciiArt,
 } from "./data/ascii-sprites";
+export {
+  type AmbientDriftOpts,
+  createAmbientDriftSystem,
+} from "./ecs/ambient-drift";
 export { animationSystem } from "./ecs/animation-system";
+// Collision events — enter/stay/exit callbacks between tagged entity groups
+export { createCollisionEventSystem } from "./ecs/collision-event-system";
+// Interactive text helpers — cursor repulsion + ambient drift system factories
+export {
+  type CursorRepelOpts,
+  createCursorRepelSystem,
+} from "./ecs/cursor-repel";
 export { emitterSystem } from "./ecs/emitter-system";
 // Optional systems (not auto-registered — add with engine.addSystem())
 export { gaugeSystem } from "./ecs/gauge-system";
 export { interactionSystem, makeInteractive } from "./ecs/interaction-system";
 export { lifetimeSystem } from "./ecs/lifetime-system";
+export { measureSystem } from "./ecs/measure-system";
 export { parentSystem } from "./ecs/parent-system";
 export {
   createEntityPool,
@@ -248,9 +285,12 @@ export {
   type PoolOptions,
 } from "./ecs/pool";
 export { screenBoundsSystem } from "./ecs/screen-bounds-system";
+export { springSystem } from "./ecs/spring-system";
 export { stateMachineSystem, transition } from "./ecs/state-machine-system";
 export { defineSystem, type System, SystemPriority } from "./ecs/systems";
 export { createTags } from "./ecs/tags";
+// Trail — afterimage effect behind moving entities
+export { trailSystem } from "./ecs/trail-system";
 export { typewriterSystem } from "./ecs/typewriter-system";
 // ECS
 export { createWorld, type GameWorld, type WorldEntity } from "./ecs/world";
@@ -359,7 +399,27 @@ export {
 } from "./render/canvas-ui";
 // Images
 export { clearImageCache, getCachedImage, loadImage, preloadImages } from "./render/image-loader";
+// Text measurement — entity-level visual bounds + character decomposition
+export {
+  buildVisualBounds,
+  type CharacterPosition,
+  measureAsciiVisual,
+  measureCharacterPositions,
+  measureSpriteCharacterPositions,
+  measureSpriteVisual,
+  measureTextBlockVisual,
+  resolveAutoCollider,
+} from "./render/measure-entity";
 export { type Particle, ParticlePool } from "./render/particles";
+// Quick HUD — one-liner score/health/lives overlay
+export { drawQuickHud, type QuickHudOpts } from "./render/quick-hud";
+// Sprite bitmap cache
+export {
+  type CachedSprite,
+  getCachedSprite,
+  invalidateSpriteCache,
+  spriteCacheSize,
+} from "./render/sprite-cache";
 // Text effects
 export {
   compose,
@@ -416,6 +476,7 @@ export {
   has as hasStorage,
   isHighScore,
   load,
+  loadCompressed,
   type RehydratedGameState,
   type RehydrateOptions,
   rehydrateGameState,
@@ -423,6 +484,7 @@ export {
   type ScoreEntry,
   type SerializedGameState,
   save,
+  saveCompressed,
   serializeGameState,
   setStoragePrefix,
   submitScore,
@@ -490,5 +552,7 @@ export {
   preloadAssets,
 } from "./utils/preloader";
 export { Scheduler } from "./utils/scheduler";
+// Utils — Spring presets
+export { SpringPresets } from "./utils/spring-presets";
 // Utils — Timer & Scheduler
 export { Cooldown, easeOut, tween } from "./utils/timer";

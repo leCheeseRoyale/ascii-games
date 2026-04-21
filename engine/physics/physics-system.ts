@@ -32,9 +32,9 @@ export const physicsSystem: System = {
         e.velocity.vy += gravity * dt;
       }
 
-      // Friction (ground friction on vx — only when grounded or always if no grounded tracking)
+      // Friction (ground friction on vx — skip if grounded is explicitly false)
       const friction = p.friction ?? 0;
-      if (friction) {
+      if (friction && p.grounded === true) {
         const factor = Math.max(0, 1 - friction * dt);
         e.velocity.vx *= factor;
       }
@@ -111,8 +111,6 @@ export const physicsSystem: System = {
         e.position.y = h - hh;
         e.velocity.vy = -Math.abs(e.velocity.vy) * bounce;
         p.grounded = true;
-      } else {
-        p.grounded = false;
       }
     }
   },

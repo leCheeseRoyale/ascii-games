@@ -20,6 +20,7 @@ import type { GameWorld } from "../ecs/world";
 import type { Camera } from "./camera";
 import type { CanvasUI } from "./canvas-ui";
 import type { ParticlePool } from "./particles";
+import { getCachedSprite } from "./sprite-cache";
 import {
   layoutJustifiedBlock,
   layoutTextAroundObstacles,
@@ -39,6 +40,7 @@ interface Renderable {
 export class AsciiRenderer {
   readonly canvas: HTMLCanvasElement;
   readonly ctx: CanvasRenderingContext2D;
+  private sceneTime = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -69,9 +71,10 @@ export class AsciiRenderer {
     config: EngineConfig,
     camera: Camera,
     particles?: ParticlePool,
-    _sceneTime?: number,
+    sceneTime?: number,
     ui?: CanvasUI,
   ): void {
+    this.sceneTime = sceneTime ?? 0;
     const { ctx } = this;
     const w = this.width;
     const h = this.height;
@@ -226,20 +229,65 @@ export class AsciiRenderer {
     const { ctx } = this;
     const { x, y } = entity.position!;
     const a = entity.ascii!;
+    const effectFn = entity.textEffect?.fn;
 
     ctx.save();
     ctx.globalAlpha = a.opacity ?? 1;
-    ctx.font = a.scale
+    const font = a.scale
       ? `${parseFloat(a.font) * a.scale}px ${a.font.replace(/^[\d.]+px\s*/, "")}`
       : a.font;
-    if (a.glow) {
-      ctx.shadowColor = a.glow;
-      ctx.shadowBlur = 8;
+    ctx.font = font;
+
+    if (!effectFn) {
+      if (a.glow) {
+        ctx.shadowColor = a.glow;
+        ctx.shadowBlur = 8;
+      }
+      ctx.fillStyle = a.color;
+      ctx.textBaseline = "middle";
+      ctx.textAlign = "center";
+      ctx.fillText(a.char, x, y);
+      ctx.restore();
+      return;
     }
-    ctx.fillStyle = a.color;
+
+    const chars = [...a.char];
+    const charWidths: number[] = [];
+    for (const ch of chars) {
+      charWidths.push(ctx.measureText(ch).width);
+    }
+    const totalW = charWidths.reduce((sum, w) => sum + w, 0);
+    let cx = x - totalW / 2;
+
     ctx.textBaseline = "middle";
-    ctx.textAlign = "center";
-    ctx.fillText(a.char, x, y);
+    ctx.textAlign = "left";
+
+    for (let i = 0; i < chars.length; i++) {
+      const transform = effectFn(i, chars.length, this.sceneTime);
+      const dx = transform.dx ?? 0;
+      const dy = transform.dy ?? 0;
+
+      ctx.save();
+      if (transform.opacity !== undefined) {
+        ctx.globalAlpha = (a.opacity ?? 1) * transform.opacity;
+      }
+      if (transform.scale !== undefined) {
+        const mid = cx + charWidths[i] / 2;
+        ctx.translate(mid, y);
+        ctx.scale(transform.scale, transform.scale);
+        ctx.translate(-mid, -y);
+      }
+      if (a.glow) {
+        ctx.shadowColor = a.glow;
+        ctx.shadowBlur = 8;
+      }
+      ctx.fillStyle = transform.color ?? a.color;
+      ctx.fillText(transform.char ?? chars[i], cx + dx, y + dy);
+      ctx.restore();
+
+      cx += charWidths[i];
+    }
+
     ctx.restore();
   }
 
@@ -248,26 +296,112 @@ export class AsciiRenderer {
     const { x, y } = entity.position!;
     const s = entity.sprite!;
 
-    ctx.save();
-    ctx.globalAlpha = s.opacity ?? 1;
-    ctx.font = s.font;
-    if (s.glow) {
-      ctx.shadowColor = s.glow;
-      ctx.shadowBlur = 8;
+    // Entities with textEffect need per-character transforms each frame — skip the cache.
+    if (entity.textEffect) {
+      this.drawSpritePerChar(entity);
+      return;
     }
-    ctx.fillStyle = s.color;
-    ctx.textBaseline = "middle";
-    ctx.textAlign = "center";
 
-    // Measure approximate line height from font size
+    const cached = getCachedSprite(s.lines, s.font, s.color, s.colorMap, s.glow);
+
+    ctx.save();
+    if (s.opacity !== undefined && s.opacity < 1) {
+      ctx.globalAlpha = s.opacity;
+    }
+
+    // Draw centered on entity position (bitmap origin is top-left of the padded canvas)
+    ctx.drawImage(cached.canvas, x - cached.width / 2, y - cached.height / 2);
+    ctx.restore();
+  }
+
+  /**
+   * Fallback per-character sprite rendering for entities with textEffect.
+   * Also supports colorMap and space transparency.
+   */
+  private drawSpritePerChar(entity: Partial<Entity>): void {
+    const { ctx } = this;
+    const { x, y } = entity.position!;
+    const s = entity.sprite!;
+    const effectFn = entity.textEffect?.fn;
+
     const fontSize = parseFloat(s.font) || 16;
     const lineHeight = fontSize * 1.2;
     const totalHeight = s.lines.length * lineHeight;
-    const startY = y - totalHeight / 2 + lineHeight / 2;
+    const startY = y - totalHeight / 2;
 
-    for (let i = 0; i < s.lines.length; i++) {
-      ctx.fillText(s.lines[i], x, startY + i * lineHeight);
+    // Find max line width for centering
+    let maxWidth = 0;
+    for (const line of s.lines) {
+      const w = measureLineWidth(line, s.font);
+      if (w > maxWidth) maxWidth = w;
     }
+
+    ctx.save();
+    ctx.globalAlpha = s.opacity ?? 1;
+    ctx.font = s.font;
+    ctx.textBaseline = "top";
+
+    let charIdx = 0;
+    // Count total non-space characters for effect function
+    let totalChars = 0;
+    if (effectFn) {
+      for (const line of s.lines) {
+        for (const ch of line) {
+          if (ch !== " ") totalChars++;
+        }
+      }
+    }
+
+    for (let li = 0; li < s.lines.length; li++) {
+      const line = s.lines[li];
+      const lineY = startY + li * lineHeight;
+      const lineWidth = measureLineWidth(line, s.font);
+      let cx = x - lineWidth / 2;
+
+      for (const char of line) {
+        const charWidth = measureLineWidth(char, s.font);
+        if (char === " ") {
+          cx += charWidth;
+          continue;
+        }
+
+        if (effectFn) {
+          const transform = effectFn(charIdx, totalChars, this.sceneTime);
+          const dx = transform.dx ?? 0;
+          const dy = transform.dy ?? 0;
+
+          ctx.save();
+          if (transform.opacity !== undefined) {
+            ctx.globalAlpha = (s.opacity ?? 1) * transform.opacity;
+          }
+          if (transform.scale !== undefined) {
+            const mid = cx + charWidth / 2;
+            const midY = lineY + lineHeight / 2;
+            ctx.translate(mid, midY);
+            ctx.scale(transform.scale, transform.scale);
+            ctx.translate(-mid, -midY);
+          }
+          if (s.glow) {
+            ctx.shadowColor = s.glow;
+            ctx.shadowBlur = 8;
+          }
+          ctx.fillStyle = transform.color ?? s.colorMap?.[char] ?? s.color;
+          ctx.fillText(transform.char ?? char, cx + dx, lineY + dy);
+          ctx.restore();
+        } else {
+          if (s.glow) {
+            ctx.shadowColor = s.glow;
+            ctx.shadowBlur = 8;
+          }
+          ctx.fillStyle = s.colorMap?.[char] ?? s.color;
+          ctx.fillText(char, cx, lineY);
+        }
+
+        charIdx++;
+        cx += charWidth;
+      }
+    }
+
     ctx.restore();
   }
 
@@ -291,7 +425,7 @@ export class AsciiRenderer {
     );
     const plainText = hasStyleTags ? stripTags(tb.text) : tb.text;
 
-    if (align === "justify" && obstacles.length === 0) {
+    if (align === "justify" && obstacles.length === 0 && !hasStyleTags) {
       // Justified layout: draw word-by-word with distributed spacing
       const justifiedLines = layoutJustifiedBlock(
         plainText,
@@ -357,10 +491,11 @@ export class AsciiRenderer {
           lineCharStart,
           tb.font,
           tb.color,
+          tb.lineHeight,
         );
         lineCharStart += lineText.length;
         // Skip whitespace between lines (word wrap consumes trailing spaces)
-        while (lineCharStart < plainChars && plainText[lineCharStart] === " ") {
+        while (lineCharStart < plainChars && (plainText[lineCharStart] === " " || plainText[lineCharStart] === "\n")) {
           lineCharStart++;
         }
       }
@@ -395,7 +530,9 @@ export class AsciiRenderer {
     charOffset: number,
     baseFont: string,
     baseColor: string,
+    lineHeight: number,
   ): void {
+    const baseAlpha = ctx.globalAlpha;
     let drawX = startX;
     let runStart = 0;
 
@@ -434,15 +571,14 @@ export class AsciiRenderer {
         const prevFill = ctx.fillStyle;
         const prevAlpha = ctx.globalAlpha;
         ctx.fillStyle = style.bgColor;
-        ctx.globalAlpha = 1;
-        const fontSize = parseFloat(style.font) || 16;
-        ctx.fillRect(drawX, y, runWidth, fontSize * 1.2);
+        ctx.globalAlpha = baseAlpha * style.opacity;
+        ctx.fillRect(drawX, y, runWidth, lineHeight);
         ctx.fillStyle = prevFill;
         ctx.globalAlpha = prevAlpha;
       }
 
       // Draw text
-      ctx.globalAlpha = style.opacity;
+      ctx.globalAlpha = baseAlpha * style.opacity;
       ctx.fillStyle = style.color;
       ctx.fillText(runText, drawX, y);
 

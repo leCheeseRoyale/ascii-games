@@ -283,6 +283,19 @@ export class AchievementTracker {
     state.unlocked = true;
     state.unlockedAt = Date.now();
     this.emit("unlock", id, state);
+
+    // Check dependents: any achievement whose prerequisites include this
+    // newly-unlocked ID may now be ready to unlock (progress already maxed).
+    for (const [depId, depDef] of this.defs) {
+      if (depDef.prerequisites?.includes(id) && !this.isUnlocked(depId)) {
+        this.tryUnlock(depId);
+      }
+    }
+  }
+
+  /** Whether a given achievement has been unlocked. */
+  isUnlocked(id: string): boolean {
+    return this.states.get(id)?.unlocked === true;
   }
 
   // ── Aggregates ────────────────────────────────────────────────
@@ -380,7 +393,7 @@ export class AchievementTracker {
     if (!def.prerequisites || def.prerequisites.length === 0) return true;
     for (const prereqId of def.prerequisites) {
       const prereq = this.states.get(prereqId);
-      if (!prereq || !prereq.unlocked) return false;
+      if (!prereq?.unlocked) return false;
     }
     return true;
   }

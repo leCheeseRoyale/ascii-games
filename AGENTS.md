@@ -19,7 +19,7 @@
 
 | Command | Creates |
 |---|---|
-| `bun run init:game [blank\|asteroid-field\|platformer\|roguelike\|tic-tac-toe\|connect-four]` | Copies template → `game/` |
+| `bun run init:game [blank\|asteroid-field\|platformer\|roguelike\|physics-text\|tic-tac-toe\|connect-four]` | Copies template → `game/` |
 | `bun run new:scene <name>` | `game/scenes/<name>.ts` |
 | `bun run new:system <name>` | `game/systems/<name>.ts` |
 | `bun run new:entity <name>` | `game/entities/<name>.ts` |

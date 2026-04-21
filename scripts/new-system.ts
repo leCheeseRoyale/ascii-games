@@ -34,9 +34,8 @@ import type { Engine } from '@engine'
 export const ${camel}System = defineSystem({
   name: '${kebab}',
 
-  // init(engine: Engine) {
-  //   // Called once when the system is added
-  // },
+  // Reset state here — runs each time the scene loads
+  init(engine: Engine) {},
 
   update(engine: Engine, dt: number) {
     // Example: make enemies chase the player by setting velocity

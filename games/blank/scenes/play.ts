@@ -1,7 +1,26 @@
 import type { Engine } from "@engine";
-import { defineScene, FONTS } from "@engine";
+import { createTags, defineScene, defineSystem, FONTS } from "@engine";
 import { useStore } from "@ui/store";
 import { GAME } from "../config";
+
+const playerSystem = defineSystem({
+  name: "player-input",
+  update(engine: Engine, dt: number) {
+    for (const player of engine.world.with("position", "velocity", "player")) {
+      const speed = GAME.player.speed;
+      player.velocity.vx = 0;
+      player.velocity.vy = 0;
+      if (engine.keyboard.held("KeyW") || engine.keyboard.held("ArrowUp"))
+        player.velocity.vy = -speed;
+      if (engine.keyboard.held("KeyS") || engine.keyboard.held("ArrowDown"))
+        player.velocity.vy = speed;
+      if (engine.keyboard.held("KeyA") || engine.keyboard.held("ArrowLeft"))
+        player.velocity.vx = -speed;
+      if (engine.keyboard.held("KeyD") || engine.keyboard.held("ArrowRight"))
+        player.velocity.vx = speed;
+    }
+  },
+});
 
 export const playScene = defineScene({
   name: "play",
@@ -14,9 +33,12 @@ export const playScene = defineScene({
       position: { x: engine.centerX, y: engine.centerY },
       velocity: { vx: 0, vy: 0 },
       ascii: { char: "@", font: FONTS.large, color: GAME.player.color, glow: GAME.player.glow },
-      tags: { values: new Set(["player"]) },
+      tags: createTags("player"),
+      player: { index: 0 },
       screenWrap: { margin: 10 },
     });
+
+    engine.addSystem(playerSystem);
 
     // ── Next steps ──────────────────────────────────────────────────
     //
@@ -27,7 +49,7 @@ export const playScene = defineScene({
     //
     // 2. Add collision:
     //      bun run new:system collision
-    //      Give entities a collider: { type: 'circle', width: 20, height: 20 }
+    //      Give entities a collider: 'auto' as const
     //      Check hits: if (overlaps(a, b)) { ... }
     //
     // 3. Add scoring:
@@ -42,24 +64,7 @@ export const playScene = defineScene({
     // ────────────────────────────────────────────────────────────────
   },
 
-  update(engine: Engine, dt: number) {
-    // Move player with WASD/arrows
-    const player = engine.findByTag("player");
-    if (player?.velocity) {
-      const speed = GAME.player.speed;
-      player.velocity.vx = 0;
-      player.velocity.vy = 0;
-      if (engine.keyboard.held("ArrowLeft") || engine.keyboard.held("KeyA"))
-        player.velocity.vx = -speed;
-      if (engine.keyboard.held("ArrowRight") || engine.keyboard.held("KeyD"))
-        player.velocity.vx = speed;
-      if (engine.keyboard.held("ArrowUp") || engine.keyboard.held("KeyW"))
-        player.velocity.vy = -speed;
-      if (engine.keyboard.held("ArrowDown") || engine.keyboard.held("KeyS"))
-        player.velocity.vy = speed;
-      // _physics system handles position += velocity * dt automatically
-    }
-
+  update(engine: Engine, _dt: number) {
     if (engine.keyboard.pressed("Escape")) {
       engine.loadScene("title");
     }

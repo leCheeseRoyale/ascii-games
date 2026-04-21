@@ -83,44 +83,42 @@ export function createPatrolBehavior(
 
   return {
     enter(entity: Partial<Entity>, _engine: Engine) {
-      const e = entity as any;
-      e._patrol = { waypointIndex: 0, waitTimer: 0 };
+      entity._patrol = { waypointIndex: 0, waitTimer: 0 };
     },
 
     update(entity: Partial<Entity>, _engine: Engine, dt: number) {
-      const e = entity as any;
-      if (!e._patrol || !e.position || !e.velocity || waypoints.length === 0) return;
+      if (!entity._patrol || !entity.position || !entity.velocity || waypoints.length === 0) return;
 
       // Waiting at waypoint
-      if (e._patrol.waitTimer > 0) {
-        e.velocity.vx = 0;
-        e.velocity.vy = 0;
-        e._patrol.waitTimer -= dt;
+      if (entity._patrol.waitTimer > 0) {
+        entity.velocity.vx = 0;
+        entity.velocity.vy = 0;
+        entity._patrol.waitTimer -= dt;
         return;
       }
 
-      const target = waypoints[e._patrol.waypointIndex];
+      const target = waypoints[entity._patrol.waypointIndex];
       const d = moveToward(entity, target, speed);
 
       // Arrived at waypoint
       if (d < speed * dt + 1) {
-        e._patrol.waypointIndex++;
+        entity._patrol.waypointIndex++;
 
-        if (e._patrol.waypointIndex >= waypoints.length) {
+        if (entity._patrol.waypointIndex >= waypoints.length) {
           if (loop) {
-            e._patrol.waypointIndex = 0;
+            entity._patrol.waypointIndex = 0;
           } else {
-            e._patrol.waypointIndex = waypoints.length - 1;
-            e.velocity.vx = 0;
-            e.velocity.vy = 0;
+            entity._patrol.waypointIndex = waypoints.length - 1;
+            entity.velocity.vx = 0;
+            entity.velocity.vy = 0;
             return;
           }
         }
 
         if (waitTime > 0) {
-          e._patrol.waitTimer = waitTime;
-          e.velocity.vx = 0;
-          e.velocity.vy = 0;
+          entity._patrol.waitTimer = waitTime;
+          entity.velocity.vx = 0;
+          entity.velocity.vy = 0;
         }
       }
     },
@@ -219,9 +217,8 @@ export function createWanderBehavior(options?: WanderOptions): StateMachineState
 
   return {
     enter(entity: Partial<Entity>, _engine: Engine) {
-      const e = entity as any;
       const angle = Math.random() * Math.PI * 2;
-      e._wander = { timer: changeInterval, angle };
+      entity._wander = { timer: changeInterval, angle };
       if (entity.velocity) {
         entity.velocity.vx = Math.cos(angle) * speed;
         entity.velocity.vy = Math.sin(angle) * speed;
@@ -229,15 +226,14 @@ export function createWanderBehavior(options?: WanderOptions): StateMachineState
     },
 
     update(entity: Partial<Entity>, _engine: Engine, dt: number) {
-      const e = entity as any;
-      if (!e._wander || !entity.velocity) return;
+      if (!entity._wander || !entity.velocity) return;
 
-      e._wander.timer -= dt;
-      if (e._wander.timer <= 0) {
-        e._wander.timer = changeInterval;
-        e._wander.angle = Math.random() * Math.PI * 2;
-        entity.velocity.vx = Math.cos(e._wander.angle) * speed;
-        entity.velocity.vy = Math.sin(e._wander.angle) * speed;
+      entity._wander.timer -= dt;
+      if (entity._wander.timer <= 0) {
+        entity._wander.timer = changeInterval;
+        entity._wander.angle = Math.random() * Math.PI * 2;
+        entity.velocity.vx = Math.cos(entity._wander.angle) * speed;
+        entity.velocity.vy = Math.sin(entity._wander.angle) * speed;
       }
     },
 

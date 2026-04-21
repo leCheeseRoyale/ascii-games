@@ -218,6 +218,56 @@ async function createLocalMultiplayerGame<TState>(
 
 // Socket transport
 
+/** Default timeout when waiting for peers to join (ms). */
+const WAIT_FOR_PLAYERS_TIMEOUT_MS = 30_000;
+
+/**
+ * Wait until `count` total peers (including self) have joined via the adapter.
+ * Resolves with the sorted list of player ids. Rejects on timeout.
+ */
+function waitForPlayers(
+  adapter: NetworkAdapter,
+  count: number,
+  timeout = WAIT_FOR_PLAYERS_TIMEOUT_MS,
+): Promise<string[]> {
+  const currentTotal = () => 1 + adapter.peers.length; // self + others
+  if (currentTotal() >= count) {
+    return Promise.resolve([adapter.id, ...adapter.peers].sort());
+  }
+  return new Promise<string[]>((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      off();
+      offDisconnect();
+      clearTimeout(timer);
+    };
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(
+        new Error(
+          `waitForPlayers: timed out after ${timeout}ms (have ${currentTotal()}/${count} players)`,
+        ),
+      );
+    }, timeout);
+    const off = adapter.onPeerJoin(() => {
+      if (settled) return;
+      if (currentTotal() >= count) {
+        settled = true;
+        cleanup();
+        resolve([adapter.id, ...adapter.peers].sort());
+      }
+    });
+    const offDisconnect = adapter.onDisconnect(() => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new Error("adapter disconnected before all players joined"));
+    });
+  });
+}
+
 async function createSocketMultiplayerGame<TState>(
   game: GameDefinition<TState>,
   opts: MultiplayerOpts<TState>,
@@ -238,9 +288,10 @@ async function createSocketMultiplayerGame<TState>(
 
   await adapter.connect();
 
-  // Snapshot the roster on welcome. Order is stable across peers because
-  // each peer sees the same server-assigned order in adapter.peers.
-  const playerIds = [adapter.id, ...adapter.peers].sort();
+  // Wait for the expected number of players before constructing TurnSync.
+  // Without this, playerIds is snapshotted before all peers connect.
+  const expectedPlayers = game.players?.default ?? game.players?.min ?? 2;
+  const playerIds = await waitForPlayers(adapter, expectedPlayers);
 
   const engine = opts.engineFactory();
   const sceneName = engine.runGame(game);

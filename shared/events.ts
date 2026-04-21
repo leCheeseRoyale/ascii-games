@@ -1,15 +1,15 @@
 import mitt from "mitt";
 
 type EngineEvents = {
-  "game:start": void;
-  "game:resume": void;
-  "game:restart": void;
-  "game:pause": void;
+  "game:start": undefined;
+  "game:resume": undefined;
+  "game:restart": undefined;
+  "game:pause": undefined;
   "scene:loaded": string;
-  "engine:started": void;
-  "engine:stopped": void;
-  "engine:paused": void;
-  "engine:resumed": void;
+  "engine:started": undefined;
+  "engine:stopped": undefined;
+  "engine:paused": undefined;
+  "engine:resumed": undefined;
   // Turn management events
   "turn:start": number;
   "turn:end": number;
@@ -38,8 +38,15 @@ type EngineEvents = {
     recipeId: string;
     items: unknown[];
     consumed: Array<{ itemId: string; count: number }>;
+    xpGained?: number;
   };
-  "craft:failed": { entity: unknown; recipeId: string; reason: string };
+  "craft:failed": {
+    entity: unknown;
+    recipeId: string;
+    reason: string;
+    missing?: Array<{ itemId: string; count: number }>;
+    consumed?: Array<{ itemId: string; count: number }>;
+  };
   // Combat events (emitted by createDamageSystem — see engine/behaviors/damage.ts)
   "combat:damage-taken": {
     entity: unknown;

@@ -64,7 +64,7 @@ export const collisionSystem = defineSystem({
     // Player <-> Asteroid collisions
     for (const player of players) {
       if (destroyed.has(player)) continue;
-      if (invincibleTimer > 0) break;
+      if (invincibleTimer > 0) continue;
       for (const asteroid of asteroids) {
         if (destroyed.has(asteroid)) continue;
         if (!asteroid.position) continue;

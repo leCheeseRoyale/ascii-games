@@ -12,8 +12,15 @@ export interface Collidable {
   collider: Collider;
 }
 
-/** Check if two entities overlap. */
+/** Check if two entities overlap. Respects collision group/mask bitmasks. */
 export function overlaps(a: Collidable, b: Collidable): boolean {
+  // Early out if collision groups don't match
+  const ag = a.collider.group ?? 1;
+  const am = a.collider.mask ?? 0xffffffff;
+  const bg = b.collider.group ?? 1;
+  const bm = b.collider.mask ?? 0xffffffff;
+  if ((ag & bm) === 0 || (bg & am) === 0) return false;
+
   if (a.collider.type === "circle" && b.collider.type === "circle") {
     return circleCircle(a, b);
   }

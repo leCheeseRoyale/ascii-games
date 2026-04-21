@@ -434,8 +434,9 @@ function floodFillRooms(
       const queue: { col: number; row: number }[] = [{ col: c, row: r }];
       visited.set(c, r, true);
 
-      while (queue.length > 0) {
-        const cur = queue.shift()!;
+      let head = 0;
+      while (head < queue.length) {
+        const cur = queue[head++];
         if (cur.col < minC) minC = cur.col;
         if (cur.col > maxC) maxC = cur.col;
         if (cur.row < minR) minR = cur.row;

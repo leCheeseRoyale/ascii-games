@@ -4,7 +4,6 @@ import { GAME } from "../config";
 import { createPlayer } from "../entities/player";
 import { asteroidSpawnerSystem } from "../systems/asteroid-spawner";
 import { collisionSystem, resetScore } from "../systems/collision";
-import { lifetimeSystem } from "../systems/lifetime";
 import { playerInputSystem } from "../systems/player-input";
 
 export const playScene = defineScene({
@@ -24,10 +23,9 @@ export const playScene = defineScene({
     engine.addSystem(playerInputSystem);
     engine.addSystem(asteroidSpawnerSystem);
     engine.addSystem(collisionSystem);
-    engine.addSystem(lifetimeSystem);
   },
 
-  update(engine, dt) {
+  update(engine, _dt) {
     // Sync store with debug info
     const entities = [...engine.world.with("position")].length;
     useStore.getState().setDebugInfo(Math.round(engine.time.fps), entities);

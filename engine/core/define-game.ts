@@ -54,6 +54,7 @@ import { defineScene, type Scene } from "./scene";
 // ── Public types ────────────────────────────────────────────────
 
 /** Return value of a move. `'invalid'` rejects the move. */
+// biome-ignore lint/suspicious/noConfusingVoidType: void is intentional — moves return nothing on success
 export type MoveResult = void | "invalid";
 
 /** A single move — receives a live `ctx` and any caller arguments. */
@@ -189,6 +190,7 @@ export interface GameDefinition<TState = any, TPlayer extends string | number = 
   /** All moves, keyed by name. */
   moves: MovesMap<TState, TPlayer>;
   /** If truthy, the game is over. Return value is stored on `ctx.result`. */
+  // biome-ignore lint/suspicious/noConfusingVoidType: void is intentional — endIf returns nothing when game continues
   endIf?: (ctx: GameContext<TState, TPlayer>) => GameResult | null | undefined | void;
   /** Extra systems to register alongside the built-in ones. */
   systems?: System[];

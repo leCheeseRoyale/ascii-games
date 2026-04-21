@@ -21,6 +21,7 @@ export class Transition {
   elapsed = 0;
   active = false;
   phase: "out" | "in" = "out"; // 'out' = fading to black, 'in' = fading from black
+  error: Error | null = null;
   private onMidpoint?: () => void | Promise<void>;
   private midpointPending = false;
   private midpointTimeoutMs: number;
@@ -41,6 +42,7 @@ export class Transition {
     this.elapsed = 0;
     this.phase = "out";
     this.midpointPending = false;
+    this.error = null;
     this.onMidpoint = onMidpoint;
   }
 
@@ -64,7 +66,10 @@ export class Transition {
           }, this.midpointTimeoutMs),
         );
         Promise.race([
-          result.catch((err) => console.error("[transition] onMidpoint rejected:", err)),
+          result.catch((err) => {
+            console.error("[transition] onMidpoint rejected:", err);
+            this.error = err instanceof Error ? err : new Error(String(err));
+          }),
           timeout,
         ]).then(() => {
           this.midpointPending = false;

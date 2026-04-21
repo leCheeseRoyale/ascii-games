@@ -10,6 +10,7 @@
  */
 
 import {
+  clearCache as clearPretextCache,
   type LayoutCursor,
   layout,
   layoutNextLine,
@@ -77,24 +78,51 @@ const preparedCache = new LRUCache<PreparedTextWithSegments>(MAX_CACHE_SIZE);
 // and also used by CanvasUI for per-chunk width reuse across frames.
 const widthCache = new LRUCache<number>(MAX_CACHE_SIZE);
 
-function cacheKey(text: string, font: string): string {
-  return font + "\x00" + text;
+export interface PrepareOptions {
+  whiteSpace?: "normal" | "pre-wrap";
 }
 
-function getSegments(text: string, font: string): PreparedTextWithSegments {
-  const k = cacheKey(text, font);
+function cacheKey(text: string, font: string, opts?: PrepareOptions): string {
+  if (!opts?.whiteSpace) return `${font}\x00${text}`;
+  return `${font}\x00${opts.whiteSpace}\x00${text}`;
+}
+
+function getSegments(text: string, font: string, opts?: PrepareOptions): PreparedTextWithSegments {
+  const k = cacheKey(text, font, opts);
   let p = preparedCache.get(k);
   if (!p) {
-    p = prepareWithSegments(text, font);
+    p = prepareWithSegments(text, font, opts);
     preparedCache.set(k, p);
   }
   return p;
 }
 
-/** Clear all Pretext caches. Call on font changes or to free memory. */
+/** Clear all Pretext caches (both wrapper LRUs and Pretext internals). Call on font changes or to free memory. */
 export function clearTextCache(): void {
   preparedCache.clear();
   widthCache.clear();
+  clearPretextCache();
+}
+
+// ── Pretext helpers (not yet exported by @chenglou/pretext@0.0.4) ──
+
+function measureNaturalWidth(prepared: PreparedTextWithSegments): number {
+  let max = 0;
+  walkLineRanges(prepared, Infinity, (line) => {
+    if (line.width > max) max = line.width;
+  });
+  return max;
+}
+
+function measureLineStats(
+  prepared: PreparedTextWithSegments,
+  maxWidth: number,
+): { lineCount: number; maxLineWidth: number } {
+  let maxLineWidth = 0;
+  const lineCount = walkLineRanges(prepared, maxWidth, (line) => {
+    if (line.width > maxLineWidth) maxLineWidth = line.width;
+  });
+  return { lineCount, maxLineWidth };
 }
 
 // ── Rich Text Parsing ───────────────────────────────────────────
@@ -265,27 +293,23 @@ export function getLineCount(text: string, font: string, maxWidth: number): numb
 }
 
 /**
- * Find the tightest width that fits the text (shrinkwrap).
+ * Find the widest line width when text is laid out at maxWidth (shrinkwrap).
+ * Returns a ceiled integer suitable for container sizing.
  */
 export function shrinkwrap(text: string, font: string, maxWidth: number): number {
-  const prepared = getSegments(text, font);
-  let max = 0;
-  walkLineRanges(prepared, maxWidth, (line) => {
-    if (line.width > max) max = line.width;
-  });
-  return Math.ceil(max);
+  const { maxLineWidth } = measureLineStats(getSegments(text, font), maxWidth);
+  return Math.ceil(maxLineWidth);
 }
 
 /**
- * Measure the width of a single line of text with no wrapping. Cheaper than
- * shrinkwrap(text, font, Infinity) because the result is memoized keyed on
- * (text, font) instead of re-walking line ranges on every call.
+ * Measure the width of a single line of text with no wrapping.
+ * Returns the raw fractional pixel width (no rounding) for precise positioning.
  */
 export function measureLineWidth(text: string, font: string): number {
   const k = cacheKey(text, font);
   const cached = widthCache.get(k);
   if (cached !== undefined) return cached;
-  const w = shrinkwrap(text, font, Infinity);
+  const w = measureNaturalWidth(getSegments(text, font));
   widthCache.set(k, w);
   return w;
 }
@@ -336,45 +360,28 @@ export function layoutJustifiedBlock(
   const lines = layoutTextBlock(text, font, maxWidth, lineHeight);
   const result: JustifiedLine[] = [];
 
-  // Measure space width once for this font
-  const spacePrepared = getSegments(" ", font);
-  let spaceWidth = 0;
-  walkLineRanges(spacePrepared, Infinity, (lr) => {
-    spaceWidth = lr.width;
-  });
+  const spaceWidth = measureLineWidth(" ", font);
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const isLast = i === lines.length - 1;
     const lineText = line.text;
 
-    // Split line text into non-whitespace words
     const nonSpaceWords = lineText.split(/\s+/).filter((w) => w.length > 0);
 
     if (nonSpaceWords.length <= 1 || isLast) {
-      // Single word or last line: left-align
       let x = startX;
       const justifiedWords: JustifiedWord[] = [];
       for (const w of nonSpaceWords) {
-        const prepared = getSegments(w, font);
-        let width = 0;
-        walkLineRanges(prepared, Infinity, (lr) => {
-          width = lr.width;
-        });
+        const width = measureLineWidth(w, font);
         justifiedWords.push({ text: w, x, width });
         x += width + spaceWidth;
       }
       result.push({ words: justifiedWords, y: i * lineHeight, isLastLine: isLast });
     } else {
-      // Justify: measure each word, distribute extra space between them
       const wordWidths: number[] = [];
       for (const w of nonSpaceWords) {
-        const prepared = getSegments(w, font);
-        let width = 0;
-        walkLineRanges(prepared, Infinity, (lr) => {
-          width = lr.width;
-        });
-        wordWidths.push(width);
+        wordWidths.push(measureLineWidth(w, font));
       }
 
       const totalWordWidth = wordWidths.reduce((a, b) => a + b, 0);

@@ -1,9 +1,10 @@
 /**
- * Procedural game audio powered by ZzFX.
- * No audio files needed — tiny synthesized sound effects.
+ * Procedural game audio powered by ZzFX + ZzFXM.
+ * No audio files needed — tiny synthesized sound effects and tracker music.
  */
 
 import { zzfx } from "zzfx";
+import { ZZFXM, type Instrument, type Pattern, type Channel } from "@zzfx-studio/zzfxm";
 
 let masterVolume = 1.0;
 let muted = false;
@@ -125,13 +126,14 @@ export function playMusic(src: string, opts: { volume?: number; loop?: boolean }
   currentMusic = audio;
 }
 
-/** Stop current background music. */
+/** Stop current background music (both file-based and tracker). */
 export function stopMusic(): void {
   if (currentMusic) {
     currentMusic.pause();
     currentMusic.src = "";
     currentMusic = null;
   }
+  stopTrackerMusic();
 }
 
 /** Pause current background music. */
@@ -149,3 +151,47 @@ export function setMusicVolume(v: number): void {
   musicVolume = Math.max(0, Math.min(1, v));
   if (currentMusic) currentMusic.volume = muted ? 0 : musicVolume * masterVolume;
 }
+
+// ---------------------------------------------------------------------------
+// Tracker music playback (ZzFXM)
+// ---------------------------------------------------------------------------
+
+/** Song data for the ZzFXM procedural tracker. */
+export interface TrackerSong {
+  instruments: Instrument[];
+  patterns: Pattern[];
+  sequence: number[];
+  bpm?: number;
+}
+
+let currentTracker: AudioBufferSourceNode | null = null;
+
+/**
+ * Play procedural tracker music via ZzFXM.
+ * Loops by default. Stops any previously playing tracker music.
+ *
+ * Note: AudioBufferSourceNode does not support live volume changes.
+ * Changing masterVolume or muting after playback starts will not affect the
+ * current tracker — call `playTrackerMusic` again to apply new volume, or
+ * `stopTrackerMusic` to silence it.
+ */
+export function playTrackerMusic(song: TrackerSong, opts?: { loop?: boolean; volume?: number }): void {
+  stopTrackerMusic();
+  if (muted) return;
+
+  const loop = opts?.loop ?? true;
+  const volume = opts?.volume ?? 1;
+  const samples = ZZFXM.build(song.instruments, song.patterns, song.sequence, song.bpm);
+  currentTracker = ZZFXM.play(samples, volume * masterVolume, undefined, undefined, loop);
+}
+
+/** Stop current tracker music. */
+export function stopTrackerMusic(): void {
+  if (currentTracker) {
+    try { currentTracker.stop(); } catch { /* already stopped */ }
+    currentTracker = null;
+  }
+}
+
+// Re-export ZzFXM types for game code convenience
+export type { Instrument, Pattern, Channel };

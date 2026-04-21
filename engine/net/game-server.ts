@@ -66,6 +66,7 @@ export type ClientFrame =
   | { type: "leave" }
   | { type: "send"; to: string | "all"; data: unknown }
   | { type: "ping"; t: number }
+  | { type: "pong"; t: number }
   | { type: "list-rooms"; filter?: RoomListFilter };
 
 export type ServerFrame =
@@ -180,6 +181,15 @@ export interface GameServerOptions {
    * the circuit breaker (legacy behavior: drop silently forever).
    */
   wsRateViolationLimit?: number;
+  /**
+   * Allow clients to resume a previous peer identity by sending `previousPeerId`
+   * in the join frame. Default **false**. When disabled, the `previousPeerId`
+   * field is ignored and every connection receives a fresh peer id.
+   *
+   * Enable only when your game logic needs reconnect-resume and you accept the
+   * spoofing risk (any client can claim any disconnected peer id).
+   */
+  enablePeerResume?: boolean;
 }
 
 /** Live handle to a connected peer. Internal, but exported for tests. */
@@ -291,6 +301,7 @@ export class GameServer {
       httpRateLimit: opts.httpRateLimit ?? 60,
       httpRateLimitWindowMs: opts.httpRateLimitWindowMs ?? 60_000,
       wsRateViolationLimit: opts.wsRateViolationLimit ?? 50,
+      enablePeerResume: opts.enablePeerResume ?? false,
     };
   }
 
@@ -455,7 +466,7 @@ export class GameServer {
 
   sendToPeer(roomId: string, peerId: string, data: unknown): boolean {
     const room = this.internalRooms.get(roomId);
-    if (!room || !room.peers.has(peerId)) return false;
+    if (!room?.peers.has(peerId)) return false;
     const ws = this.sockets.get(peerId);
     if (!ws) return false;
     const frame: ServerFrame = { type: "message", from: "server", data };
@@ -464,7 +475,7 @@ export class GameServer {
 
   kickPeer(roomId: string, peerId: string, reason = "kicked"): void {
     const room = this.internalRooms.get(roomId);
-    if (!room || !room.peers.has(peerId)) return;
+    if (!room?.peers.has(peerId)) return;
     const ws = this.sockets.get(peerId);
     if (ws) {
       this.safeSend(
@@ -564,6 +575,9 @@ export class GameServer {
         this.safeSend(ws, JSON.stringify(pong));
         break;
       }
+      case "pong":
+        // Client pong in response to server ping — lastSeen already updated above.
+        break;
       case "list-rooms":
         this.handleListRooms(ws, frame);
         break;
@@ -590,9 +604,10 @@ export class GameServer {
       this.sendError(ws, "already-joined", "Already joined a room on this connection");
       return;
     }
+    const MAX_ROOM_ID_LEN = 128;
     const roomId = typeof frame.roomId === "string" ? frame.roomId : "";
-    if (!roomId) {
-      this.sendError(ws, "invalid-room", "roomId is required");
+    if (!roomId || roomId.length > MAX_ROOM_ID_LEN) {
+      this.sendError(ws, "invalid-room", "roomId is required and must be ≤128 chars");
       return;
     }
 
@@ -614,7 +629,8 @@ export class GameServer {
         typeof opts.maxPeers === "number" && opts.maxPeers > 0
           ? Math.min(opts.maxPeers, this.opts.maxClientsPerRoom)
           : this.opts.maxClientsPerRoom;
-      const name = typeof opts.name === "string" && opts.name.length > 0 ? opts.name : roomId;
+      const MAX_NAME_LEN = 64;
+      const name = typeof opts.name === "string" && opts.name.length > 0 ? opts.name.slice(0, MAX_NAME_LEN) : roomId;
       const gameType =
         typeof opts.gameType === "string" && opts.gameType.length > 0 ? opts.gameType : undefined;
       const isPublic = opts.isPublic !== false;
@@ -647,14 +663,22 @@ export class GameServer {
       return;
     }
 
-    // Assign peer ID. Reuse `previousPeerId` when provided and the id is not
-    // currently held by another socket — lets game logic keep state keyed by
-    // peerId across a reconnect without hunting for the new id.
+    // Assign peer ID. Reuse `previousPeerId` only when enablePeerResume is
+    // true AND the id is not currently held by another socket — lets game
+    // logic keep state keyed by peerId across a reconnect without hunting
+    // for the new id.
     let peerId: string;
     let resumed = false;
-    const candidate = typeof frame.previousPeerId === "string" ? frame.previousPeerId.trim() : "";
-    if (candidate && !this.sockets.has(candidate) && !room.peers.has(candidate)) {
-      peerId = candidate;
+    const MAX_PEER_ID_LEN = 64;
+    const PEER_ID_RE = /^[a-zA-Z0-9_-]+$/;
+    const candidate =
+      this.opts.enablePeerResume && typeof frame.previousPeerId === "string"
+        ? frame.previousPeerId.trim()
+        : "";
+    const validCandidate = candidate && candidate.length <= MAX_PEER_ID_LEN && PEER_ID_RE.test(candidate)
+      ? candidate : "";
+    if (validCandidate && !this.sockets.has(validCandidate) && !room.peers.has(validCandidate)) {
+      peerId = validCandidate;
       resumed = true;
     } else {
       peerId = generatePeerId();
@@ -663,11 +687,16 @@ export class GameServer {
       }
     }
 
+    const MAX_CLIENT_NAME_LEN = 64;
+    const clientName = typeof frame.clientName === "string"
+      ? frame.clientName.slice(0, MAX_CLIENT_NAME_LEN)
+      : undefined;
+
     const existingPeerIds = Array.from(room.peers.keys());
     const handle: PeerHandle = {
       id: peerId,
       roomId,
-      name: frame.clientName,
+      name: clientName,
       joinedAt: Date.now(),
       lastSeen: Date.now(),
     };

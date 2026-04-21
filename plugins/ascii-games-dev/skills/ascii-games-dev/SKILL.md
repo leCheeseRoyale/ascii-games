@@ -114,14 +114,27 @@ bun run test        # 1140+ tests
 
 All must stay green. Breaking tests is a blocker — fix the root cause, don't delete the test.
 
-## Downstream task skills
+## Downstream skills
 
 When the user asks for a higher-level task, delegate or point to:
 
+### Task skills (user-invoked for specific workflows)
 - **`/ascii-games-dev:new-game`** — start a fresh game from a free-text description
 - **`/ascii-games-dev:mechanic`** — compose a new entity + behavior + feedback
 - **`/ascii-games-dev:juice`** — layer feedback on an existing event
 - **`/ascii-games-dev:multiplayer`** — scaffold multiplayer
 - **`/ascii-games-dev:persist`** — wire save/load
 
+### Domain skills (auto-triggered when working in a subsystem)
+- **`/ascii-games-dev:ecs-mastery`** — components, system ordering, entity lifecycle, queries, tweens, state machines
+- **`/ascii-games-dev:rendering`** — ASCII renderer, text layout (Pretext), styled text, transitions, debug overlay
+- **`/ascii-games-dev:physics`** — velocity/forces, collision detection, spatial hash, springs, cursor repel
+- **`/ascii-games-dev:behaviors`** — AI, crafting, currency, damage, dialog, inventory, loot, quests, achievements
+- **`/ascii-games-dev:procgen`** — dungeon generation (4 algorithms), A* pathfinding, noise, cutscenes, scheduler
+- **`/ascii-games-dev:input-audio`** — input bindings, mouse/gamepad, key rebinding, ZzFX audio, tracker music
+- **`/ascii-games-dev:canvas-ui`** — canvas-only UI: menus, dialogs, scroll panels, grids, tooltips, tabs
+- **`/ascii-games-dev:templates`** — game template patterns, when to use which, how to extend
+
 Each downstream skill assumes this one has been read. Don't repeat the 6 don'ts or the decision matrix — reference them.
+
+For **rendering, physics, and any visual/animation work**, also invoke the globally installed **`pretext` skill** — it documents the text measurement library that powers collider auto-sizing, text layout, and per-character physics.

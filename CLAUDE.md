@@ -25,7 +25,7 @@ bun run build           # Production build |  bun run export     # single-file d
 bun run bench           # engine/__bench__/run.ts
 bun run gen:api         # Regenerate docs/API-generated.md
 bun run new:scene|new:system|new:entity <name>    # Scaffold
-bun run init:game [blank|asteroid-field|platformer|roguelike|tic-tac-toe|connect-four]
+bun run init:game [blank|asteroid-field|platformer|roguelike|physics-text|tic-tac-toe|connect-four]
 bun run ai:game "<pitch>"      # AI-generated defineGame module (needs ANTHROPIC_API_KEY)
 bun run ai:sprite "<prompt>"   # AI-generated sprite factory
 bun run ai:mechanic "<desc>"   # AI-generated behavior system
@@ -70,10 +70,24 @@ When `defineGame` games need canvas-only UI (no React), `setupGame` returns `{ s
 - **Remove:** `engine.destroy(entity)`, `engine.destroyAll('tag')`, `engine.destroyWithChildren(entity)`.
 - **Query:** `engine.world.with('position', 'velocity')`, `.without('health')`, `.where(e => ...)`, `engine.findByTag('player')`, `engine.findAllByTag('enemy')`.
 - **Entity factories return `Partial<Entity>`**, not full entities — `engine.spawn()` fills the rest.
-- **8 built-in systems auto-register on scene load — do NOT add manually:** `_parent`, `_physics`, `_tween`, `_animation`, `_lifetime`, `_screenBounds`, `_emitter`, `_stateMachine`.
-- **System ordering:** custom systems default to `priority: 0` and run before all built-ins. `SystemPriority` constants expose built-in slots (`parent=10, physics=20, tween=30, animation=40, emitter=50, stateMachine=60, lifetime=70, screenBounds=80`). Set e.g. `priority: SystemPriority.physics + 1` to run between physics and tweens. See `engine/ecs/systems.ts`.
+- **11 built-in systems auto-register on scene load — do NOT add manually:** `_measure`, `_parent`, `_spring`, `_physics`, `_tween`, `_animation`, `_lifetime`, `_screenBounds`, `_emitter`, `_stateMachine`, `_trail`. The `_collisionEvents` system is lazy-registered on first `engine.onCollide()` call.
+- **System ordering:** custom systems default to `priority: 0` and run before all built-ins. `SystemPriority` constants expose built-in slots (`measure=5, parent=10, spring=15, physics=20, tween=30, animation=40, emitter=50, stateMachine=60, lifetime=70, screenBounds=80`). Set e.g. `priority: SystemPriority.physics + 1` to run between physics and tweens. See `engine/ecs/systems.ts`.
 - **Scenes:** `defineScene({ name, setup, update, cleanup })`. Optional `phase` on systems gates them to a turn phase in turn-based games; no phase = always runs.
 - **Store bridge:** game code writes with `useStore.getState().setScore(10)`; React reads with `useStore(s => s.score)`.
+- **`collider: "auto"`** — auto-sizes the collider from Pretext text measurement at spawn time. Updated each frame by `_measure` if text changes.
+- **`engine.spawnText(opts)`** / **`engine.spawnSprite(opts)`** — decompose text into per-character entities with spring-to-home physics. Each character is a normal entity with position, velocity, collider, and spring.
+- **Spring presets:** `SpringPresets.stiff`, `.snappy`, `.bouncy`, `.smooth`, `.floaty`, `.gentle` — named spring configs for `engine.spawnText()` / `engine.spawnSprite()`.
+- **`createCursorRepelSystem(opts?)`** / **`createAmbientDriftSystem(opts?)`** — one-line helpers for interactive text. Add via `engine.addSystem(createCursorRepelSystem({ radius: 120 }))`.
+- **Collision groups:** `collider: { ..., group: 1, mask: 0b11 }` -- bitmask filtering. Default group=1, mask=all.
+- **`engine.onCollide(tagA, tagB, callback)`** -- fires callback on first overlap frame between tagged entities. Returns unsubscribe function. Lazy-creates `_collisionEvents` system on first call.
+- **`engine.flash(color?, duration?)`** -- full-screen flash for damage/powerup feedback.
+- **`engine.blink(entity, duration?, interval?)`** -- oscillates opacity for i-frames.
+- **`engine.knockback(entity, fromX, fromY, force)`** -- impulse away from a point.
+- **`engine.timeScale`** -- multiplies dt for all systems. Set to 0.3 for slowmo, 1 for normal.
+- **Trail component:** `trail: { interval: 0.05, lifetime: 0.3, color: "#fff", opacity: 0.5 }` -- auto-spawns fading afterimages. Built-in `_trail` system handles it.
+- **Auto-stop music on scene change:** `stopMusic()` is called automatically when leaving a scene. Scenes that want continuous music re-start it in `setup()`.
+- **Art assets:** Define reusable ASCII art with `ArtAsset` type. Spawn static art with `engine.spawnArt(asset, opts)`. Spawn interactive physics art with `engine.spawnInteractiveArt(asset, opts)`.
+- **Art files convention:** Store art in `game/art/*.ts` exporting `ArtAsset` objects. Import in scenes.
 
 ## Critical Gotchas
 

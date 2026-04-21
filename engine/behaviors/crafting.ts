@@ -229,12 +229,10 @@ export function craft(
       reason: gate.reason,
     };
     if (engine) {
-      // `craft:failed` isn't in the global event-type map yet — cast so the
-      // emit still type-checks. Event type will be added separately.
-      (events.emit as any)("craft:failed", {
+      events.emit("craft:failed", {
         entity,
         recipeId: recipe.id,
-        reason: gate.reason,
+        reason: gate.reason ?? "",
         missing: gate.missing,
       });
     }
@@ -264,7 +262,7 @@ export function craft(
       reason: "Craft failed",
     };
     if (engine) {
-      (events.emit as any)("craft:failed", {
+      events.emit("craft:failed", {
         entity,
         recipeId: recipe.id,
         reason: "Craft failed",
@@ -284,9 +282,8 @@ export function craft(
     const count = out.count ?? 1;
     if (count <= 0) continue;
     addItem(inventory, item, count, engine, entity);
-    // Push one entry per output (so callers can see multiplicity), but we
-    // don't duplicate the InventoryItem object — it's the same definition.
-    produced.push(item);
+    // Push one entry per unit so callers can see the true multiplicity.
+    for (let c = 0; c < count; c++) produced.push(item);
   }
 
   // 5) Report the result.
@@ -297,7 +294,7 @@ export function craft(
     xpGained: recipe.xp,
   };
   if (engine) {
-    (events.emit as any)("craft:complete", {
+    events.emit("craft:complete", {
       entity,
       recipeId: recipe.id,
       items: produced,

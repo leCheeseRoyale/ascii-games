@@ -235,7 +235,7 @@ export class InputBindings {
         }
 
         // Mouse
-        if (this.mouse && this.mouse.justDown) {
+        if (this.mouse?.justDown) {
           const btn = this.mouse.button ?? 0;
           finish({ mouseButtons: [btn] });
           return;

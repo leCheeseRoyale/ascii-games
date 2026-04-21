@@ -28,6 +28,7 @@ jobs:
       - run: bun run init:game blank
 
       - run: bun run check
+      - run: bun run check:bounds
       - run: bun run test
       - run: bun run lint
       - run: bun run knip

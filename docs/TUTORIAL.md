@@ -20,7 +20,8 @@ By the end, you'll have a working game with a title screen, player movement, ene
 10. [Scoring and UI](#10-scoring-and-ui)
 11. [Polish: particles, sounds, tweens](#11-polish-particles-sounds-tweens)
 12. [Full example: Space Dodger](#12-full-example-space-dodger)
-13. [What's next](#13-whats-next)
+13. [Interactive ASCII Art](#13-interactive-ascii-art)
+14. [What's next](#14-whats-next)
 
 ---
 
@@ -141,11 +142,11 @@ Save the file. A yellow `*` appears at position (200, 150). It just sits there b
 | `velocity` | How fast it moves (pixels/sec) | `{ vx: 50, vy: 0 }` — moves right |
 | `ascii` | A character to display | `{ char: '@', font: FONTS.large, color: '#ff0' }` |
 | `sprite` | Multi-line ASCII art | `{ lines: [' ^ ', '/|\\'], font: FONTS.normal, color: '#0f0' }` |
-| `collider` | Hitbox for collisions | `{ type: 'circle', width: 20, height: 20 }` |
+| `collider` | Hitbox for collisions | `'auto'` (sized from text) or `{ type: 'circle', width: 20, height: 20 }` |
 | `health` | Hit points | `{ current: 3, max: 3 }` |
 | `lifetime` | Auto-remove after N seconds | `{ remaining: 2.0 }` |
 | `physics` | Gravity, friction, drag | `{ gravity: 800, bounce: 0.5 }` |
-| `tags` | Labels for querying | `{ values: new Set(['enemy']) }` |
+| `tags` | Labels for querying | `createTags('enemy')` |
 | `screenWrap` | Auto-wrap at screen edges | `{ margin: 20 }` |
 | `screenClamp` | Keep entity on screen | `{ padding: 10 }` |
 | `offScreenDestroy` | Auto-remove when off screen | `{ margin: 50 }` |
@@ -289,17 +290,20 @@ This creates `game/entities/enemy.ts`:
 
 ```ts
 import type { Entity } from '@engine'
+import { createTags } from '@engine'
 
 export function createEnemy(x: number, y: number): Partial<Entity> {
   return {
     position: { x, y },
     velocity: { vx: 0, vy: 50 },
     ascii: { char: 'V', font: '16px "Fira Code", monospace', color: '#ff4444' },
-    collider: { type: 'circle', width: 16, height: 16 },
-    tags: { values: new Set(['enemy']) },
+    collider: 'auto',  // sized from text measurement
+    tags: createTags('enemy'),
   }
 }
 ```
+
+> `createTags('enemy')` is a shorthand for `{ values: new Set(['enemy']) }`. Both forms work, but `createTags` is less error-prone and easier to read.
 
 Then spawn them from anywhere:
 
@@ -324,8 +328,8 @@ export function createEnemy(x: number, y: number, fast = false): Partial<Entity>
     position: { x, y },
     velocity: { vx: 0, vy: fast ? 150 : 50 },
     ascii: { char: fast ? 'W' : 'V', font: FONTS.normal, color: fast ? '#ff8800' : '#ff4444' },
-    collider: { type: 'circle', width: 16, height: 16 },
-    tags: { values: new Set(['enemy']) },
+    collider: 'auto',
+    tags: createTags('enemy'),
   }
 }
 ```
@@ -457,14 +461,34 @@ for (const bullet of bullets) {
 ### Collider types
 
 ```ts
-// Circle — good for characters, bullets, round things
+// Auto — recommended default; sized from text measurement
+collider: 'auto'
+
+// Circle — explicit dimensions for custom sizing
 collider: { type: 'circle', width: 20, height: 20 }
 
 // Rectangle — good for walls, platforms, UI elements
 collider: { type: 'rect', width: 40, height: 10 }
 ```
 
+`collider: 'auto'` uses Pretext to measure the entity's text and creates a matching hitbox. Use explicit dimensions when you need a hitbox that differs from the visual size (e.g., a larger pickup zone or a thin platform).
+
 `overlaps()` handles circle-circle, rect-rect, and circle-rect automatically.
+
+### Even simpler: `engine.onCollide()`
+
+If you don't need full control over the collision loop, `engine.onCollide()` is a one-liner that handles tag matching and fires a callback on the first overlap frame:
+
+```ts
+// One-liner alternative:
+const off = engine.onCollide("bullet", "enemy", (bullet, enemy) => {
+  engine.destroy(bullet);
+  engine.destroy(enemy);
+  score += 100;
+});
+```
+
+`onCollide` registers a per-frame check internally -- it fires once per overlap pair per contact (not every frame they stay overlapping). It returns an unsubscribe function you can call to stop checking. The manual `overlaps()` loop above is still useful when you need full control (custom filtering, multi-step responses, etc.).
 
 ---
 
@@ -714,6 +738,50 @@ sfx.explode()
 
 You can also use `engine.particles.explosion(x, y)`, `.sparkle(x, y)`, and `.smoke(x, y)` as shortcuts.
 
+### More juice helpers
+
+The engine has several more one-liner feedback tools. Each is useful on its own, but they really shine when layered with the effects above:
+
+```ts
+// Screen flash — full-screen color overlay that fades out
+engine.flash("#ff0000", 0.15);         // red flash on player damage
+engine.flash("#ffffff", 0.1);          // white flash on powerup
+
+// Entity blinking — oscillates opacity (great for i-frames)
+engine.blink(player, 0.5, 0.08);      // blink player for 0.5s
+
+// Knockback — impulse away from a point
+engine.knockback(enemy, bullet.position!.x, bullet.position!.y, 300);
+
+// Slow motion — multiplies dt for all systems
+engine.timeScale = 0.2;
+engine.after(0.5, () => { engine.timeScale = 1; });  // dramatic slowmo on boss kill
+
+// Trail — add to any entity for fading afterimages
+// (component, not a method — add it when spawning)
+trail: { lifetime: 0.3, color: "#ffcc00" }
+```
+
+See [COOKBOOK.md](COOKBOOK.md) for full recipes with each of these.
+
+### Decomposed text (advanced)
+
+`engine.spawnText()` breaks a string into individual character entities, each with its own position, velocity, collider, and spring-to-home physics. Characters scatter on collision or explosion and spring back into place. Great for title screens, boss names, or any text you want to feel physical:
+
+```ts
+import { SpringPresets } from '@engine'
+
+const chars = engine.spawnText({
+  text: 'GAME OVER',
+  font: FONTS.huge,
+  position: { x: engine.centerX, y: engine.centerY },
+  color: '#ff4444',
+  spring: SpringPresets.smooth,
+})
+```
+
+Each character is a normal entity -- you can query, tween, or destroy them individually. See [Section 13: Interactive ASCII Art](#13-interactive-ascii-art) for a full walkthrough of building interactive physics-text scenes.
+
 ### Debug overlay
 
 Press backtick (`` ` ``) during gameplay to toggle the debug overlay. Shows collider outlines and entity counts.
@@ -760,7 +828,7 @@ export const GAME = {
 Create `game/entities/player.ts`:
 
 ```ts
-import { FONTS } from '@engine'
+import { FONTS, createTags } from '@engine'
 import type { Entity } from '@engine'
 import { GAME } from '../config'
 
@@ -769,8 +837,8 @@ export function createPlayer(x: number, y: number): Partial<Entity> {
     position: { x, y },
     velocity: { vx: 0, vy: 0 },
     ascii: { char: '@', font: FONTS.large, color: GAME.player.color, glow: GAME.player.glow },
-    collider: { type: 'circle', width: 20, height: 20 },
-    tags: { values: new Set(['player']) },
+    collider: 'auto',
+    tags: createTags('player'),
   }
 }
 ```
@@ -778,7 +846,7 @@ export function createPlayer(x: number, y: number): Partial<Entity> {
 Create `game/entities/debris.ts`:
 
 ```ts
-import { FONTS, pick, rng } from '@engine'
+import { FONTS, pick, rng, createTags } from '@engine'
 import type { Entity } from '@engine'
 import { GAME } from '../config'
 
@@ -792,8 +860,8 @@ export function createDebris(x: number): Partial<Entity> {
       color: pick(GAME.debris.colors),
       scale: rng(0.8, 1.8),
     },
-    collider: { type: 'circle', width: 16, height: 16 },
-    tags: { values: new Set(['debris']) },
+    collider: 'auto',
+    tags: createTags('debris'),
   }
 }
 ```
@@ -1096,7 +1164,118 @@ You now have a complete game with title screen, dodging gameplay, scoring, colli
 
 ---
 
-## 13. What's next
+## 13. Interactive ASCII Art
+
+The engine's most visually distinctive feature is **physics-driven text** -- every character becomes its own entity with spring physics, reacting to your mouse cursor. This section shows how to build interactive ASCII art from scratch.
+
+### The idea
+
+Instead of rendering text as a single entity, `engine.spawnSprite()` decomposes ASCII art into individual character entities. Each character has:
+- **position** -- where it is right now
+- **velocity** -- how it's moving
+- **spring** -- pulls it back to its "home" position in the art
+
+Add a cursor repel system and the characters scatter away from your mouse, then spring back into place.
+
+### Step 1: Start from the blank template
+
+```bash
+bun run init:game blank
+```
+
+### Step 2: Create ASCII art and spawn it with springs
+
+Replace the contents of `game/scenes/play.ts`:
+
+```ts
+import type { Engine } from '@engine'
+import {
+  createCursorRepelSystem,
+  defineScene,
+  FONTS,
+  SpringPresets,
+} from '@engine'
+
+const FOX = [
+  '   /\\_/\\   ',
+  '  ( o.o )  ',
+  '   > ^ <   ',
+  '  /|   |\\  ',
+  ' (_|   |_) ',
+]
+
+export const playScene = defineScene({
+  name: 'play',
+
+  setup(engine: Engine) {
+    // Spawn the ASCII art -- each character becomes its own physics entity
+    const chars = engine.spawnSprite({
+      lines: FOX,
+      font: FONTS.normal,
+      position: { x: engine.centerX, y: engine.centerY },
+      color: '#ee8833',
+      spring: SpringPresets.bouncy,
+    })
+
+    // Scatter characters outward on load for a dramatic entrance
+    for (const c of chars) {
+      c.velocity!.vx = (Math.random() - 0.5) * 400
+      c.velocity!.vy = (Math.random() - 0.5) * 400
+    }
+
+    // One line: characters now flee the cursor and spring back
+    engine.addSystem(createCursorRepelSystem())
+  },
+
+  update() {},
+})
+```
+
+### Step 3: Run it
+
+```bash
+bun dev
+```
+
+Move your mouse over the fox. The characters scatter and spring back into place. That is the entire pattern -- `spawnSprite` + `SpringPresets` + `createCursorRepelSystem`.
+
+### How it works
+
+- `engine.spawnSprite()` measures each character's position in the art using Pretext, then spawns one entity per non-space character. Each entity gets a `spring` component that remembers its home position.
+- `SpringPresets.bouncy` sets strength and damping for a playful overshoot feel. Other presets: `stiff`, `snappy`, `smooth`, `floaty`, `gentle`.
+- `createCursorRepelSystem()` adds a force that pushes spring entities away from the mouse. The spring's restoring force brings them back.
+- The initial velocity scatter creates a "characters assembling from chaos" entrance animation for free -- the springs handle the settling.
+
+**Tip:** For reusable art, define an `ArtAsset` instead of a raw string array. This bundles lines, per-character colors via `colorMap`, base color, font, and glow into a single object. Use `artFromString()` to parse a template literal into an `ArtAsset` with automatic indentation stripping:
+
+```ts
+import { artFromString } from '@engine'
+
+const FOX = artFromString(`
+   /\\_/\\
+  ( o.o )
+   > ^ <
+`, { "o": "#ffcc00", "^": "#ff4444" })
+
+// Spawn as bitmap-cached static art:
+engine.spawnArt(FOX, { position: { x: 400, y: 300 } })
+
+// Or spawn as interactive per-character physics art:
+engine.spawnInteractiveArt(FOX, {
+  position: { x: 400, y: 300 },
+  spring: SpringPresets.bouncy,
+})
+```
+
+See `docs/COOKBOOK.md` for the full art asset reference, including `colorMap` details, space transparency, and when to choose static vs interactive rendering.
+
+### Going further
+
+The `physics-text` template (`bun run init:game physics-text`) demonstrates a full multi-layer composition with different spring strengths per layer, ambient drift on background elements, and per-character coloring. See `docs/COOKBOOK.md` for the spring preset reference table and more recipes.
+
+---
+
+## 14. What's next
 
 ### Make it your own
 

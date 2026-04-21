@@ -107,6 +107,8 @@ export class QuestTracker {
   /** Register a quest definition. */
   register(quest: QuestDefinition): void {
     this.defs.set(quest.id, quest);
+    // Re-registering should not wipe existing progress.
+    if (this.states.has(quest.id)) return;
     // Seed a fresh state, respecting prerequisites.
     const status: QuestStatus = this.prereqsMet(quest) ? "available" : "locked";
     const objectives: Record<string, { progress: number; done: boolean }> = {};

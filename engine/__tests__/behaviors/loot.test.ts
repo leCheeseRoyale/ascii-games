@@ -294,7 +294,7 @@ describe("rollLoot — condition callbacks", () => {
       rolls: 20,
       entries: [
         { item: "basic" },
-        { item: "legendary", condition: (ctx) => ctx.flags.level >= 10 },
+        { item: "legendary", condition: (ctx) => (ctx.flags.level as number) >= 10 },
       ],
     };
 
@@ -311,7 +311,7 @@ describe("rollLoot — condition callbacks", () => {
       rolls: 50,
       entries: [
         { item: "basic" },
-        { item: "legendary", condition: (ctx) => ctx.flags.level >= 10 },
+        { item: "legendary", condition: (ctx) => (ctx.flags.level as number) >= 10 },
       ],
     };
 
@@ -440,7 +440,10 @@ describe("rollLoot — guaranteed drops", () => {
   test("guaranteed entries respect their condition", () => {
     const table: LootTable<string> = {
       entries: [{ item: "gold" }],
-      guaranteed: [{ item: "xp" }, { item: "bonus", condition: (ctx) => ctx.flags.level >= 5 }],
+      guaranteed: [
+        { item: "xp" },
+        { item: "bonus", condition: (ctx) => (ctx.flags.level as number) >= 5 },
+      ],
     };
 
     const low = rollLoot(table, { seed: 1, flags: { level: 1 } });
@@ -637,7 +640,7 @@ describe("rollLoot — integration", () => {
           table: rareTable,
           weight: 30,
           chance: 0.5,
-          condition: (ctx) => ctx.flags.level >= 3,
+          condition: (ctx) => (ctx.flags.level as number) >= 3,
         },
       ],
       guaranteed: [{ item: { id: "xp", name: "XP" }, count: [10, 20] }],

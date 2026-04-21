@@ -36,7 +36,7 @@ jobs:
       - run: bun run init:game blank
 
       - name: Full gate
-        run: bun run check && bun test && bun run lint && bun run build && bun run export
+        run: bun run check && bun run check:bounds && bun test && bun run lint && bun run build && bun run export
 
       - name: Publish to npm
         working-directory: packages/create-ascii-game

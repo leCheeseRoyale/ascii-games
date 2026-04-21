@@ -22,11 +22,11 @@ export interface System {
   phase?: string;
   /**
    * Execution order — lower runs first. Default `0`. Built-in systems use
-   * `SystemPriority.*` slots (parent=10, physics=20, tween=30, animation=40,
-   * emitter=50, stateMachine=60, lifetime=70, screenBounds=80), so custom
-   * systems with the default priority run before all built-ins. Set a
-   * priority between two built-in slots to interleave — e.g. `25` to run
-   * after physics but before tweens. Ties preserve registration order.
+   * `SystemPriority.*` slots (measure=5, parent=10, spring=15, physics=20,
+   * tween=30, animation=40, emitter=50, stateMachine=60, lifetime=70,
+   * screenBounds=80), so custom systems with the default priority run before
+   * all built-ins. Set a priority between two built-in slots to interleave —
+   * e.g. `25` to run after physics but before tweens. Ties preserve registration order.
    */
   priority?: number;
 }
@@ -38,9 +38,14 @@ export interface System {
  * ```ts
  * defineSystem({ name: 'collision', priority: SystemPriority.physics + 1, update })
  * ```
+ *
+ * Order: measure(5) → parent(10) → spring(15) → physics(20) → tween(30) →
+ * animation(40) → emitter(50) → stateMachine(60) → lifetime(70) → screenBounds(80)
  */
 export const SystemPriority = {
+  measure: 5,
   parent: 10,
+  spring: 15,
   physics: 20,
   tween: 30,
   animation: 40,

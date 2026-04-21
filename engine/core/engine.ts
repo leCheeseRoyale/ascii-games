@@ -13,17 +13,26 @@
  */
 
 import { events } from "@shared/events";
-import type { AnimationFrame, EngineConfig, Entity, GameTime, TweenEntry } from "@shared/types";
+import type { AnimationFrame, EngineConfig, Entity, GameTime, SpawnInput, TweenEntry } from "@shared/types";
 import { DEFAULT_CONFIG } from "@shared/types";
+import type { ArtAsset } from "../data/art-asset";
 import { animationSystem } from "../ecs/animation-system";
 import { emitterSystem } from "../ecs/emitter-system";
 import { lifetimeSystem } from "../ecs/lifetime-system";
+import { measureSystem } from "../ecs/measure-system";
 import { parentSystem } from "../ecs/parent-system";
 import { screenBoundsSystem } from "../ecs/screen-bounds-system";
+import { springSystem } from "../ecs/spring-system";
 import { stateMachineSystem } from "../ecs/state-machine-system";
 import { type System, SystemRunner } from "../ecs/systems";
 import { tweenSystem } from "../ecs/tween-system";
 import { createWorld, type GameWorld } from "../ecs/world";
+import {
+  measureCharacterPositions,
+  measureSpriteCharacterPositions,
+  resolveAutoCollider,
+  type CharacterPosition,
+} from "../render/measure-entity";
 import { Gamepad } from "../input/gamepad";
 import { Keyboard } from "../input/keyboard";
 import { Mouse } from "../input/mouse";
@@ -40,11 +49,15 @@ import { Viewport } from "../render/viewport";
 import { Scheduler } from "../utils/scheduler";
 import { buildGameScene, type GameDefinition, GameRuntime } from "./define-game";
 import { GameLoop } from "./game-loop";
+import { createCollisionEventSystem } from "../ecs/collision-event-system";
+import { trailSystem } from "../ecs/trail-system";
 import { type Scene, SceneManager } from "./scene";
 import { TurnManager } from "./turn-manager";
 
 const BUILTIN_SYSTEMS = [
+  measureSystem,
   parentSystem,
+  springSystem,
   physicsSystem,
   tweenSystem,
   animationSystem,
@@ -52,6 +65,7 @@ const BUILTIN_SYSTEMS = [
   stateMachineSystem,
   lifetimeSystem,
   screenBoundsSystem,
+  trailSystem,
 ];
 
 export class Engine {
@@ -84,6 +98,14 @@ export class Engine {
     };
   }
 
+  /** Global time multiplier. 1 = normal, 0.3 = slow-mo, 2 = fast-forward. Affects all systems. */
+  get timeScale(): number {
+    return this.loop.timeScale;
+  }
+  set timeScale(value: number) {
+    this.loop.timeScale = value;
+  }
+
   get width(): number {
     return this.renderer.width;
   }
@@ -113,6 +135,8 @@ export class Engine {
   private _onResize: (() => void) | null = null;
   private _sceneTime = 0;
   private _sceneData: Record<string, any> = {};
+  private _flash: { color: string; remaining: number; duration: number } | null = null;
+  private _collisionManager: ReturnType<typeof createCollisionEventSystem> | null = null;
 
   constructor(canvas: HTMLCanvasElement, config: Partial<EngineConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -158,9 +182,12 @@ export class Engine {
 
   // ── Entity helpers ────────────────────────────────────────────
 
-  spawn(components: Partial<Entity>) {
-    this.validateEntity(components);
-    return this.world.add(components as Entity);
+  spawn(components: SpawnInput): Partial<Entity> {
+    // resolveAutoCollider replaces collider: "auto" with a concrete Collider in-place.
+    resolveAutoCollider(components as Partial<Entity>);
+    const resolved = components as Partial<Entity>;
+    this.validateEntity(resolved);
+    return this.world.add(resolved as Entity);
   }
 
   private validateEntity(components: Partial<Entity>): void {
@@ -280,6 +307,203 @@ export class Engine {
     return this.scheduler.every(seconds, () => {
       this.spawn(factory());
     });
+  }
+
+  // ── Juice helpers ──────────────────────────────────────────────
+
+  /** Full-screen color flash for damage/powerup feedback. Draws on top of everything. */
+  flash(color = "#ffffff", duration = 0.15): void {
+    this._flash = { color, remaining: duration, duration };
+  }
+
+  /** Oscillates an entity's opacity for visual feedback (i-frames, warnings). */
+  blink(entity: Partial<Entity>, duration = 0.5, interval = 0.1): void {
+    let elapsed = 0;
+    const originalOpacity = entity.ascii?.opacity ?? entity.sprite?.opacity ?? 1;
+    const id = this.every(interval, () => {
+      elapsed += interval;
+      if (elapsed >= duration) {
+        if (entity.ascii) entity.ascii.opacity = originalOpacity;
+        if (entity.sprite) entity.sprite.opacity = originalOpacity;
+        this.cancelTimer(id);
+        return;
+      }
+      const visible = Math.floor(elapsed / interval) % 2 === 0;
+      const opacity = visible ? originalOpacity : 0;
+      if (entity.ascii) entity.ascii.opacity = opacity;
+      if (entity.sprite) entity.sprite.opacity = opacity;
+    });
+  }
+
+  /** Apply an impulse away from a point (knockback). */
+  knockback(entity: Partial<Entity>, fromX: number, fromY: number, force: number): void {
+    if (!entity.position || !entity.velocity) return;
+    const dx = entity.position.x - fromX;
+    const dy = entity.position.y - fromY;
+    const dist = Math.hypot(dx, dy) || 1;
+    entity.velocity.vx += (dx / dist) * force;
+    entity.velocity.vy += (dy / dist) * force;
+  }
+
+  /**
+   * Register a collision callback between two tagged entity groups.
+   * Fires `callback` on the first frame two entities overlap.
+   * Lazy-creates the collision event system on first call.
+   * Returns an unsubscribe function.
+   */
+  onCollide(
+    tagA: string,
+    tagB: string,
+    callback: (a: Partial<Entity>, b: Partial<Entity>) => void,
+  ): () => void {
+    if (!this._collisionManager) {
+      this._collisionManager = createCollisionEventSystem();
+      this.addSystem(this._collisionManager.system);
+    }
+    return this._collisionManager.onCollide(tagA, tagB, { onEnter: callback });
+  }
+
+  // ── Art asset helpers ──────────────────────────────────────────
+
+  /**
+   * Spawn an ArtAsset as a static sprite entity.
+   *
+   *   engine.spawnArt(dragon, { position: { x: 100, y: 200 } })
+   */
+  spawnArt(
+    asset: ArtAsset,
+    opts: {
+      position: { x: number; y: number };
+      layer?: number;
+      opacity?: number;
+      tags?: string[];
+    },
+  ): Partial<Entity> {
+    return this.spawn({
+      position: opts.position,
+      sprite: {
+        lines: asset.lines,
+        font: asset.font ?? '16px "Fira Code", monospace',
+        color: asset.color ?? "#e0e0e0",
+        colorMap: asset.colorMap,
+        glow: asset.glow,
+        opacity: opts.opacity,
+        layer: opts.layer,
+      },
+      ...(opts.tags?.length ? { tags: { values: new Set(opts.tags) } } : {}),
+    });
+  }
+
+  /**
+   * Spawn an ArtAsset as individual character entities with spring physics.
+   * Each character is an independent entity that participates in collision/physics.
+   * Delegates to `spawnSprite()` with art asset data.
+   *
+   *   engine.spawnInteractiveArt(dragon, { position: { x: 100, y: 200 }, spring: SpringPresets.bouncy })
+   */
+  spawnInteractiveArt(
+    asset: ArtAsset,
+    opts: {
+      position: { x: number; y: number };
+      spring?: { strength?: number; damping?: number };
+      layer?: number;
+      tags?: string[];
+      collider?: boolean;
+    },
+  ): Partial<Entity>[] {
+    const springConfig = opts.spring ?? { strength: 0.08, damping: 0.93 };
+    return this.spawnSprite({
+      lines: asset.lines,
+      font: asset.font ?? '16px "Fira Code", monospace',
+      position: opts.position,
+      color: asset.color ?? "#e0e0e0",
+      spring: springConfig,
+      layer: opts.layer,
+      tags: opts.tags,
+      collider: opts.collider ?? false,
+    });
+  }
+
+  // ── Text decomposition helpers ─────────────────────────────────
+
+  /**
+   * Spawn text as individual character entities, each with physics and spring-to-home.
+   * Characters are independent entities that participate in normal collision/physics.
+   */
+  spawnText(opts: {
+    text: string;
+    font: string;
+    position: { x: number; y: number };
+    color?: string;
+    spring?: { strength?: number; damping?: number };
+    maxWidth?: number;
+    lineHeight?: number;
+    layer?: number;
+    tags?: string[];
+    collider?: boolean;
+  }): Partial<Entity>[] {
+    const {
+      text, font, position: pos, color = "#e0e0e0",
+      spring: springOpts, maxWidth = Infinity,
+      layer = 0, tags: extraTags = [], collider: addCollider = true,
+    } = opts;
+    const lineHeight = opts.lineHeight ?? (parseFloat(font) || 16) * 1.3;
+    const strength = springOpts?.strength ?? 0.08;
+    const damping = springOpts?.damping ?? 0.93;
+
+    const chars = measureCharacterPositions(text, font, pos.x, pos.y, maxWidth, lineHeight);
+    const entities: Partial<Entity>[] = [];
+
+    for (const ch of chars) {
+      const components: SpawnInput = {
+        position: { x: ch.homeX, y: ch.homeY },
+        velocity: { vx: 0, vy: 0 },
+        ascii: { char: ch.char, font, color, layer },
+        spring: { targetX: ch.homeX, targetY: ch.homeY, strength, damping },
+      };
+      if (addCollider) components.collider = "auto";
+      if (extraTags.length > 0) components.tags = { values: new Set(extraTags) };
+      entities.push(this.spawn(components));
+    }
+    return entities;
+  }
+
+  /**
+   * Spawn a multi-line sprite as individual character entities, each with physics and spring-to-home.
+   * Characters are independent entities that participate in normal collision/physics.
+   */
+  spawnSprite(opts: {
+    lines: string[];
+    font: string;
+    position: { x: number; y: number };
+    color?: string;
+    spring?: { strength?: number; damping?: number };
+    layer?: number;
+    tags?: string[];
+    collider?: boolean;
+  }): Partial<Entity>[] {
+    const {
+      lines, font, position: pos, color = "#e0e0e0",
+      spring: springOpts, layer = 0, tags: extraTags = [], collider: addCollider = true,
+    } = opts;
+    const strength = springOpts?.strength ?? 0.08;
+    const damping = springOpts?.damping ?? 0.93;
+
+    const chars = measureSpriteCharacterPositions(lines, font, pos.x, pos.y);
+    const entities: Partial<Entity>[] = [];
+
+    for (const ch of chars) {
+      const components: SpawnInput = {
+        position: { x: ch.homeX, y: ch.homeY },
+        velocity: { vx: 0, vy: 0 },
+        ascii: { char: ch.char, font, color, layer },
+        spring: { targetX: ch.homeX, targetY: ch.homeY, strength, damping },
+      };
+      if (addCollider) components.collider = "auto";
+      if (extraTags.length > 0) components.tags = { values: new Set(extraTags) };
+      entities.push(this.spawn(components));
+    }
+    return entities;
   }
 
   // ── Tween helper ──────────────────────────────────────────────
@@ -509,6 +733,7 @@ export class Engine {
     this.loop.stop();
     this.scenes.current?.cleanup?.(this);
     this.systems.clear(this);
+    this.world.clear();
     this.scheduler.clear();
     this.keyboard.destroy();
     this.mouse.destroy();
@@ -562,6 +787,12 @@ export class Engine {
     this.toast.update(dt);
     this.ui.update(dt);
     this.dialog.update(dt, this);
+
+    // Tick screen flash
+    if (this._flash) {
+      this._flash.remaining -= dt;
+      if (this._flash.remaining <= 0) this._flash = null;
+    }
   }
 
   private render(): void {
@@ -577,6 +808,17 @@ export class Engine {
       this._sceneTime,
       this.ui,
     );
+
+    // Screen flash overlay (draws on top of game world, under transition)
+    if (this._flash) {
+      const ctx = this.renderer.ctx;
+      const alpha = this._flash.remaining / this._flash.duration;
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.6;
+      ctx.fillStyle = this._flash.color;
+      ctx.fillRect(0, 0, this.width, this.height);
+      ctx.restore();
+    }
 
     // Transition overlay renders on top of everything
     if (this.transition.active) {

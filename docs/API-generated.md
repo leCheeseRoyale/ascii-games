@@ -1,7 +1,7 @@
 # Engine API Reference (Auto-Generated)
 
 > Generated from actual TypeScript declarations. Do not edit manually.
-> Last generated: 2026-04-13
+> Last generated: 2026-04-20
 
 ## Uncategorized
 
@@ -23,8 +23,11 @@ export { createSeededRandom, type LootContext, type LootDrop, type LootEntry, ty
 export { type QuestDefinition, type QuestObjective, type QuestState, type QuestStatus, QuestTracker, } from "./behaviors/quests";
 export { addModifier, clearModifiers, createStats, deserializeStats, getModifiersFor, getStat, hasModifier, type ModifierType, removeModifier, removeModifiersBySource, type StatModifier, type Stats, serializeStats, setBaseStat, tickModifiers, } from "./behaviors/stats";
 export { createWaveSpawner, type WaveDefinition, type WaveEnemy, type WaveSpawnerConfig, } from "./behaviors/wave-spawner";
+export { createMultiplayerGame, type GameMove, type MultiplayerGameHandle, type MultiplayerOpts, type MultiplayerTransport, } from "./core/create-multiplayer-game";
+export { type BoundMoves, buildGameScene, defineGame, type GameContext, type GameDefinition, type GameResult, GameRuntime, type MoveFn, type MoveInputCtx, type MoveResult, type MovesMap, type PhaseConfig, type PlayersConfig, type SetupContext, type TurnsConfig, } from "./core/define-game";
 export { Engine } from "./core/engine";
 export { defineScene, type Scene } from "./core/scene";
+export { defaultHashState, fnv1a32, stableStringify } from "./core/state-hash";
 export { type TurnConfig, TurnManager } from "./core/turn-manager";
 export { ASCII_SPRITES, asciiBox, createAsciiFrames, createAsciiSprite, parseAsciiArt, } from "./data/ascii-sprites";
 export { animationSystem } from "./ecs/animation-system";
@@ -37,6 +40,7 @@ export { createEntityPool, type EntityPool, type PoolOptions, } from "./ecs/pool
 export { screenBoundsSystem } from "./ecs/screen-bounds-system";
 export { stateMachineSystem, transition } from "./ecs/state-machine-system";
 export { defineSystem, type System, SystemPriority } from "./ecs/systems";
+export { createTags } from "./ecs/tags";
 export { typewriterSystem } from "./ecs/typewriter-system";
 export { createWorld, type GameWorld, type WorldEntity } from "./ecs/world";
 export { type BindingEntry, type BindingsConfig, createDefaultBindings, DEFAULT_BINDINGS, InputBindings, } from "./input/bindings";
@@ -58,7 +62,7 @@ export { type Anchor, BORDERS, type BorderStyle, CanvasUI, DialogManager, type U
 export { clearImageCache, getCachedImage, loadImage, preloadImages } from "./render/image-loader";
 export { type Particle, ParticlePool } from "./render/particles";
 export { compose, fadeIn, flicker, float, glitch, popIn, pulse, rainbow, scatter, shake, spiral, sway, textEffect, throb, wave, } from "./render/text-effects";
-export { clearTextCache, getLineCount, insertSoftHyphens, type JustifiedLine, type JustifiedWord, layoutJustifiedBlock, layoutTextAroundObstacles, layoutTextBlock, measureHeight, parseStyledText, type RenderedLine, type StyledSegment, shrinkwrap, stripTags, } from "./render/text-layout";
+export { clearTextCache, getLineCount, insertSoftHyphens, type JustifiedLine, type JustifiedWord, layoutJustifiedBlock, layoutTextAroundObstacles, layoutTextBlock, measureHeight, measureLineWidth, parseStyledText, type RenderedLine, type StyledSegment, shrinkwrap, stripTags, } from "./render/text-layout";
 export { ToastManager } from "./render/toast";
 export { Transition, type TransitionType } from "./render/transitions";
 export { type Orientation, type SafeAreaInsets, Viewport } from "./render/viewport";

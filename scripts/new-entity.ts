@@ -23,7 +23,7 @@ if (await Bun.file(path).exists()) {
 }
 
 const template = `import type { Entity } from '@engine'
-import { FONTS, COLORS } from '@engine'
+import { FONTS, COLORS, createTags } from '@engine'
 
 /**
  * Create a ${pascal} entity.
@@ -38,10 +38,10 @@ export function create${pascal}(x: number, y: number): Partial<Entity> {
       font: FONTS.normal,
       color: COLORS.accent,
     },
-    collider: { type: 'circle', width: 16, height: 16 },
+    collider: 'auto' as const,
+    tags: createTags('${kebab}'),
     // health: { current: 3, max: 3 },
     // lifetime: { remaining: 5 },
-    // tags: { values: new Set(['${kebab}']) },
   }
 }
 `

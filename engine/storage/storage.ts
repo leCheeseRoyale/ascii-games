@@ -3,6 +3,8 @@
  * Uses localStorage with a game-scoped key prefix.
  */
 
+import { compressToUTF16, decompressFromUTF16 } from "lz-string";
+
 let prefix = "ascii-game";
 
 /** Set the storage key prefix. Call once at game init with your game name. */
@@ -63,5 +65,47 @@ export function has(name: string): boolean {
     return localStorage.getItem(key(name)) !== null;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Save a value to persistent storage with lz-string UTF-16 compression.
+ * Use `loadCompressed` to read back. Produces smaller localStorage entries
+ * for large payloads (inventories, map data, replay buffers, etc.).
+ */
+export function saveCompressed<T>(name: string, data: T): void {
+  try {
+    const json = JSON.stringify(data);
+    localStorage.setItem(key(name), compressToUTF16(json));
+  } catch {
+    // localStorage full or unavailable — fail silently
+  }
+}
+
+/**
+ * Load a compressed value from persistent storage. Handles migration
+ * gracefully: if the stored value isn't compressed (e.g. saved with `save()`
+ * before compression was enabled), falls back to raw `JSON.parse`.
+ * Returns `undefined` if not found or unreadable.
+ */
+export function loadCompressed<T = unknown>(name: string): T | undefined {
+  try {
+    const raw = localStorage.getItem(key(name));
+    if (raw === null) return undefined;
+    // Try decompression first (the expected path for compressed data).
+    try {
+      const decompressed = decompressFromUTF16(raw);
+      if (decompressed) return JSON.parse(decompressed) as T;
+    } catch {
+      /* not compressed — fall through to raw parse */
+    }
+    // Fallback: raw JSON (uncompressed legacy data).
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      return undefined;
+    }
+  } catch {
+    return undefined;
   }
 }

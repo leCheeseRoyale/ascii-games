@@ -186,7 +186,7 @@ export function add(
   recordTransaction(wallet, currency, applied, reason);
 
   if (engine) {
-    events.emit("currency:gained" as any, {
+    events.emit("currency:gained", {
       entity,
       currency,
       amount: applied,
@@ -215,7 +215,7 @@ export function spend(
   const current = wallet.balances[currency] ?? 0;
   if (current < amount) {
     if (engine) {
-      events.emit("currency:insufficient" as any, {
+      events.emit("currency:insufficient", {
         entity,
         currency,
         required: amount,
@@ -230,7 +230,7 @@ export function spend(
   recordTransaction(wallet, currency, -amount, reason);
 
   if (engine) {
-    events.emit("currency:spent" as any, {
+    events.emit("currency:spent", {
       entity,
       currency,
       amount,
@@ -265,7 +265,7 @@ export function spendMulti(
     const have = wallet.balances[key] ?? 0;
     if (have < need) {
       if (engine) {
-        events.emit("currency:insufficient" as any, {
+        events.emit("currency:insufficient", {
           entity,
           currency: key,
           required: need,
@@ -284,7 +284,7 @@ export function spendMulti(
     wallet.balances[key] = (wallet.balances[key] ?? 0) - need;
     recordTransaction(wallet, key, -need, reason);
     if (engine) {
-      events.emit("currency:spent" as any, {
+      events.emit("currency:spent", {
         entity,
         currency: key,
         amount: need,
@@ -321,7 +321,7 @@ export function transfer(
   const available = from.balances[currency] ?? 0;
   if (available < amount) {
     if (engine) {
-      events.emit("currency:insufficient" as any, {
+      events.emit("currency:insufficient", {
         entity,
         currency,
         required: amount,
@@ -349,13 +349,13 @@ export function transfer(
   recordTransaction(to, currency, moveable, reason);
 
   if (engine) {
-    events.emit("currency:spent" as any, {
+    events.emit("currency:spent", {
       entity,
       currency,
       amount: moveable,
       reason,
     });
-    events.emit("currency:gained" as any, {
+    events.emit("currency:gained", {
       entity,
       currency,
       amount: moveable,

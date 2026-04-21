@@ -20,6 +20,30 @@ Open the URL Vite prints. You should see the title screen — press **Space** to
 
 ---
 
+## What's possible
+
+Before diving into the walkthrough, here is a taste of the engine's most distinctive feature -- **every character is a physics entity** that reacts to your cursor:
+
+```ts
+import { SpringPresets, createCursorRepelSystem } from '@engine'
+
+// Spawn text where each letter has its own spring physics
+engine.spawnText({
+  text: "HELLO WORLD",
+  font: '24px "Fira Code", monospace',
+  position: { x: 400, y: 300 },
+  color: "#00ffaa",
+  spring: SpringPresets.bouncy,
+})
+
+// One line: characters flee the cursor and spring back
+engine.addSystem(createCursorRepelSystem())
+```
+
+Move your mouse and the characters scatter, then reassemble. Try `bun run init:game physics-text` for a full interactive demo, or see the [Tutorial -- Interactive ASCII Art](TUTORIAL.md#13-interactive-ascii-art) section and the [Cookbook](COOKBOOK.md#text-aware-physics--auto-colliders) for recipes.
+
+---
+
 ## 2. Orient yourself (1 min)
 
 Three directories matter:
@@ -55,24 +79,26 @@ Open `game/config.ts` and change the player color. Save — the browser reloads 
 **4a.** Create a pickup factory. New file `game/entities/pickup.ts`:
 
 ```ts
-import { FONTS } from '@engine'
+import { FONTS, createTags } from '@engine'
 import type { Entity } from '@engine'
 
 export function createPickup(x: number, y: number): Partial<Entity> {
   return {
     position: { x, y },
     ascii: { char: '*', font: FONTS.large, color: '#ffcc00', glow: '#ffcc0066' },
-    collider: { type: 'circle', width: 20, height: 20 },
-    tags: { values: new Set(['pickup']) },
+    collider: 'auto',  // sized from text measurement
+    tags: createTags('pickup'),
   }
 }
 ```
+
+> `collider: 'auto'` measures the entity's text via Pretext and creates a matching hitbox automatically. You can still specify exact dimensions when you need custom sizing: `collider: { type: 'rect', width: 40, height: 20 }`.
 
 **4b.** Give the player a collider and spawn a pickup. Edit `game/scenes/play.ts`:
 
 ```diff
 - import { defineScene, FONTS, COLORS } from '@engine'
-+ import { defineScene, FONTS, COLORS, overlaps, sfx } from '@engine'
++ import { defineScene, FONTS, COLORS, createTags, overlaps, sfx } from '@engine'
   import type { Engine } from '@engine'
   import { useStore } from '@ui/store'
   import { GAME } from '../config'
@@ -86,8 +112,9 @@ In `setup()`, add a collider to the player and spawn one pickup:
       position: { x: engine.centerX, y: engine.centerY },
       velocity: { vx: 0, vy: 0 },
       ascii: { char: '@', font: FONTS.large, color: GAME.player.color, glow: GAME.player.glow },
-+     collider: { type: 'circle', width: 20, height: 20 },
-      tags: { values: new Set(['player']) },
++     collider: 'auto',
+-     tags: { values: new Set(['player']) },
++     tags: createTags('player'),
       screenWrap: { margin: 10 },
     })
 +
@@ -188,6 +215,23 @@ bun run export
 ```
 
 This produces `dist/game.html` — one self-contained file with HTML, CSS, and JS inlined. Open it in any browser. Upload it anywhere static. Done.
+
+---
+
+## Juice in one line
+
+The engine has built-in helpers for common game-feel effects. Each is a single line:
+
+```ts
+engine.flash("#ff0000")          // screen flash (damage, powerup)
+engine.blink(entity, 0.5)       // i-frame blinking
+engine.knockback(e, x, y, 300)  // impulse away from point
+engine.timeScale = 0.3           // slow motion (1 = normal)
+engine.onCollide("a", "b", fn)  // declarative collision callback
+trail: { lifetime: 0.3 }        // afterimage component (add at spawn)
+```
+
+Full recipes in [COOKBOOK.md](COOKBOOK.md#game-feel--juice).
 
 ---
 

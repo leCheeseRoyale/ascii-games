@@ -194,6 +194,10 @@ export function* pairsFromHash<T extends Positioned>(hash: SpatialHash<T>): Iter
     [1, 1], // down-right
   ];
 
+  // Track seen pairs to avoid duplicates from insertWithBounds entities
+  // that span multiple cells. Map<entity, Set<partner>> using object identity.
+  const seen = new Map<T, Set<T>>();
+
   for (const [key, cellEntities] of hash._cells()) {
     const entities = [...cellEntities];
 
@@ -204,6 +208,14 @@ export function* pairsFromHash<T extends Positioned>(hash: SpatialHash<T>): Iter
       for (let j = i + 1; j < entities.length; j++) {
         const b = entities[j];
         if (b === undefined) continue;
+        // Deduplicate: check if this pair was already yielded from another cell
+        if (seen.get(a)?.has(b) || seen.get(b)?.has(a)) continue;
+        let partners = seen.get(a);
+        if (!partners) {
+          partners = new Set();
+          seen.set(a, partners);
+        }
+        partners.add(b);
         yield [a, b];
       }
     }
@@ -218,6 +230,13 @@ export function* pairsFromHash<T extends Positioned>(hash: SpatialHash<T>): Iter
       if (!neighborSet) continue;
       for (const a of entities) {
         for (const b of neighborSet) {
+          if (seen.get(a)?.has(b) || seen.get(b)?.has(a)) continue;
+          let partners = seen.get(a);
+          if (!partners) {
+            partners = new Set();
+            seen.set(a, partners);
+          }
+          partners.add(b);
           yield [a, b];
         }
       }

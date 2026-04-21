@@ -1,0 +1,8 @@
+{
+  "name": "game-maker",
+  "version": "0.1.0",
+  "description": "Goal-oriented skills for building ASCII games: player controls, enemies, combat, worlds, UI, polish, board games, save/load, and sprite art. Guides game creators with copy-paste patterns, not engine internals.",
+  "author": {
+    "name": "ascii-games"
+  }
+}

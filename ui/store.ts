@@ -26,6 +26,7 @@ export interface StoreSlice<T extends Record<string, unknown>> {
       partial: Partial<GameStore & T> | ((state: GameStore & T) => Partial<GameStore & T>),
     ) => void,
     get: () => GameStore & T,
+    // biome-ignore lint/suspicious/noExplicitAny: zustand typing limitation — action args can't be statically narrowed
   ) => Record<string, (...args: any[]) => void>;
 }
 
@@ -89,24 +90,35 @@ export const useStore = create<GameStore>((set, get) => ({
 // ── Store extension API ────────────────────────────────────────
 
 let _extensionInitialState: Record<string, unknown> = {};
-let _extended = false;
+let _actionsRegistered = false;
 
 /**
  * Merge game-specific state and actions into the store.
  * Called automatically during setupGame() if a `store` field is returned.
  * Idempotent — safe to call multiple times (e.g., during HMR).
+ * On HMR re-mount the same slice is re-applied (state refreshed, actions skipped).
+ * A different slice fully re-applies both state and actions.
  */
 export function extendStore<T extends Record<string, unknown>>(slice: StoreSlice<T>): void {
-  if (_extended) return;
-  _extended = true;
+  // Same slice being re-applied (e.g. HMR) — skip
+  if (_extensionInitialState && JSON.stringify(slice.initialState) === JSON.stringify(_extensionInitialState)) {
+    return;
+  }
+
   _extensionInitialState = { ...slice.initialState };
   useStore.setState(slice.initialState as Partial<GameStore>);
-  if (slice.actions) {
-    const actions = slice.actions(
-      useStore.setState as any,
-      useStore.getState as () => GameStore & T,
-    );
-    useStore.setState(actions as Partial<GameStore>);
+
+  // Only register actions once (or when a different slice replaces the previous one)
+  if (!_actionsRegistered) {
+    _actionsRegistered = true;
+    if (slice.actions) {
+      const actions = slice.actions(
+        // biome-ignore lint/suspicious/noExplicitAny: zustand typing limitation — setState generic doesn't narrow to extended slice type
+        useStore.setState as any,
+        useStore.getState as () => GameStore & T,
+      );
+      useStore.setState(actions as Partial<GameStore>);
+    }
   }
 }
 

@@ -95,7 +95,7 @@ export const titleScene = defineScene({
     }
   },
 
-  update(engine, dt) {
+  update(engine, _dt) {
     if (engine.keyboard.pressed("Space")) {
       engine.loadScene("play");
     }

@@ -39,8 +39,17 @@ if (flags.help) {
     npx create-ascii-game \x1b[33m<directory>\x1b[0m [options]
 
   \x1b[1mOptions:\x1b[0m
-    -t, --template <name>   Use a specific template (blank, asteroid-field, platformer)
+    -t, --template <name>   Use a specific template (see list below)
     -h, --help              Show this help message
+
+  \x1b[1mTemplates:\x1b[0m
+    blank            Empty starter template
+    asteroid-field   Real-time action (ECS)
+    platformer       Side-scrolling platformer (ECS)
+    roguelike        Turn-based dungeon crawler (ECS)
+    physics-text     Interactive ASCII art with physics (ECS)
+    tic-tac-toe      Classic board game (defineGame)
+    connect-four     Drop-disc board game (defineGame)
 
   \x1b[1mExamples:\x1b[0m
     npx create-ascii-game my-game
@@ -153,5 +162,5 @@ console.log(`
     ${cdCmd}\x1b[36m${devCmd}\x1b[0m
 
   \x1b[2mFirst run auto-detects no game and shows the template picker.\x1b[0m
-  \x1b[2mOr pick one now: ${hasBun ? 'bun run' : 'npx'} init:game <blank|asteroid-field|platformer>\x1b[0m
+  \x1b[2mOr pick one now: ${hasBun ? 'bun run' : 'npx'} init:game <blank|asteroid-field|platformer|roguelike|physics-text|tic-tac-toe|connect-four>\x1b[0m
 `)

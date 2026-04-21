@@ -5,7 +5,7 @@
  * Usage: bun run gen:api
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { join } from "node:path";
 
@@ -125,4 +125,4 @@ writeFileSync(outPath, output);
 console.log(`API reference written to docs/API-generated.md`);
 
 // Cleanup
-execSync(`rm -rf "${TMP}"`, { cwd: ROOT });
+rmSync(TMP, { recursive: true, force: true });

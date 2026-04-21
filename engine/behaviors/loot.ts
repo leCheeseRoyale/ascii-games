@@ -38,7 +38,7 @@
  */
 export interface LootContext {
   /** Game-supplied flags (difficulty, luck, player level, etc.). */
-  flags: Record<string, any>;
+  flags: Record<string, unknown>;
   /** Seeded RNG (0-1). Use this instead of `Math.random()` for reproducibility. */
   random: () => number;
 }
@@ -46,7 +46,7 @@ export interface LootContext {
 /**
  * A single loot entry. Exactly one of `item` or `table` should be set.
  */
-export interface LootEntry<T = any> {
+export interface LootEntry<T = unknown> {
   /** Relative weight (higher = more likely). Default 1. */
   weight?: number;
   /** Drop this item/value. Mutually exclusive with `table`. */
@@ -64,7 +64,7 @@ export interface LootEntry<T = any> {
 /**
  * A weighted list of loot entries. Roll it with `rollLoot()`.
  */
-export interface LootTable<T = any> {
+export interface LootTable<T = unknown> {
   /** Entries subject to weighted selection. */
   entries: LootEntry<T>[];
   /** How many rolls to make on this table. Default 1. Pass `[min, max]` for a random count. */
@@ -76,7 +76,7 @@ export interface LootTable<T = any> {
 }
 
 /** A single drop from rolling a loot table. */
-export interface LootDrop<T = any> {
+export interface LootDrop<T = unknown> {
   item: T;
   count: number;
 }
@@ -309,11 +309,11 @@ function evaluateEntryWithoutCondition<T>(
  *                to `condition` callbacks via `ctx.flags`).
  * @returns       A flat array of aggregated `LootDrop`s.
  */
-export function rollLoot<T = any>(
+export function rollLoot<T = unknown>(
   table: LootTable<T>,
   options?: {
     seed?: number;
-    flags?: Record<string, any>;
+    flags?: Record<string, unknown>;
   },
 ): LootDrop<T>[] {
   const random = createSeededRandom(options?.seed);

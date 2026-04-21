@@ -19,9 +19,12 @@ export const collectionSystem = defineSystem({
       e.tags.values.has("star"),
     );
 
+    const collected = new Set<object>();
     for (const player of players) {
       for (const star of stars) {
+        if (collected.has(star)) continue;
         if (overlaps(player, star)) {
+          collected.add(star);
           score += 100;
           useStore.getState().setScore(score);
           sfx.pickup();

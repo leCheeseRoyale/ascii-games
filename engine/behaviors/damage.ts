@@ -56,22 +56,20 @@ export function createDamageSystem(config?: DamageSystemConfig): System {
     name: "damageSystem",
 
     update(engine: Engine, dt: number) {
-      for (const entity of engine.world.with("health")) {
-        const e = entity as any;
-
+      for (const entity of [...engine.world.with("health")]) {
         // Tick down invincibility timer
-        if (e._invincibleTimer !== undefined && e._invincibleTimer > 0) {
-          e._invincibleTimer -= dt;
+        if (entity._invincibleTimer !== undefined && entity._invincibleTimer > 0) {
+          entity._invincibleTimer -= dt;
         }
 
         // Skip if no damage component present
-        if (!e.damage) continue;
+        if (!entity.damage) continue;
 
-        const damage: DamageComponent = e.damage;
+        const damage: DamageComponent = entity.damage;
 
         // Skip if currently invincible
-        if (e._invincibleTimer !== undefined && e._invincibleTimer > 0) {
-          delete e.damage;
+        if (entity._invincibleTimer !== undefined && entity._invincibleTimer > 0) {
+          delete entity.damage;
           continue;
         }
 
@@ -79,7 +77,7 @@ export function createDamageSystem(config?: DamageSystemConfig): System {
         if (config?.onDamage) {
           const result = config.onDamage(entity, damage, engine);
           if (result === false) {
-            delete e.damage;
+            delete entity.damage;
             continue;
           }
         }
@@ -89,30 +87,32 @@ export function createDamageSystem(config?: DamageSystemConfig): System {
 
         // Set invincibility
         if (invincibilityDuration > 0) {
-          e._invincibleTimer = invincibilityDuration;
+          entity._invincibleTimer = invincibilityDuration;
         }
+
+        // Remove transient damage component before callbacks so newly
+        // applied damage in callbacks is not silently dropped.
+        const savedDamage = damage;
+        delete entity.damage;
 
         events.emit("combat:damage-taken", {
           entity,
-          amount: damage.amount,
-          source: damage.source,
-          type: damage.type,
+          amount: savedDamage.amount,
+          source: savedDamage.source,
+          type: savedDamage.type,
           remainingHp: Math.max(0, entity.health.current),
         });
 
         // Check for death
         if (entity.health.current <= 0) {
           entity.health.current = 0;
-          config?.onDeath?.(entity, damage, engine);
+          config?.onDeath?.(entity, savedDamage, engine);
           events.emit("combat:entity-defeated", {
             entity,
-            source: damage.source,
-            type: damage.type,
+            source: savedDamage.source,
+            type: savedDamage.type,
           });
         }
-
-        // Remove transient damage component
-        delete e.damage;
       }
     },
   });

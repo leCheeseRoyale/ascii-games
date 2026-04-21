@@ -58,8 +58,10 @@
 import {
   has as hasStorage,
   load as loadStorage,
+  loadCompressed as loadCompressedStorage,
   remove as removeStorage,
   save as saveStorage,
+  saveCompressed as saveCompressedStorage,
 } from "./index";
 
 // ── Public types ────────────────────────────────────────────────
@@ -104,6 +106,14 @@ export interface SaveSlotManagerOptions<T = unknown> {
    * slot as corrupt / unreadable.
    */
   onMigrate?: (oldData: SaveSlot<any>) => SaveSlot<T> | null;
+  /**
+   * When true, slot data is lz-string compressed before writing to
+   * localStorage. The slot index and active-slot tracker are kept
+   * uncompressed for fast listing. Loading handles both compressed and
+   * uncompressed data transparently, so enabling this on an existing game
+   * won't break old saves. Default `false`.
+   */
+  compress?: boolean;
 }
 
 // ── Constants ───────────────────────────────────────────────────
@@ -122,12 +132,14 @@ export class SaveSlotManager<T = unknown> {
   private readonly prefix: string;
   private readonly version?: string;
   private readonly onMigrate?: (oldData: SaveSlot<any>) => SaveSlot<T> | null;
+  private readonly compress: boolean;
 
   constructor(opts: SaveSlotManagerOptions<T> = {}) {
     this.maxSlots = opts.maxSlots ?? DEFAULT_MAX_SLOTS;
     this.prefix = opts.prefix ?? DEFAULT_PREFIX;
     this.version = opts.version;
     this.onMigrate = opts.onMigrate;
+    this.compress = opts.compress ?? false;
   }
 
   // ── CRUD ───────────────────────────────────────────────────────
@@ -162,7 +174,7 @@ export class SaveSlotManager<T = unknown> {
     };
 
     const slot: SaveSlot<T> = { metadata, data };
-    saveStorage(this.storageName(slotId), slot);
+    this.saveSlotData(slotId, slot);
 
     // Maintain the index. Autosave is excluded from the index so it never
     // counts toward `maxSlots` or appears in `list()`.
@@ -179,7 +191,7 @@ export class SaveSlotManager<T = unknown> {
    * migration.
    */
   load(slotId: string): SaveSlot<T> | null {
-    const raw = loadStorage<SaveSlot<any>>(this.storageName(slotId));
+    const raw = this.loadSlotData(slotId);
     if (!raw) return null;
     if (!isValidSlot(raw)) return null;
 
@@ -235,7 +247,7 @@ export class SaveSlotManager<T = unknown> {
     slot.metadata.name = newName;
     // Write the full slot back — bypassing save() so the timestamp stays put
     // and we don't re-validate maxSlots for an existing slot.
-    saveStorage(this.storageName(slotId), slot);
+    this.saveSlotData(slotId, slot);
     return true;
   }
 
@@ -250,7 +262,7 @@ export class SaveSlotManager<T = unknown> {
     // out-of-band (e.g. via direct storage clears).
     const liveIds: string[] = [];
     for (const slotId of index) {
-      const slot = loadStorage<SaveSlot<any>>(this.storageName(slotId));
+      const slot = this.loadSlotData(slotId);
       if (slot && isValidSlot(slot)) {
         out.push(slot.metadata);
         liveIds.push(slotId);
@@ -337,9 +349,9 @@ export class SaveSlotManager<T = unknown> {
 
   /** Export a slot as a JSON string. Returns `null` if the slot is missing. */
   exportSlot(slotId: string): string | null {
-    // Read raw bytes — don't route through `load()` so export reflects what's
+    // Read raw data — don't route through `load()` so export reflects what's
     // on disk even if a migration would transform it on read.
-    const raw = loadStorage<SaveSlot<any>>(this.storageName(slotId));
+    const raw = this.loadSlotData(slotId);
     if (!raw || !isValidSlot(raw)) return null;
     return JSON.stringify(raw);
   }
@@ -370,7 +382,7 @@ export class SaveSlotManager<T = unknown> {
     // Rewrite the slotId in metadata to match the import target.
     slot.metadata.slotId = slotId;
 
-    saveStorage(this.storageName(slotId), slot);
+    this.saveSlotData(slotId, slot);
     if (isNew) {
       index.push(slotId);
       this.writeIndex(index);
@@ -384,12 +396,37 @@ export class SaveSlotManager<T = unknown> {
     return `${this.prefix}${slotId}`;
   }
 
+  /** Save slot data, using compression when enabled. */
+  private saveSlotData(slotId: string, data: SaveSlot<T>): void {
+    const name = this.storageName(slotId);
+    if (this.compress) {
+      saveCompressedStorage(name, data);
+    } else {
+      saveStorage(name, data);
+    }
+  }
+
+  /**
+   * Load slot data, using compressed loader when compression is enabled.
+   * The compressed loader handles both compressed and uncompressed data,
+   * so old saves still load after enabling compression.
+   */
+  private loadSlotData(slotId: string): SaveSlot<any> | undefined {
+    const name = this.storageName(slotId);
+    if (this.compress) {
+      return loadCompressedStorage<SaveSlot<any>>(name);
+    }
+    return loadStorage<SaveSlot<any>>(name);
+  }
+
   private readIndex(): string[] {
+    // Index is always uncompressed for fast listing.
     const idx = loadStorage<string[]>(this.storageName(INDEX_KEY));
     return Array.isArray(idx) ? [...idx] : [];
   }
 
   private writeIndex(ids: string[]): void {
+    // Index is always uncompressed.
     saveStorage(this.storageName(INDEX_KEY), ids);
   }
 }

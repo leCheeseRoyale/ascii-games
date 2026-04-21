@@ -56,6 +56,7 @@ export interface InventoryItem {
   /** Optional weight used by `maxWeight` capacity systems. */
   weight?: number;
   /** Game-specific data (damage, heal, rarity, ...). */
+  // biome-ignore lint/suspicious/noExplicitAny: intentional escape hatch for game-specific item properties
   [key: string]: any;
 }
 

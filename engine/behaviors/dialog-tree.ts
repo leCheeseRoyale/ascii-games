@@ -30,16 +30,24 @@
 /** Border styles supported by the underlying DialogManager. */
 type DialogBorder = "single" | "double" | "rounded" | "heavy" | "ascii" | "none" | "dashed";
 
+/** Minimal engine shape required by the dialog tree runner. */
+export interface DialogEngine {
+  dialog: {
+    show(text: string, opts?: Record<string, unknown>): Promise<void>;
+    choice(text: string, choices: string[], opts?: Record<string, unknown>): Promise<number>;
+  };
+}
+
 /** Runtime context available to dialog callbacks. */
 export interface DialogContext {
   /** Arbitrary flags/state for the dialog (quest flags, npc mood, etc.). */
-  flags: Record<string, any>;
+  flags: Record<string, unknown>;
   /** Engine reference for side effects. */
-  engine: any;
+  engine: DialogEngine;
   /** Set a flag. */
-  setFlag(key: string, value: any): void;
+  setFlag(key: string, value: unknown): void;
   /** Get a flag value (or default). */
-  getFlag<T = any>(key: string, defaultValue?: T): T;
+  getFlag<T = unknown>(key: string, defaultValue?: T): T;
   /** Jump to a specific node by ID. Takes effect after the current callback returns. */
   goto(nodeId: string): void;
 }
@@ -103,11 +111,11 @@ const LOOP_GUARD_LIMIT = 100;
  * for branching nodes under the hood.
  */
 export async function runDialogTree(
-  engine: any,
+  engine: DialogEngine,
   tree: DialogTree,
-  initialFlags?: Record<string, any>,
-): Promise<Record<string, any>> {
-  const flags: Record<string, any> = { ...(initialFlags ?? {}) };
+  initialFlags?: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const flags: Record<string, unknown> = { ...(initialFlags ?? {}) };
 
   // gotoTarget is set by ctx.goto() from inside a callback. When non-null,
   // it overrides the normal next-node resolution for the current transition.
@@ -119,7 +127,7 @@ export async function runDialogTree(
     setFlag(key, value) {
       flags[key] = value;
     },
-    getFlag<T = any>(key: string, defaultValue?: T): T {
+    getFlag<T = unknown>(key: string, defaultValue?: T): T {
       return (key in flags ? flags[key] : (defaultValue as T)) as T;
     },
     goto(nodeId: string) {

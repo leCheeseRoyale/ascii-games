@@ -86,7 +86,7 @@ function rebuildTilemaps(engine: Engine, visible?: Set<string>): void {
     let line = "";
     for (let c = 0; c < cols; c++) {
       const key = `${c},${r}`;
-      if (explored.has(key) && (!visible || !visible.has(key))) {
+      if (explored.has(key) && !visible?.has(key)) {
         line += dungeonGrid[r][c];
       } else {
         line += " ";
@@ -130,18 +130,12 @@ function rebuildTilemaps(engine: Engine, visible?: Set<string>): void {
 
   // Remove old tilemap entities
   if (memoryEntity) {
-    try {
-      engine.destroy(memoryEntity);
-    } catch {
-      /* already destroyed */
-    }
+    engine.destroy(memoryEntity);
+    memoryEntity = null;
   }
   if (visibleEntity) {
-    try {
-      engine.destroy(visibleEntity);
-    } catch {
-      /* already destroyed */
-    }
+    engine.destroy(visibleEntity);
+    visibleEntity = null;
   }
 
   // Spawn memory layer (behind everything)

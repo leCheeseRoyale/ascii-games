@@ -24,6 +24,7 @@ export class GameLoop {
   elapsed = 0;
   frame = 0;
   fps = 0;
+  timeScale = 1.0;
 
   constructor(
     private callbacks: GameLoopCallbacks,
@@ -78,14 +79,15 @@ export class GameLoop {
       return;
     }
 
-    // Clamp to avoid spiral of death
-    const dt = Math.min(rawDt, 0.1);
+    // Clamp to avoid spiral of death, then apply time scale
+    const dt = Math.min(rawDt, 0.1) * this.timeScale;
     this.accumulator += dt;
 
-    // Fixed timestep updates
+    // Fixed timestep updates (scaled dt passed to callbacks)
+    const scaledFixedDt = this.fixedDt * this.timeScale;
     while (this.accumulator >= this.fixedDt) {
-      this.callbacks.update(this.fixedDt);
-      this.elapsed += this.fixedDt;
+      this.callbacks.update(scaledFixedDt);
+      this.elapsed += scaledFixedDt;
       this.frame++;
       this.accumulator -= this.fixedDt;
     }

@@ -138,6 +138,8 @@ export class TurnManager {
   /** Reset state (called on scene change). Does not clear config. */
   reset(): void {
     if (this._active) {
+      const oldPhase = this._phases[this._phaseIndex];
+      events.emit("phase:exit", oldPhase);
       this._active = false;
     }
     this._phaseIndex = 0;

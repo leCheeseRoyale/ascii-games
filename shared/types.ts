@@ -79,7 +79,15 @@ export interface Collider {
   width: number;
   height: number;
   sensor?: boolean;
+  /** Internal marker — set when collider was resolved from `"auto"`. */
+  _auto?: boolean;
+  /** Collision group bitmask. Default 1. Entities collide when (a.group & b.mask) !== 0 AND (b.group & a.mask) !== 0. */
+  group?: number;
+  /** Collision mask bitmask. Default 0xFFFFFFFF (all groups). */
+  mask?: number;
 }
+
+export type CollisionCallback = (a: Partial<Entity>, b: Partial<Entity>) => void;
 
 export interface Health {
   current: number;
@@ -237,6 +245,41 @@ export interface OffScreenDestroy {
   margin?: number;
 }
 
+// ── Trail (afterimage effect behind moving entities) ────────────
+
+export interface Trail {
+  /** Spawn interval in seconds. Default 0.05. */
+  interval?: number;
+  /** Lifetime of each trail entity in seconds. Default 0.3. */
+  lifetime?: number;
+  /** Trail color. If omitted, uses the entity's ascii/sprite color. */
+  color?: string;
+  /** Opacity of trail when spawned (fades to 0). Default 0.5. */
+  opacity?: number;
+  /** Internal accumulator. */
+  _acc?: number;
+}
+
+// ── Visual bounds (auto-computed from text measurement) ─────────
+
+export interface VisualBounds {
+  width: number;
+  height: number;
+  halfW: number;
+  halfH: number;
+  /** Dirty-tracking key — hash of (text + font + scale). Internal use. */
+  _key: string;
+}
+
+// ── Spring force (generic — pulls entity toward a target position) ──
+
+export interface Spring {
+  targetX: number;
+  targetY: number;
+  strength: number;
+  damping: number;
+}
+
 // ── Optional feature components ─────────────────────────────────
 
 /** ASCII gauge / progress bar. Renders as filled + empty characters. */
@@ -325,6 +368,9 @@ export interface Entity {
   interactive: Interactive;
   tilemap: TilemapComponent;
   textEffect: TextEffectComponent;
+  trail: Trail;
+  visualBounds: VisualBounds;
+  spring: Spring;
 
   /** Game-specific custom components. Use this for any data not covered above. */
   [key: string]: any;
@@ -332,6 +378,12 @@ export interface Entity {
 
 /** Helper for games to define typed custom entities. */
 export type GameEntity<T extends Record<string, any> = {}> = Partial<Entity> & T;
+
+/** Input type for `engine.spawn()` — accepts `"auto"` for collider, resolved before entering the world. */
+export type SpawnInput = Omit<Partial<Entity>, "collider"> & {
+	/** Pass `"auto"` to auto-size from the entity's ascii/sprite/textBlock bounds via Pretext measurement. */
+	collider?: Collider | "auto";
+};
 
 // ── Engine types ─────────────────────────────────────────────────
 
