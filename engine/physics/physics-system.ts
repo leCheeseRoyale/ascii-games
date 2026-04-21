@@ -5,6 +5,7 @@
  * Entities with a `physics` component get additional forces applied.
  */
 
+import type { Entity } from "@shared/types";
 import type { Engine } from "../core/engine";
 import { type System, SystemPriority } from "../ecs/systems";
 
@@ -71,7 +72,7 @@ export const physicsSystem: System = {
       if (!Number.isFinite(e.position.x) || !Number.isFinite(e.position.y)) reset = true;
       if (!Number.isFinite(e.velocity.vx) || !Number.isFinite(e.velocity.vy)) reset = true;
       if (reset) {
-        const tag = (e as any).tags?.values?.values().next().value ?? "unknown";
+        const tag = (e as Partial<Entity>).tags?.values?.values().next().value ?? "unknown";
         console.error(`[physics] NaN in entity [${tag}]`);
         engine.debug.showError(`NaN in entity [${tag}] — reset to (0,0)`);
         if (!Number.isFinite(e.position.x)) e.position.x = 0;

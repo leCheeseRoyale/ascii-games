@@ -397,7 +397,9 @@ describe("on() event listeners", () => {
 
     const events: string[] = [];
     qt.on("start", (id) => events.push(`start:${id}`));
-    qt.on("progress", (id, data) => events.push(`progress:${id}:${data.objectiveId}`));
+    qt.on("progress", (id, data) =>
+      events.push(`progress:${id}:${(data as { objectiveId: string }).objectiveId}`),
+    );
     qt.on("complete", (id) => events.push(`complete:${id}`));
     qt.on("fail", (id) => events.push(`fail:${id}`));
 

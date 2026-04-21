@@ -30,7 +30,7 @@ export const screenBoundsSystem = defineSystem({
     }
 
     // Off-screen destroy — destroy when entire entity is off-screen
-    const toRemove: any[] = [];
+    const toRemove = [];
     for (const e of engine.world.with("position", "offScreenDestroy")) {
       const hw = e.visualBounds?.halfW ?? 0;
       const hh = e.visualBounds?.halfH ?? 0;

@@ -34,12 +34,13 @@ function applyEasing(t: number, ease: TweenEntry["ease"]): number {
 }
 
 /** Set a nested property by dot-path: 'position.x', 'ascii.opacity', etc. */
-function setNestedProp(obj: any, path: string, value: number): void {
+function setNestedProp(obj: Record<string, unknown>, path: string, value: number): void {
   const parts = path.split(".");
-  let target = obj;
+  let target: Record<string, unknown> = obj;
   for (let i = 0; i < parts.length - 1; i++) {
-    target = target[parts[i]];
-    if (!target) return;
+    const next = target[parts[i]];
+    if (!next || typeof next !== "object") return;
+    target = next as Record<string, unknown>;
   }
   target[parts[parts.length - 1]] = value;
 }
@@ -77,7 +78,7 @@ export const tweenSystem: System = {
         engine.destroy(entity as Entity);
       } else if (allDone && tween.tweens.length === 0) {
         // Remove the tween component when all tweens complete
-        delete (entity as any).tween;
+        delete (entity as Partial<Entity>).tween;
       }
     }
   },

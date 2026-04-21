@@ -1,6 +1,6 @@
+import { buildDirtyKey, buildVisualBounds } from "../render/measure-entity";
 import type { System } from "./systems";
 import { SystemPriority } from "./systems";
-import { buildDirtyKey, buildVisualBounds } from "../render/measure-entity";
 
 export const measureSystem: System = {
   name: "_measure",

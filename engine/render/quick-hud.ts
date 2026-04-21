@@ -74,10 +74,6 @@ export function drawQuickHud(
       y = screenHeight - pad - lineH;
       align = "right";
       break;
-    default:
-      x = pad;
-      y = pad;
-      align = "left";
   }
 
   ui.text(x, y, text, { font, color, align });

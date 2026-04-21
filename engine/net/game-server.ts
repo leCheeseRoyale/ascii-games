@@ -324,7 +324,9 @@ export class GameServer {
   async start(): Promise<void> {
     if (this.server) return;
 
-    const bunGlobal = (globalThis as any).Bun;
+    const bunGlobal = (globalThis as Record<string, unknown>).Bun as
+      | { serve: (...args: unknown[]) => BunServerLike }
+      | undefined;
     if (!bunGlobal || typeof bunGlobal.serve !== "function") {
       throw new Error("GameServer requires the Bun runtime (Bun.serve)");
     }
@@ -542,7 +544,7 @@ export class GameServer {
       this.sendError(ws, "malformed-json", "Invalid JSON frame");
       return;
     }
-    if (!frame || typeof frame !== "object" || typeof (frame as any).type !== "string") {
+    if (!frame || typeof frame !== "object" || typeof frame.type !== "string") {
       this.sendError(ws, "malformed-frame", "Frame missing `type` field");
       return;
     }
@@ -582,7 +584,7 @@ export class GameServer {
         this.handleListRooms(ws, frame);
         break;
       default:
-        this.sendError(ws, "unknown-frame", `Unknown frame type: ${(frame as any).type}`);
+        this.sendError(ws, "unknown-frame", `Unknown frame type: ${(frame as ClientFrame).type}`);
     }
   }
 
@@ -630,7 +632,10 @@ export class GameServer {
           ? Math.min(opts.maxPeers, this.opts.maxClientsPerRoom)
           : this.opts.maxClientsPerRoom;
       const MAX_NAME_LEN = 64;
-      const name = typeof opts.name === "string" && opts.name.length > 0 ? opts.name.slice(0, MAX_NAME_LEN) : roomId;
+      const name =
+        typeof opts.name === "string" && opts.name.length > 0
+          ? opts.name.slice(0, MAX_NAME_LEN)
+          : roomId;
       const gameType =
         typeof opts.gameType === "string" && opts.gameType.length > 0 ? opts.gameType : undefined;
       const isPublic = opts.isPublic !== false;
@@ -675,8 +680,10 @@ export class GameServer {
       this.opts.enablePeerResume && typeof frame.previousPeerId === "string"
         ? frame.previousPeerId.trim()
         : "";
-    const validCandidate = candidate && candidate.length <= MAX_PEER_ID_LEN && PEER_ID_RE.test(candidate)
-      ? candidate : "";
+    const validCandidate =
+      candidate && candidate.length <= MAX_PEER_ID_LEN && PEER_ID_RE.test(candidate)
+        ? candidate
+        : "";
     if (validCandidate && !this.sockets.has(validCandidate) && !room.peers.has(validCandidate)) {
       peerId = validCandidate;
       resumed = true;
@@ -688,9 +695,10 @@ export class GameServer {
     }
 
     const MAX_CLIENT_NAME_LEN = 64;
-    const clientName = typeof frame.clientName === "string"
-      ? frame.clientName.slice(0, MAX_CLIENT_NAME_LEN)
-      : undefined;
+    const clientName =
+      typeof frame.clientName === "string"
+        ? frame.clientName.slice(0, MAX_CLIENT_NAME_LEN)
+        : undefined;
 
     const existingPeerIds = Array.from(room.peers.keys());
     const handle: PeerHandle = {
@@ -972,8 +980,7 @@ export class GameServer {
     return this.collectPublicRooms(filter);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private fire<H extends (...args: any[]) => void>(set: Set<H>, ...args: Parameters<H>): void {
+  private fire<H extends (...args: never[]) => void>(set: Set<H>, ...args: Parameters<H>): void {
     for (const h of Array.from(set)) {
       try {
         h(...args);

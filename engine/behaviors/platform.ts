@@ -36,9 +36,7 @@ export function createPlatformSystem(opts?: PlatformSystemOpts): System {
     priority: SystemPriority.physics + 2,
 
     update(engine: Engine) {
-      const platforms = [...engine.world.with("position", "collider", "tags")].filter((e) =>
-        e.tags.values.has(platformTag),
-      );
+      const platforms = engine.findAllByTag(platformTag).filter((e) => e.position && e.collider);
 
       for (const entity of engine.world.with(
         "position",

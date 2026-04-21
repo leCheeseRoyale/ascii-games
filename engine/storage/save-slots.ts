@@ -57,11 +57,11 @@
 
 import {
   has as hasStorage,
-  load as loadStorage,
   loadCompressed as loadCompressedStorage,
+  load as loadStorage,
   remove as removeStorage,
-  save as saveStorage,
   saveCompressed as saveCompressedStorage,
+  save as saveStorage,
 } from "./index";
 
 // ── Public types ────────────────────────────────────────────────
@@ -81,7 +81,7 @@ export interface SaveSlotMetadata {
   /** Optional base64 PNG thumbnail (e.g. from `canvas.toDataURL()`). */
   thumbnail?: string;
   /** Game-specific extra fields (level, score, char name, etc.). */
-  custom?: Record<string, any>;
+  custom?: Record<string, unknown>;
   /** User-defined schema version, consulted by `onMigrate`. */
   version?: string;
 }
@@ -105,7 +105,7 @@ export interface SaveSlotManagerOptions<T = unknown> {
    * configured `version`. Return the migrated slot, or `null` to treat the
    * slot as corrupt / unreadable.
    */
-  onMigrate?: (oldData: SaveSlot<any>) => SaveSlot<T> | null;
+  onMigrate?: (oldData: SaveSlot<unknown>) => SaveSlot<T> | null;
   /**
    * When true, slot data is lz-string compressed before writing to
    * localStorage. The slot index and active-slot tracker are kept
@@ -131,7 +131,7 @@ export class SaveSlotManager<T = unknown> {
   private readonly maxSlots: number;
   private readonly prefix: string;
   private readonly version?: string;
-  private readonly onMigrate?: (oldData: SaveSlot<any>) => SaveSlot<T> | null;
+  private readonly onMigrate?: (oldData: SaveSlot<unknown>) => SaveSlot<T> | null;
   private readonly compress: boolean;
 
   constructor(opts: SaveSlotManagerOptions<T> = {}) {
@@ -411,12 +411,12 @@ export class SaveSlotManager<T = unknown> {
    * The compressed loader handles both compressed and uncompressed data,
    * so old saves still load after enabling compression.
    */
-  private loadSlotData(slotId: string): SaveSlot<any> | undefined {
+  private loadSlotData(slotId: string): SaveSlot<unknown> | undefined {
     const name = this.storageName(slotId);
     if (this.compress) {
-      return loadCompressedStorage<SaveSlot<any>>(name);
+      return loadCompressedStorage<SaveSlot<unknown>>(name);
     }
-    return loadStorage<SaveSlot<any>>(name);
+    return loadStorage<SaveSlot<unknown>>(name);
   }
 
   private readIndex(): string[] {
@@ -434,7 +434,7 @@ export class SaveSlotManager<T = unknown> {
 // ── Helpers ─────────────────────────────────────────────────────
 
 /** Structural check for a `SaveSlot<T>` shape. */
-function isValidSlot(v: unknown): v is SaveSlot<any> {
+function isValidSlot(v: unknown): v is SaveSlot<unknown> {
   if (!v || typeof v !== "object") return false;
   const slot = v as { metadata?: unknown; data?: unknown };
   if (!slot.metadata || typeof slot.metadata !== "object") return false;

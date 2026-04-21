@@ -248,8 +248,8 @@ export { type TurnConfig, TurnManager } from "./core/turn-manager";
 export {
   type AnimatedArtAsset,
   type ArtAsset,
-  type SpriteSheet,
   artFromString,
+  type SpriteSheet,
   spriteSheetFrames,
 } from "./data/art-asset";
 // Data — Sprite library

@@ -202,6 +202,7 @@ export class AsciiRenderer {
 
     const w = img.width || img.image.naturalWidth;
     const h = img.height || img.image.naturalHeight;
+    const centered = img.anchor !== "topLeft";
 
     ctx.save();
     ctx.globalAlpha = img.opacity ?? 1;
@@ -209,17 +210,9 @@ export class AsciiRenderer {
     if (img.rotation) {
       ctx.translate(x, y);
       ctx.rotate(img.rotation);
-      if (img.anchor === "topLeft") {
-        ctx.drawImage(img.image, 0, 0, w, h);
-      } else {
-        ctx.drawImage(img.image, -w / 2, -h / 2, w, h);
-      }
+      ctx.drawImage(img.image, centered ? -w / 2 : 0, centered ? -h / 2 : 0, w, h);
     } else {
-      if (img.anchor === "topLeft") {
-        ctx.drawImage(img.image, x, y, w, h);
-      } else {
-        ctx.drawImage(img.image, x - w / 2, y - h / 2, w, h);
-      }
+      ctx.drawImage(img.image, centered ? x - w / 2 : x, centered ? y - h / 2 : y, w, h);
     }
 
     ctx.restore();
@@ -314,44 +307,32 @@ export class AsciiRenderer {
     ctx.restore();
   }
 
-  /**
-   * Fallback per-character sprite rendering for entities with textEffect.
-   * Also supports colorMap and space transparency.
-   */
+  /** Per-character sprite rendering for entities with textEffect. */
   private drawSpritePerChar(entity: Partial<Entity>): void {
     const { ctx } = this;
     const { x, y } = entity.position!;
     const s = entity.sprite!;
-    const effectFn = entity.textEffect?.fn;
+    const effectFn = entity.textEffect!.fn;
 
     const fontSize = parseFloat(s.font) || 16;
     const lineHeight = fontSize * 1.2;
     const totalHeight = s.lines.length * lineHeight;
     const startY = y - totalHeight / 2;
 
-    // Find max line width for centering
-    let maxWidth = 0;
-    for (const line of s.lines) {
-      const w = measureLineWidth(line, s.font);
-      if (w > maxWidth) maxWidth = w;
-    }
-
     ctx.save();
     ctx.globalAlpha = s.opacity ?? 1;
     ctx.font = s.font;
     ctx.textBaseline = "top";
 
-    let charIdx = 0;
     // Count total non-space characters for effect function
     let totalChars = 0;
-    if (effectFn) {
-      for (const line of s.lines) {
-        for (const ch of line) {
-          if (ch !== " ") totalChars++;
-        }
+    for (const line of s.lines) {
+      for (const ch of line) {
+        if (ch !== " ") totalChars++;
       }
     }
 
+    let charIdx = 0;
     for (let li = 0; li < s.lines.length; li++) {
       const line = s.lines[li];
       const lineY = startY + li * lineHeight;
@@ -365,37 +346,28 @@ export class AsciiRenderer {
           continue;
         }
 
-        if (effectFn) {
-          const transform = effectFn(charIdx, totalChars, this.sceneTime);
-          const dx = transform.dx ?? 0;
-          const dy = transform.dy ?? 0;
+        const transform = effectFn(charIdx, totalChars, this.sceneTime);
+        const dx = transform.dx ?? 0;
+        const dy = transform.dy ?? 0;
 
-          ctx.save();
-          if (transform.opacity !== undefined) {
-            ctx.globalAlpha = (s.opacity ?? 1) * transform.opacity;
-          }
-          if (transform.scale !== undefined) {
-            const mid = cx + charWidth / 2;
-            const midY = lineY + lineHeight / 2;
-            ctx.translate(mid, midY);
-            ctx.scale(transform.scale, transform.scale);
-            ctx.translate(-mid, -midY);
-          }
-          if (s.glow) {
-            ctx.shadowColor = s.glow;
-            ctx.shadowBlur = 8;
-          }
-          ctx.fillStyle = transform.color ?? s.colorMap?.[char] ?? s.color;
-          ctx.fillText(transform.char ?? char, cx + dx, lineY + dy);
-          ctx.restore();
-        } else {
-          if (s.glow) {
-            ctx.shadowColor = s.glow;
-            ctx.shadowBlur = 8;
-          }
-          ctx.fillStyle = s.colorMap?.[char] ?? s.color;
-          ctx.fillText(char, cx, lineY);
+        ctx.save();
+        if (transform.opacity !== undefined) {
+          ctx.globalAlpha = (s.opacity ?? 1) * transform.opacity;
         }
+        if (transform.scale !== undefined) {
+          const mid = cx + charWidth / 2;
+          const midY = lineY + lineHeight / 2;
+          ctx.translate(mid, midY);
+          ctx.scale(transform.scale, transform.scale);
+          ctx.translate(-mid, -midY);
+        }
+        if (s.glow) {
+          ctx.shadowColor = s.glow;
+          ctx.shadowBlur = 8;
+        }
+        ctx.fillStyle = transform.color ?? s.colorMap?.[char] ?? s.color;
+        ctx.fillText(transform.char ?? char, cx + dx, lineY + dy);
+        ctx.restore();
 
         charIdx++;
         cx += charWidth;
@@ -452,66 +424,57 @@ export class AsciiRenderer {
       for (const line of lines) {
         ctx.fillText(line.text, line.x, line.y);
       }
-    } else if (hasStyleTags) {
-      // Styled text: parse tags and render segments with per-character styling.
-      // Layout is done on plain text, then we map styled segments onto each line.
-      const lines = layoutTextBlock(plainText, tb.font, tb.maxWidth, tb.lineHeight);
-      const segments = parseStyledText(tb.text, tb.font, tb.color);
-
-      // Build a flat char-to-style map from segments
-      let charIndex = 0;
-      const plainChars = plainText.length;
-      const charStyles: StyledSegment[] = new Array(plainChars);
-      for (const seg of segments) {
-        for (let ci = 0; ci < seg.text.length && charIndex < plainChars; ci++) {
-          charStyles[charIndex] = seg;
-          charIndex++;
-        }
-      }
-
-      // Render each line with styles applied per character run
-      let lineCharStart = 0;
-      for (let i = 0; i < lines.length; i++) {
-        const lineText = lines[i].text;
-        const lineY = y + i * tb.lineHeight;
-        let lineX = x;
-
-        if (align === "center") {
-          lineX = x + (tb.maxWidth - lines[i].width) / 2;
-        } else if (align === "right") {
-          lineX = x + tb.maxWidth - lines[i].width;
-        }
-
-        this.drawStyledRun(
-          ctx,
-          lineText,
-          lineX,
-          lineY,
-          charStyles,
-          lineCharStart,
-          tb.font,
-          tb.color,
-          tb.lineHeight,
-        );
-        lineCharStart += lineText.length;
-        // Skip whitespace between lines (word wrap consumes trailing spaces)
-        while (lineCharStart < plainChars && (plainText[lineCharStart] === " " || plainText[lineCharStart] === "\n")) {
-          lineCharStart++;
-        }
-      }
     } else {
       const lines = layoutTextBlock(plainText, tb.font, tb.maxWidth, tb.lineHeight);
-      for (let i = 0; i < lines.length; i++) {
-        const lineY = y + i * tb.lineHeight;
-        let lineX = x;
+      const alignX = (lineWidth: number) =>
+        align === "center"
+          ? x + (tb.maxWidth - lineWidth) / 2
+          : align === "right"
+            ? x + tb.maxWidth - lineWidth
+            : x;
 
-        if (align === "center") {
-          lineX = x + (tb.maxWidth - lines[i].width) / 2;
-        } else if (align === "right") {
-          lineX = x + tb.maxWidth - lines[i].width;
+      if (hasStyleTags) {
+        // Styled text: parse tags and render segments with per-character styling.
+        const segments = parseStyledText(tb.text, tb.font, tb.color);
+
+        // Build a flat char-to-style map from segments
+        let charIndex = 0;
+        const plainChars = plainText.length;
+        const charStyles: StyledSegment[] = new Array(plainChars);
+        for (const seg of segments) {
+          for (let ci = 0; ci < seg.text.length && charIndex < plainChars; ci++) {
+            charStyles[charIndex] = seg;
+            charIndex++;
+          }
         }
 
-        ctx.fillText(lines[i].text, lineX, lineY);
+        let lineCharStart = 0;
+        for (let i = 0; i < lines.length; i++) {
+          const lineText = lines[i].text;
+          this.drawStyledRun(
+            ctx,
+            lineText,
+            alignX(lines[i].width),
+            y + i * tb.lineHeight,
+            charStyles,
+            lineCharStart,
+            tb.font,
+            tb.color,
+            tb.lineHeight,
+          );
+          lineCharStart += lineText.length;
+          // Skip whitespace between lines (word wrap consumes trailing spaces)
+          while (
+            lineCharStart < plainChars &&
+            (plainText[lineCharStart] === " " || plainText[lineCharStart] === "\n")
+          ) {
+            lineCharStart++;
+          }
+        }
+      } else {
+        for (let i = 0; i < lines.length; i++) {
+          ctx.fillText(lines[i].text, alignX(lines[i].width), y + i * tb.lineHeight);
+        }
       }
     }
     ctx.restore();

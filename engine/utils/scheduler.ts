@@ -42,14 +42,11 @@ export class Scheduler {
     if (steps.length === 0) return this.nextId++;
     let accumulated = 0;
     const groupId = this.nextId++;
-    const ids: number[] = [];
     for (const step of steps) {
       accumulated += step.delay;
       const id = this.after(accumulated, step.fn);
-      // Tag the timer with the group so cancel removes all steps
       const timer = this.timers.find((t) => t.id === id);
       if (timer) timer.group = groupId;
-      ids.push(id);
     }
     return groupId;
   }

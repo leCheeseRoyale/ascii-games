@@ -101,7 +101,10 @@ let _actionsRegistered = false;
  */
 export function extendStore<T extends Record<string, unknown>>(slice: StoreSlice<T>): void {
   // Same slice being re-applied (e.g. HMR) — skip
-  if (_extensionInitialState && JSON.stringify(slice.initialState) === JSON.stringify(_extensionInitialState)) {
+  if (
+    _extensionInitialState &&
+    JSON.stringify(slice.initialState) === JSON.stringify(_extensionInitialState)
+  ) {
     return;
   }
 

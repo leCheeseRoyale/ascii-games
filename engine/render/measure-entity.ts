@@ -7,43 +7,33 @@
  *   - engine.spawnText() to compute per-character home positions
  */
 
-import type {
-  Ascii,
-  Collider,
-  Entity,
-  Sprite,
-  TextBlock,
-  VisualBounds,
-} from "@shared/types";
-import {
-  layoutTextBlock,
-  measureHeight,
-  measureLineWidth,
-  shrinkwrap,
-} from "./text-layout";
+import type { Ascii, Entity, SpawnInput, Sprite, TextBlock, VisualBounds } from "@shared/types";
+import { layoutTextBlock, measureHeight, measureLineWidth, shrinkwrap } from "./text-layout";
 
 /**
  * Replicate the font-scaling logic from ascii-renderer.ts for consistent measurement.
  */
-export function resolvedAsciiFont(ascii: Pick<Ascii, "font" | "scale">): string {
+function resolvedAsciiFont(ascii: Pick<Ascii, "font" | "scale">): string {
   if (!ascii.scale || ascii.scale === 1) return ascii.font;
   const size = parseFloat(ascii.font) * ascii.scale;
   const family = ascii.font.replace(/^[\d.]+px\s*/, "");
   return `${size}px ${family}`;
 }
 
-export function measureAsciiVisual(
-  ascii: Pick<Ascii, "char" | "font" | "scale">,
-): { width: number; height: number } {
+export function measureAsciiVisual(ascii: Pick<Ascii, "char" | "font" | "scale">): {
+  width: number;
+  height: number;
+} {
   const font = resolvedAsciiFont(ascii);
   const width = measureLineWidth(ascii.char, font);
   const height = parseFloat(font) || 16;
   return { width, height };
 }
 
-export function measureSpriteVisual(
-  sprite: Pick<Sprite, "lines" | "font">,
-): { width: number; height: number } {
+export function measureSpriteVisual(sprite: Pick<Sprite, "lines" | "font">): {
+  width: number;
+  height: number;
+} {
   let maxW = 0;
   for (const line of sprite.lines) {
     const w = measureLineWidth(line, sprite.font);
@@ -76,9 +66,7 @@ export function buildDirtyKey(entity: Partial<Entity>): string | null {
   return null;
 }
 
-function measureVisual(
-  entity: Partial<Entity>,
-): { width: number; height: number } | null {
+function measureVisual(entity: Partial<Entity>): { width: number; height: number } | null {
   if (entity.ascii) return measureAsciiVisual(entity.ascii);
   if (entity.sprite) return measureSpriteVisual(entity.sprite);
   if (entity.textBlock) return measureTextBlockVisual(entity.textBlock);
@@ -104,7 +92,7 @@ export function buildVisualBounds(entity: Partial<Entity>): VisualBounds | null 
  * Mutates the entity in place. Also attaches `visualBounds`.
  */
 export function resolveAutoCollider(components: Partial<Entity>): void {
-  if ((components as any).collider !== "auto") return;
+  if ((components as unknown as SpawnInput).collider !== "auto") return;
 
   const bounds = buildVisualBounds(components);
   if (!bounds) {
@@ -114,22 +102,12 @@ export function resolveAutoCollider(components: Partial<Entity>): void {
 
   components.visualBounds = bounds;
 
-  const isMultiLine =
-    (components.sprite && components.sprite.lines.length > 1) ||
-    components.textBlock != null;
-  const isSingleChar =
-    components.ascii != null && [...components.ascii.char].length === 1;
+  // Single characters get a circle collider; everything else gets a rect.
+  const isSingleChar = components.ascii != null && [...components.ascii.char].length === 1;
 
   if (isSingleChar) {
     const d = Math.max(bounds.width, bounds.height);
     components.collider = { type: "circle", width: d, height: d, _auto: true };
-  } else if (isMultiLine) {
-    components.collider = {
-      type: "rect",
-      width: bounds.width,
-      height: bounds.height,
-      _auto: true,
-    };
   } else {
     components.collider = {
       type: "rect",

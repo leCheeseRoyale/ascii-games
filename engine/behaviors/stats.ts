@@ -262,7 +262,7 @@ export function tickModifiers(stats: Stats, dt: number): StatModifier[] {
 // ── Persistence ─────────────────────────────────────────────────
 
 /** Serialize a `Stats` object to a plain JSON-safe structure. */
-export function serializeStats(stats: Stats): Record<string, any> {
+export function serializeStats(stats: Stats): Record<string, unknown> {
   return {
     base: { ...stats.base },
     modifiers: stats.modifiers.map((m) => ({
@@ -279,18 +279,21 @@ export function serializeStats(stats: Stats): Record<string, any> {
 }
 
 /** Rehydrate a previously serialized `Stats` object. */
-export function deserializeStats(data: Record<string, any>): Stats {
-  const base: Record<string, number> = { ...(data?.base ?? {}) };
-  const rawMods: any[] = Array.isArray(data?.modifiers) ? data.modifiers : [];
-  const modifiers: StatModifier[] = rawMods.map((m) => ({
-    id: m.id,
-    stat: m.stat,
-    type: m.type,
-    value: m.value,
-    duration: m.duration,
-    source: m.source,
-    stacking: m.stacking,
-    _remaining: m._remaining,
-  }));
+export function deserializeStats(data: Record<string, unknown>): Stats {
+  const base: Record<string, number> = { ...((data?.base as Record<string, number>) ?? {}) };
+  const rawMods: unknown[] = Array.isArray(data?.modifiers) ? data.modifiers : [];
+  const modifiers: StatModifier[] = rawMods.map((raw) => {
+    const m = raw as Record<string, unknown>;
+    return {
+      id: m.id as string,
+      stat: m.stat as string,
+      type: m.type as StatModifier["type"],
+      value: m.value as number,
+      duration: m.duration as number | undefined,
+      source: m.source as string | undefined,
+      stacking: m.stacking as StatModifier["stacking"],
+      _remaining: m._remaining as number | undefined,
+    };
+  });
   return { base, modifiers };
 }

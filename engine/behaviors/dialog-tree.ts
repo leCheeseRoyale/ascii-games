@@ -180,10 +180,7 @@ export async function runDialogTree(
       continue;
     }
 
-    // Visible, filtered choices
-    const visibleChoices: DialogChoice[] = (node.choices ?? []).filter(
-      (c: DialogChoice) => !c.condition || c.condition(ctx),
-    );
+    const visibleChoices = (node.choices ?? []).filter((c) => !c.condition || c.condition(ctx));
 
     const opts = {
       speaker: node.speaker,
@@ -195,9 +192,9 @@ export async function runDialogTree(
 
     if (visibleChoices.length > 0) {
       // Branching node — await a choice.
-      const idx: number = await engine.dialog.choice(
+      const idx = await engine.dialog.choice(
         node.text,
-        visibleChoices.map((c: DialogChoice) => c.text),
+        visibleChoices.map((c) => c.text),
         opts,
       );
 

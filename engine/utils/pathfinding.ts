@@ -68,11 +68,11 @@ class MinHeap<T> {
   }
 }
 
-export interface PathOptions {
+export interface PathOptions<T = unknown> {
   /** Allow diagonal movement. Default false. */
   diagonal?: boolean;
   /** Return true if the cell is walkable. Default: () => true. */
-  isWalkable?: (col: number, row: number, value: any) => boolean;
+  isWalkable?: (col: number, row: number, value: T | null) => boolean;
   /** Maximum iterations before giving up. Default: cols * rows * 2. */
   maxIterations?: number;
 }
@@ -94,7 +94,7 @@ export function findPath<T>(
   grid: GridMap<T>,
   start: { col: number; row: number },
   goal: { col: number; row: number },
-  options?: PathOptions,
+  options?: PathOptions<T>,
 ): { col: number; row: number }[] | null {
   const diagonal = options?.diagonal ?? false;
   const isWalkable = options?.isWalkable ?? (() => true);

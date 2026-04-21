@@ -155,10 +155,10 @@ export class SystemRunner {
             this.timings.set(sys.name, { last: elapsed, avg: elapsed, max: elapsed });
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         const count = (this.errorCounts.get(sys.name) ?? 0) + 1;
         this.errorCounts.set(sys.name, count);
-        const msg = `System "${sys.name}" threw: ${err?.message ?? String(err)}`;
+        const msg = `System "${sys.name}" threw: ${err instanceof Error ? err.message : String(err)}`;
         console.error(`[SystemRunner] ${msg}`, err);
         if (count <= 3) engine.debug.showError(msg);
       }

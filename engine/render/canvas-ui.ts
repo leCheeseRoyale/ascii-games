@@ -122,7 +122,7 @@ function _drawBorder(
   ctx.fillStyle = borderColor;
   ctx.textBaseline = "top";
 
-  const charW = _charWidth(ctx, font);
+  const charW = _charWidth(font);
   const fontSize = parseFloat(font) || 16;
   const lineH = fontSize * 1.3;
 
@@ -174,7 +174,7 @@ function _drawBorder(
 
 // ── Char width measurement ──────────────────────────────────────
 
-function _charWidth(_ctx: CanvasRenderingContext2D, font: string): number {
+function _charWidth(font: string): number {
   return measureLineWidth("M", font);
 }
 
@@ -285,6 +285,11 @@ export class CanvasUI {
   _queue: DrawFn[] = [];
   private ctx: CanvasRenderingContext2D;
   private _time = 0;
+
+  /** Internal access to the 2D context for same-file UI components. */
+  get _ctx(): CanvasRenderingContext2D {
+    return this.ctx;
+  }
 
   constructor(ctx: CanvasRenderingContext2D) {
     this.ctx = ctx;
@@ -461,7 +466,7 @@ export class CanvasUI {
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
         const titleX = resolved.x + w / 2;
-        const titleW = measureLineWidth(title, font) + _charWidth(ctx, font);
+        const titleW = measureLineWidth(title, font) + _charWidth(font);
         // Clear the border behind the title
         ctx.fillStyle = bg ?? DEFAULT_BG;
         ctx.fillRect(titleX - titleW / 2, resolved.y, titleW, _lineHeight(font));
@@ -531,7 +536,7 @@ export class CanvasUI {
         contentY += lh + 4;
         if (border !== "none") {
           const b = BORDERS[border];
-          const cw = _charWidth(ctx, font);
+          const cw = _charWidth(font);
           ctx.textAlign = "left";
           const hCount = Math.floor((panelW - padding * 2) / cw);
           for (let i = 0; i < hCount; i++) {
@@ -575,7 +580,7 @@ export class CanvasUI {
       ctx.textBaseline = "top";
       ctx.textAlign = "left";
 
-      const cw = _charWidth(ctx, font);
+      const cw = _charWidth(font);
       const clamped = Math.max(0, Math.min(1, ratio));
       const filled = Math.round(width * clamped);
 
@@ -676,7 +681,7 @@ export class CanvasUI {
 
   /** Get the width of a single monospace character for a given font. */
   charWidth(font: string): number {
-    return _charWidth(this.ctx, font);
+    return _charWidth(font);
   }
 
   // ── Render ──────────────────────────────────────────────────────
@@ -771,11 +776,11 @@ export class UIMenu {
     const color = this.color;
 
     ui._queue.push(() => {
-      const ctx = (ui as any).ctx as CanvasRenderingContext2D;
+      const ctx = ui._ctx;
       ctx.save();
       ctx.font = font;
 
-      const cw = _charWidth(ctx, font);
+      const cw = _charWidth(font);
       const lh = _lineHeight(font);
       const pad = 12;
       const titleH = title ? lh + 4 : 0;
@@ -938,7 +943,8 @@ export class DialogManager {
     this._color = opts?.color ?? DEFAULT_COLOR;
     this._bg = opts?.bg ?? DEFAULT_BG;
     this._borderColor = opts?.borderColor ?? DEFAULT_BORDER_COLOR;
-    this._speakerColor = opts?.speakerColor ?? (opts as UIChoiceOpts | undefined)?.selectedColor ?? "#00ff88";
+    this._speakerColor =
+      opts?.speakerColor ?? (opts as UIChoiceOpts | undefined)?.selectedColor ?? "#00ff88";
 
     this._revealed = 0;
     this._acc = 0;
@@ -1072,7 +1078,7 @@ export class DialogManager {
     const choiceIndex = this._choiceIndex;
 
     ui._queue.push(() => {
-      const ctx = (ui as any).ctx as CanvasRenderingContext2D;
+      const ctx = ui._ctx;
       ctx.save();
 
       const lh = _lineHeight(font);
@@ -1291,7 +1297,7 @@ export class UIScrollPanel {
     }
 
     // Clip to content area
-    const clipW = totalW - pad * 2 - _charWidth(ctx, this.font) - 4; // room for scrollbar
+    const clipW = totalW - pad * 2 - _charWidth(this.font) - 4; // room for scrollbar
     ctx.save();
     ctx.beginPath();
     ctx.rect(contentX, contentY, clipW, this.viewportRows * lh);
@@ -1311,7 +1317,7 @@ export class UIScrollPanel {
 
     // Draw scrollbar
     if (this.items.length > this.viewportRows) {
-      const cw = _charWidth(ctx, this.font);
+      const cw = _charWidth(this.font);
       const sbX = rx + totalW - pad - cw;
       const sbH = this.viewportRows * lh;
       const thumbRatio = this.viewportRows / this.items.length;
@@ -1943,7 +1949,7 @@ export class UITabs {
 
     // Draw tab bar
     const tabBarY = contentY;
-    const cw = _charWidth(ctx, this.font);
+    const cw = _charWidth(this.font);
     this._tabPositions = [];
 
     let tabX = rx + pad;

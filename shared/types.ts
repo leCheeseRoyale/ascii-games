@@ -194,10 +194,11 @@ export interface Animation {
 
 export interface StateMachineState {
   /** Called once when entering this state */
+  // biome-ignore lint/suspicious/noExplicitAny: Engine type lives in engine/ — shared/ cannot import it
   enter?: (entity: Partial<Entity>, engine: any) => void;
-  /** Called every frame while in this state */
+  // biome-ignore lint/suspicious/noExplicitAny: Engine type lives in engine/ — shared/ cannot import it
   update?: (entity: Partial<Entity>, engine: any, dt: number) => void;
-  /** Called once when leaving this state */
+  // biome-ignore lint/suspicious/noExplicitAny: Engine type lives in engine/ — shared/ cannot import it
   exit?: (entity: Partial<Entity>, engine: any) => void;
 }
 
@@ -323,7 +324,7 @@ export interface TileLegendEntry {
   color?: string;
   bg?: string;
   solid?: boolean;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /** Tilemap component — renders a grid of ASCII characters. */
@@ -372,17 +373,18 @@ export interface Entity {
   visualBounds: VisualBounds;
   spring: Spring;
 
-  /** Game-specific custom components. Use this for any data not covered above. */
+  // biome-ignore lint/suspicious/noExplicitAny: open-ended index signature for game-specific custom components
   [key: string]: any;
 }
 
 /** Helper for games to define typed custom entities. */
+// biome-ignore lint/suspicious/noExplicitAny: must match Entity's open index signature
 export type GameEntity<T extends Record<string, any> = {}> = Partial<Entity> & T;
 
 /** Input type for `engine.spawn()` — accepts `"auto"` for collider, resolved before entering the world. */
 export type SpawnInput = Omit<Partial<Entity>, "collider"> & {
-	/** Pass `"auto"` to auto-size from the entity's ascii/sprite/textBlock bounds via Pretext measurement. */
-	collider?: Collider | "auto";
+  /** Pass `"auto"` to auto-size from the entity's ascii/sprite/textBlock bounds via Pretext measurement. */
+  collider?: Collider | "auto";
 };
 
 // ── Engine types ─────────────────────────────────────────────────

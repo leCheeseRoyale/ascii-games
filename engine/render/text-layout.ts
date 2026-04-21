@@ -78,20 +78,15 @@ const preparedCache = new LRUCache<PreparedTextWithSegments>(MAX_CACHE_SIZE);
 // and also used by CanvasUI for per-chunk width reuse across frames.
 const widthCache = new LRUCache<number>(MAX_CACHE_SIZE);
 
-export interface PrepareOptions {
-  whiteSpace?: "normal" | "pre-wrap";
+function cacheKey(text: string, font: string): string {
+  return `${font}\x00${text}`;
 }
 
-function cacheKey(text: string, font: string, opts?: PrepareOptions): string {
-  if (!opts?.whiteSpace) return `${font}\x00${text}`;
-  return `${font}\x00${opts.whiteSpace}\x00${text}`;
-}
-
-function getSegments(text: string, font: string, opts?: PrepareOptions): PreparedTextWithSegments {
-  const k = cacheKey(text, font, opts);
+function getSegments(text: string, font: string): PreparedTextWithSegments {
+  const k = cacheKey(text, font);
   let p = preparedCache.get(k);
   if (!p) {
-    p = prepareWithSegments(text, font, opts);
+    p = prepareWithSegments(text, font);
     preparedCache.set(k, p);
   }
   return p;
@@ -104,25 +99,13 @@ export function clearTextCache(): void {
   clearPretextCache();
 }
 
-// ── Pretext helpers (not yet exported by @chenglou/pretext@0.0.4) ──
-
-function measureNaturalWidth(prepared: PreparedTextWithSegments): number {
+/** Widest line when text is wrapped at maxWidth (Infinity = natural/unwrapped width). */
+function measureMaxLineWidth(prepared: PreparedTextWithSegments, maxWidth: number): number {
   let max = 0;
-  walkLineRanges(prepared, Infinity, (line) => {
+  walkLineRanges(prepared, maxWidth, (line) => {
     if (line.width > max) max = line.width;
   });
   return max;
-}
-
-function measureLineStats(
-  prepared: PreparedTextWithSegments,
-  maxWidth: number,
-): { lineCount: number; maxLineWidth: number } {
-  let maxLineWidth = 0;
-  const lineCount = walkLineRanges(prepared, maxWidth, (line) => {
-    if (line.width > maxLineWidth) maxLineWidth = line.width;
-  });
-  return { lineCount, maxLineWidth };
 }
 
 // ── Rich Text Parsing ───────────────────────────────────────────
@@ -297,8 +280,7 @@ export function getLineCount(text: string, font: string, maxWidth: number): numb
  * Returns a ceiled integer suitable for container sizing.
  */
 export function shrinkwrap(text: string, font: string, maxWidth: number): number {
-  const { maxLineWidth } = measureLineStats(getSegments(text, font), maxWidth);
-  return Math.ceil(maxLineWidth);
+  return Math.ceil(measureMaxLineWidth(getSegments(text, font), maxWidth));
 }
 
 /**
@@ -309,7 +291,7 @@ export function measureLineWidth(text: string, font: string): number {
   const k = cacheKey(text, font);
   const cached = widthCache.get(k);
   if (cached !== undefined) return cached;
-  const w = measureNaturalWidth(getSegments(text, font));
+  const w = measureMaxLineWidth(getSegments(text, font), Infinity);
   widthCache.set(k, w);
   return w;
 }

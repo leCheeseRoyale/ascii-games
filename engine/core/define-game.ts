@@ -60,6 +60,7 @@ export type MoveResult = void | "invalid";
 /** A single move — receives a live `ctx` and any caller arguments. */
 export type MoveFn<
   TState,
+  // biome-ignore lint/suspicious/noExplicitAny: rest-args must use any[] for contravariant assignability of concrete moves
   TArgs extends any[] = any[],
   TPlayer extends string | number = string | number,
 > = (ctx: GameContext<TState, TPlayer>, ...args: TArgs) => MoveResult;
@@ -67,11 +68,13 @@ export type MoveFn<
 /** Map of move name → move function. */
 export type MovesMap<TState, TPlayer extends string | number = string | number> = Record<
   string,
+  // biome-ignore lint/suspicious/noExplicitAny: must match MoveFn's any[] constraint
   MoveFn<TState, any[], TPlayer>
 >;
 
 /** Bound moves: same names, with the ctx pre-bound so callers just pass args. */
 export type BoundMoves<TState, TMoves extends MovesMap<TState>> = {
+  // biome-ignore lint/suspicious/noExplicitAny: infer pattern requires matching any ctx shape
   [K in keyof TMoves]: TMoves[K] extends (ctx: any, ...args: infer A) => infer R
     ? (...args: A) => R
     : never;
@@ -98,6 +101,7 @@ export interface GameContext<TState, TPlayer extends string | number = string | 
   numPlayers: number;
   /** Bound moves — call as `ctx.moves.placeMark(5)`. Returns `'invalid'` if
    * rejected, `'game-over'` if dispatched after the game ended. */
+  // biome-ignore lint/suspicious/noExplicitAny: callers pass heterogeneous args per-move
   moves: Record<string, (...args: any[]) => MoveResult | "game-over">;
   /** Deterministic seeded RNG in [0, 1). */
   random: () => number;
@@ -168,7 +172,10 @@ export interface SetupContext {
 }
 
 /** The full game definition. */
-export interface GameDefinition<TState = any, TPlayer extends string | number = string | number> {
+export interface GameDefinition<
+  TState = unknown,
+  TPlayer extends string | number = string | number,
+> {
   name: string;
   players?: PlayersConfig;
   /** Optional deterministic seed — if set, `ctx.random()` is reproducible across runs. */
@@ -208,9 +215,10 @@ export interface GameDefinition<TState = any, TPlayer extends string | number = 
  * player types from an inline `turns.order: ['X', 'O']` — no `as const`
  * needed — so `ctx.currentPlayer` narrows to `'X' | 'O'` automatically.
  */
-export function defineGame<TState = any, const TPlayer extends string | number = string | number>(
-  def: GameDefinition<TState, TPlayer>,
-): GameDefinition<TState, TPlayer> {
+export function defineGame<
+  TState = unknown,
+  const TPlayer extends string | number = string | number,
+>(def: GameDefinition<TState, TPlayer>): GameDefinition<TState, TPlayer> {
   return def;
 }
 
@@ -233,6 +241,7 @@ export class GameRuntime<TState, TPlayer extends string | number = string | numb
   private _numPlayers: number;
   private _phaseOrder: string[] = [];
   private _currentPhase: string | null = null;
+  // biome-ignore lint/suspicious/noExplicitAny: callers pass heterogeneous args per-move
   private _boundMoves: Record<string, (...args: any[]) => MoveResult | "game-over"> = {};
 
   constructor(def: GameDefinition<TState, TPlayer>, engine: Engine) {
@@ -247,6 +256,7 @@ export class GameRuntime<TState, TPlayer extends string | number = string | numb
         : (Array.from({ length: this._numPlayers }, (_, i) => i + 1) as TPlayer[]);
     this._phaseOrder = def.phases?.order ?? [];
     for (const name of Object.keys(def.moves)) {
+      // biome-ignore lint/suspicious/noExplicitAny: callers pass heterogeneous args per-move
       this._boundMoves[name] = (...args: any[]) => this.dispatch(name, args);
     }
   }
@@ -313,6 +323,7 @@ export class GameRuntime<TState, TPlayer extends string | number = string | numb
    * Dispatch a move by name. Returns `'invalid'` if the move rejected,
    * `'game-over'` if the game has already ended, or `undefined` on success.
    */
+  // biome-ignore lint/suspicious/noExplicitAny: callers pass heterogeneous args per-move
   dispatch(name: string, args: any[]): MoveResult | "game-over" {
     if (this._result !== null) return "game-over";
 

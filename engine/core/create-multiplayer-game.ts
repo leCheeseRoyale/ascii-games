@@ -154,18 +154,14 @@ async function createLocalMultiplayerGame<TState>(
 
   const handles: Array<MultiplayerGameHandle<TState>> = adapters.map((adapter) => {
     const engine = opts.engineFactory();
-    const sceneName = engine.runGame(game);
+    engine.runGame(game);
     const runtime = engine.game as GameRuntime<TState>;
     if (!runtime) {
       throw new Error("createMultiplayerGame: engine.game is null after runGame");
     }
 
-    // Start runtime so state is populated BEFORE any moves flow.
     runtime.start();
 
-    // Compute the first active player from the runtime's turn order — if the
-    // user's turns.order uses peer ids directly, this matches; otherwise we
-    // fall back to the first peerId in playerIds.
     const initialActive = resolveActivePlayerId(runtime, playerIds);
 
     const turnSync = new TurnSync<GameMove>({
@@ -205,11 +201,10 @@ async function createLocalMultiplayerGame<TState>(
         try {
           engine.stop();
         } catch {
-          // engine.stop may throw if never started (no canvas) — ignore.
+          // engine.stop may throw if never started (no canvas)
         }
       },
     };
-    void sceneName;
     return handle;
   });
 
@@ -294,7 +289,7 @@ async function createSocketMultiplayerGame<TState>(
   const playerIds = await waitForPlayers(adapter, expectedPlayers);
 
   const engine = opts.engineFactory();
-  const sceneName = engine.runGame(game);
+  engine.runGame(game);
   const runtime = engine.game as GameRuntime<TState>;
   if (!runtime) throw new Error("createMultiplayerGame: engine.game is null after runGame");
 
@@ -338,11 +333,10 @@ async function createSocketMultiplayerGame<TState>(
       try {
         engine.stop();
       } catch {
-        // see local transport
+        // engine.stop may throw if never started (no canvas)
       }
     },
   };
-  void sceneName;
   return handle;
 }
 

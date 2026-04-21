@@ -3,8 +3,8 @@
  * No audio files needed — tiny synthesized sound effects and tracker music.
  */
 
+import { type Channel, type Instrument, type Pattern, ZZFXM } from "@zzfx-studio/zzfxm";
 import { zzfx } from "zzfx";
-import { ZZFXM, type Instrument, type Pattern, type Channel } from "@zzfx-studio/zzfxm";
 
 let masterVolume = 1.0;
 let muted = false;
@@ -175,7 +175,10 @@ let currentTracker: AudioBufferSourceNode | null = null;
  * current tracker — call `playTrackerMusic` again to apply new volume, or
  * `stopTrackerMusic` to silence it.
  */
-export function playTrackerMusic(song: TrackerSong, opts?: { loop?: boolean; volume?: number }): void {
+export function playTrackerMusic(
+  song: TrackerSong,
+  opts?: { loop?: boolean; volume?: number },
+): void {
   stopTrackerMusic();
   if (muted) return;
 
@@ -188,10 +191,14 @@ export function playTrackerMusic(song: TrackerSong, opts?: { loop?: boolean; vol
 /** Stop current tracker music. */
 export function stopTrackerMusic(): void {
   if (currentTracker) {
-    try { currentTracker.stop(); } catch { /* already stopped */ }
+    try {
+      currentTracker.stop();
+    } catch {
+      /* already stopped */
+    }
     currentTracker = null;
   }
 }
 
 // Re-export ZzFXM types for game code convenience
-export type { Instrument, Pattern, Channel };
+export type { Channel, Instrument, Pattern };

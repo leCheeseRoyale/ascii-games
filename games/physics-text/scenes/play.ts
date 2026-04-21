@@ -24,9 +24,9 @@ import { defineScene, defineSystem, FONTS } from "@engine";
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const SPRINGS = {
-  stiff:  { strength: 0.12, damping: 0.90 },  // Title: snaps back quickly
-  bouncy: { strength: 0.08, damping: 0.88 },  // Creature: responsive, bouncy
-  floaty: { strength: 0.04, damping: 0.95 },  // Stars/mountains: slow, dreamy
+  stiff: { strength: 0.12, damping: 0.9 }, // Title: snaps back quickly
+  bouncy: { strength: 0.08, damping: 0.88 }, // Creature: responsive, bouncy
+  floaty: { strength: 0.04, damping: 0.95 }, // Stars/mountains: slow, dreamy
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -246,8 +246,8 @@ export const playScene = defineScene({
       () => starColor(),
       SPRINGS.floaty,
       "star",
-      0,       // layer (render order)
-      300,     // initial scatter radius
+      0, // layer (render order)
+      300, // initial scatter radius
     );
 
     // ── Layer 1: Mountains ────────────────────────────────────────

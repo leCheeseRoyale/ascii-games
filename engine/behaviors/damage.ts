@@ -92,25 +92,23 @@ export function createDamageSystem(config?: DamageSystemConfig): System {
 
         // Remove transient damage component before callbacks so newly
         // applied damage in callbacks is not silently dropped.
-        const savedDamage = damage;
         delete entity.damage;
 
         events.emit("combat:damage-taken", {
           entity,
-          amount: savedDamage.amount,
-          source: savedDamage.source,
-          type: savedDamage.type,
+          amount: damage.amount,
+          source: damage.source,
+          type: damage.type,
           remainingHp: Math.max(0, entity.health.current),
         });
 
-        // Check for death
         if (entity.health.current <= 0) {
           entity.health.current = 0;
-          config?.onDeath?.(entity, savedDamage, engine);
+          config?.onDeath?.(entity, damage, engine);
           events.emit("combat:entity-defeated", {
             entity,
-            source: savedDamage.source,
-            type: savedDamage.type,
+            source: damage.source,
+            type: damage.type,
           });
         }
       }

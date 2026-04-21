@@ -100,34 +100,26 @@ export class Transition {
       alpha = 1 - t; // 1 → 0
     }
 
+    ctx.save();
     switch (this.type) {
       case "fade":
-        ctx.save();
-        ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
+      case "fadeWhite": {
+        const rgb = this.type === "fade" ? "0, 0, 0" : "255, 255, 255";
+        ctx.fillStyle = `rgba(${rgb}, ${alpha})`;
         ctx.fillRect(0, 0, width, height);
-        ctx.restore();
         break;
-
-      case "fadeWhite":
-        ctx.save();
-        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-        ctx.fillRect(0, 0, width, height);
-        ctx.restore();
-        break;
+      }
 
       case "wipe":
-        ctx.save();
         ctx.fillStyle = "#000000";
         if (this.phase === "out") {
           ctx.fillRect(0, 0, width * t, height);
         } else {
           ctx.fillRect(width * (1 - t), 0, width * t, height);
         }
-        ctx.restore();
         break;
 
       case "dissolve": {
-        ctx.save();
         ctx.font = '16px "Fira Code", monospace';
         ctx.textBaseline = "top";
         ctx.textAlign = "left";
@@ -140,7 +132,6 @@ export class Transition {
 
         for (let gx = 0; gx < gridW; gx++) {
           for (let gy = 0; gy < gridH; gy++) {
-            // Deterministic pseudo-random threshold per cell
             const seed = Math.sin(gx * 12.9898 + gy * 78.233) * 43758.5453;
             const threshold = Math.abs(seed % 1);
             if (threshold < alpha) {
@@ -150,12 +141,10 @@ export class Transition {
             }
           }
         }
-        ctx.restore();
         break;
       }
 
       case "scanline": {
-        ctx.save();
         ctx.fillStyle = "#000000";
         const lineH = 3;
         const numLines = Math.ceil(height / lineH);
@@ -166,12 +155,12 @@ export class Transition {
             ctx.fillRect(0, i * lineH, width, lineH);
           }
         }
-        ctx.restore();
         break;
       }
 
       case "none":
         break;
     }
+    ctx.restore();
   }
 }

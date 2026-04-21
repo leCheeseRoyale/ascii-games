@@ -109,7 +109,7 @@ export interface NetworkAdapter {
  * to roll their own subscription bookkeeping. Each adapter composes one of
  * these per event type.
  */
-export class NetEmitter<T extends (...args: any[]) => void> {
+export class NetEmitter<T extends (...args: never[]) => void> {
   private handlers = new Set<T>();
 
   on(handler: T): Unsubscribe {

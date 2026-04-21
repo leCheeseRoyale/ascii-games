@@ -253,7 +253,7 @@ export function equipItem(
     equipment.slots[slotId] = null;
     displaced.push(existing);
     if (engine) {
-      events.emit("equipment:unequip" as any, {
+      events.emit("equipment:unequip", {
         entity,
         item: existing,
         slotId,
@@ -271,7 +271,7 @@ export function equipItem(
         equipment.slots[blockedId] = null;
         displaced.push(blocker);
         if (engine) {
-          events.emit("equipment:unequip" as any, {
+          events.emit("equipment:unequip", {
             entity,
             item: blocker,
             slotId: blockedId,
@@ -286,7 +286,7 @@ export function equipItem(
   applyModifiers(stats, item, slotId);
 
   if (engine) {
-    events.emit("equipment:equip" as any, {
+    events.emit("equipment:equip", {
       entity,
       item,
       slotId,
@@ -316,7 +316,7 @@ export function unequipItem(
   equipment.slots[slotId] = null;
 
   if (engine) {
-    events.emit("equipment:unequip" as any, {
+    events.emit("equipment:unequip", {
       entity,
       item,
       slotId,
@@ -345,7 +345,7 @@ export function clearEquipment(
     equipment.slots[slotId] = null;
     removed.push(item);
     if (engine) {
-      events.emit("equipment:unequip" as any, {
+      events.emit("equipment:unequip", {
         entity,
         item,
         slotId,

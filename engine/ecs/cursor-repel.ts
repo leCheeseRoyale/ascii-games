@@ -1,5 +1,4 @@
 import { defineSystem } from "./systems";
-import type { Engine } from "../core/engine";
 
 export interface CursorRepelOpts {
   /** Repulsion radius in pixels. Default 100. */
@@ -18,14 +17,13 @@ export function createCursorRepelSystem(opts?: CursorRepelOpts) {
 
   return defineSystem({
     name: "cursor-repel",
-    update(engine: Engine) {
-      // Convert screen mouse to world coordinates
+    update(engine) {
       const cam = engine.camera;
       const mx = engine.mouse.x + cam.x - engine.width / 2;
       const my = engine.mouse.y + cam.y - engine.height / 2;
 
       for (const e of engine.world.with("position", "velocity", "spring")) {
-        if (tag && (!e.tags || !e.tags.values.has(tag))) continue;
+        if (tag && !e.tags?.values.has(tag)) continue;
 
         const dx = e.position.x - mx;
         const dy = e.position.y - my;

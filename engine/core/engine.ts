@@ -1,22 +1,16 @@
-/**
- * Engine — the main orchestrator.
- *
- * Owns: ECS world, renderer, input, camera, particles, scheduler, game loop, scenes.
- * Exposes a clean API for scenes and systems to use.
- *
- * Lifecycle:
- *   1. new Engine(canvas, config)
- *   2. engine.registerScene(scene)
- *   3. engine.start('title')
- *   4. Per frame: input → systems → tweens → scene.update → timers → camera → render
- *   5. engine.stop()
- */
-
 import { events } from "@shared/events";
-import type { AnimationFrame, EngineConfig, Entity, GameTime, SpawnInput, TweenEntry } from "@shared/types";
+import type {
+  AnimationFrame,
+  EngineConfig,
+  Entity,
+  GameTime,
+  SpawnInput,
+  TweenEntry,
+} from "@shared/types";
 import { DEFAULT_CONFIG } from "@shared/types";
 import type { ArtAsset } from "../data/art-asset";
 import { animationSystem } from "../ecs/animation-system";
+import { createCollisionEventSystem } from "../ecs/collision-event-system";
 import { emitterSystem } from "../ecs/emitter-system";
 import { lifetimeSystem } from "../ecs/lifetime-system";
 import { measureSystem } from "../ecs/measure-system";
@@ -25,14 +19,9 @@ import { screenBoundsSystem } from "../ecs/screen-bounds-system";
 import { springSystem } from "../ecs/spring-system";
 import { stateMachineSystem } from "../ecs/state-machine-system";
 import { type System, SystemRunner } from "../ecs/systems";
+import { trailSystem } from "../ecs/trail-system";
 import { tweenSystem } from "../ecs/tween-system";
 import { createWorld, type GameWorld } from "../ecs/world";
-import {
-  measureCharacterPositions,
-  measureSpriteCharacterPositions,
-  resolveAutoCollider,
-  type CharacterPosition,
-} from "../render/measure-entity";
 import { Gamepad } from "../input/gamepad";
 import { Keyboard } from "../input/keyboard";
 import { Mouse } from "../input/mouse";
@@ -42,6 +31,11 @@ import { Camera } from "../render/camera";
 import { CanvasUI, DialogManager } from "../render/canvas-ui";
 import { DebugOverlay } from "../render/debug";
 import { loadImage, preloadImages } from "../render/image-loader";
+import {
+  measureCharacterPositions,
+  measureSpriteCharacterPositions,
+  resolveAutoCollider,
+} from "../render/measure-entity";
 import { ParticlePool } from "../render/particles";
 import { ToastManager } from "../render/toast";
 import { Transition, type TransitionType } from "../render/transitions";
@@ -49,8 +43,6 @@ import { Viewport } from "../render/viewport";
 import { Scheduler } from "../utils/scheduler";
 import { buildGameScene, type GameDefinition, GameRuntime } from "./define-game";
 import { GameLoop } from "./game-loop";
-import { createCollisionEventSystem } from "../ecs/collision-event-system";
-import { trailSystem } from "../ecs/trail-system";
 import { type Scene, SceneManager } from "./scene";
 import { TurnManager } from "./turn-manager";
 
@@ -126,6 +118,7 @@ export class Engine {
   }
 
   /** Data passed to the current scene via loadScene(name, { data }). */
+  // biome-ignore lint/suspicious/noExplicitAny: game-specific scene data — callers expect arbitrary value access
   get sceneData(): Record<string, any> {
     return this._sceneData;
   }
@@ -134,6 +127,7 @@ export class Engine {
   private loop: GameLoop;
   private _onResize: (() => void) | null = null;
   private _sceneTime = 0;
+  // biome-ignore lint/suspicious/noExplicitAny: game-specific scene data
   private _sceneData: Record<string, any> = {};
   private _flash: { color: string; remaining: number; duration: number } | null = null;
   private _collisionManager: ReturnType<typeof createCollisionEventSystem> | null = null;
@@ -183,11 +177,9 @@ export class Engine {
   // ── Entity helpers ────────────────────────────────────────────
 
   spawn(components: SpawnInput): Partial<Entity> {
-    // resolveAutoCollider replaces collider: "auto" with a concrete Collider in-place.
     resolveAutoCollider(components as Partial<Entity>);
-    const resolved = components as Partial<Entity>;
-    this.validateEntity(resolved);
-    return this.world.add(resolved as Entity);
+    this.validateEntity(components as Partial<Entity>);
+    return this.world.add(components as Entity);
   }
 
   private validateEntity(components: Partial<Entity>): void {
@@ -442,30 +434,10 @@ export class Engine {
     tags?: string[];
     collider?: boolean;
   }): Partial<Entity>[] {
-    const {
-      text, font, position: pos, color = "#e0e0e0",
-      spring: springOpts, maxWidth = Infinity,
-      layer = 0, tags: extraTags = [], collider: addCollider = true,
-    } = opts;
+    const { text, font, position: pos, maxWidth = Infinity } = opts;
     const lineHeight = opts.lineHeight ?? (parseFloat(font) || 16) * 1.3;
-    const strength = springOpts?.strength ?? 0.08;
-    const damping = springOpts?.damping ?? 0.93;
-
     const chars = measureCharacterPositions(text, font, pos.x, pos.y, maxWidth, lineHeight);
-    const entities: Partial<Entity>[] = [];
-
-    for (const ch of chars) {
-      const components: SpawnInput = {
-        position: { x: ch.homeX, y: ch.homeY },
-        velocity: { vx: 0, vy: 0 },
-        ascii: { char: ch.char, font, color, layer },
-        spring: { targetX: ch.homeX, targetY: ch.homeY, strength, damping },
-      };
-      if (addCollider) components.collider = "auto";
-      if (extraTags.length > 0) components.tags = { values: new Set(extraTags) };
-      entities.push(this.spawn(components));
-    }
-    return entities;
+    return this.spawnCharEntities(chars, opts);
   }
 
   /**
@@ -482,14 +454,33 @@ export class Engine {
     tags?: string[];
     collider?: boolean;
   }): Partial<Entity>[] {
+    const { lines, font, position: pos } = opts;
+    const chars = measureSpriteCharacterPositions(lines, font, pos.x, pos.y);
+    return this.spawnCharEntities(chars, opts);
+  }
+
+  /** Shared spawn loop for spawnText/spawnSprite — turns measured characters into spring entities. */
+  private spawnCharEntities(
+    chars: { char: string; homeX: number; homeY: number }[],
+    opts: {
+      font: string;
+      color?: string;
+      spring?: { strength?: number; damping?: number };
+      layer?: number;
+      tags?: string[];
+      collider?: boolean;
+    },
+  ): Partial<Entity>[] {
     const {
-      lines, font, position: pos, color = "#e0e0e0",
-      spring: springOpts, layer = 0, tags: extraTags = [], collider: addCollider = true,
+      font,
+      color = "#e0e0e0",
+      spring: springOpts,
+      layer = 0,
+      tags: extraTags = [],
+      collider: addCollider = true,
     } = opts;
     const strength = springOpts?.strength ?? 0.08;
     const damping = springOpts?.damping ?? 0.93;
-
-    const chars = measureSpriteCharacterPositions(lines, font, pos.x, pos.y);
     const entities: Partial<Entity>[] = [];
 
     for (const ch of chars) {
@@ -508,7 +499,7 @@ export class Engine {
 
   // ── Tween helper ──────────────────────────────────────────────
 
-  /** Add a tween to an entity. Convenience wrapper. */
+  /** Add a tween to an entity. */
   tweenEntity(
     entity: Partial<Entity>,
     property: string,
@@ -518,11 +509,10 @@ export class Engine {
     ease: TweenEntry["ease"] = "easeOut",
     destroyOnComplete = false,
   ): void {
-    const e = entity as any;
-    if (!e.tween) {
-      e.tween = { tweens: [] };
+    if (!entity.tween) {
+      entity.tween = { tweens: [] };
     }
-    e.tween.tweens.push({ property, from, to, duration, elapsed: 0, ease, destroyOnComplete });
+    entity.tween.tweens.push({ property, from, to, duration, elapsed: 0, ease, destroyOnComplete });
   }
 
   // ── Animation helpers ────────────────────────────────────────────
@@ -534,22 +524,19 @@ export class Engine {
     frameDuration = 0.1,
     loop = true,
   ): void {
-    const e = entity as any;
-    e.animation = { frames, frameDuration, currentFrame: 0, elapsed: 0, loop, playing: true };
-    // Apply first frame immediately
+    entity.animation = { frames, frameDuration, currentFrame: 0, elapsed: 0, loop, playing: true };
     const first = frames[0];
-    if (first.char && e.ascii) e.ascii.char = first.char;
-    if (first.lines && e.sprite) e.sprite.lines = first.lines;
+    if (first.char && entity.ascii) entity.ascii.char = first.char;
+    if (first.lines && entity.sprite) entity.sprite.lines = first.lines;
     if (first.color) {
-      if (e.ascii) e.ascii.color = first.color;
-      if (e.sprite) e.sprite.color = first.color;
+      if (entity.ascii) entity.ascii.color = first.color;
+      if (entity.sprite) entity.sprite.color = first.color;
     }
   }
 
   /** Stop animation on an entity. */
   stopAnimation(entity: Partial<Entity>): void {
-    const e = entity as any;
-    if (e.animation) e.animation.playing = false;
+    if (entity.animation) entity.animation.playing = false;
   }
 
   // ── Timer helpers (delegate to scheduler) ─────────────────────
@@ -608,48 +595,39 @@ export class Engine {
     offsetX = 0,
     offsetY = 0,
   ): void {
-    const p = parentEntity as any;
-    const c = childEntity as any;
+    childEntity.child = { parent: parentEntity, offsetX, offsetY };
 
-    // Set up child component
-    c.child = { parent: parentEntity, offsetX, offsetY };
-
-    // Set up parent tracking
-    if (!p.parent) p.parent = { children: [] };
-    if (!p.parent.children.includes(childEntity)) {
-      p.parent.children.push(childEntity);
+    if (!parentEntity.parent) parentEntity.parent = { children: [] };
+    if (!parentEntity.parent.children.includes(childEntity)) {
+      parentEntity.parent.children.push(childEntity);
     }
 
-    // Immediately sync position
-    if (p.position && c.position) {
-      c.position.x = p.position.x + offsetX;
-      c.position.y = p.position.y + offsetY;
+    if (parentEntity.position && childEntity.position) {
+      childEntity.position.x = parentEntity.position.x + offsetX;
+      childEntity.position.y = parentEntity.position.y + offsetY;
     }
   }
 
   /** Detach a child from its parent. Position stays at current world position. */
   detachChild(childEntity: Partial<Entity>): void {
-    const c = childEntity as any;
-    if (!c.child) return;
+    if (!childEntity.child) return;
 
-    const parentEntity = c.child.parent as any;
-    if (parentEntity?.parent?.children) {
-      const idx = parentEntity.parent.children.indexOf(childEntity);
-      if (idx >= 0) parentEntity.parent.children.splice(idx, 1);
+    const parent = childEntity.child.parent as Partial<Entity>;
+    if (parent?.parent?.children) {
+      const idx = parent.parent.children.indexOf(childEntity);
+      if (idx >= 0) parent.parent.children.splice(idx, 1);
     }
 
-    delete c.child;
+    delete childEntity.child;
   }
 
   /** Destroy an entity and all its children recursively. */
   destroyWithChildren(entity: Partial<Entity>): void {
-    const p = entity as any;
-    if (p.parent?.children) {
-      for (const child of [...p.parent.children]) {
+    if (entity.parent?.children) {
+      for (const child of [...entity.parent.children]) {
         this.destroyWithChildren(child);
       }
     }
-    // Detach from own parent if any
     this.detachChild(entity);
     this.world.remove(entity as Entity);
   }
@@ -663,9 +641,11 @@ export class Engine {
   // ── Declarative game helper ───────────────────────────────────
 
   /** Active `defineGame` runtime — set by `runGame`, read by render/input code. */
+  // biome-ignore lint/suspicious/noExplicitAny: erased game-state generic — runGame provides the concrete type
   private _gameRuntime: GameRuntime<any, any> | null = null;
 
   /** The currently-running declarative game runtime, if any. */
+  // biome-ignore lint/suspicious/noExplicitAny: erased game-state generic — runGame provides the concrete type
   get game(): GameRuntime<any, any> | null {
     return this._gameRuntime;
   }
@@ -700,6 +680,7 @@ export class Engine {
    */
   async loadScene(
     name: string,
+    // biome-ignore lint/suspicious/noExplicitAny: game-specific scene data
     opts?: { transition?: TransitionType; duration?: number; data?: Record<string, any> },
   ): Promise<void> {
     this._sceneData = opts?.data ?? {};
@@ -774,8 +755,8 @@ export class Engine {
     try {
       this.systems.update(this, dt); // includes tweenSystem
       this.scenes.update(this, dt);
-    } catch (err: any) {
-      this.debug.showError(err?.message ?? String(err));
+    } catch (err: unknown) {
+      this.debug.showError(err instanceof Error ? err.message : String(err));
       console.error("Game error:", err);
     }
 

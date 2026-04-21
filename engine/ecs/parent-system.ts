@@ -19,9 +19,9 @@ export const parentSystem: System = {
     for (const entity of engine.world.with("child", "position")) {
       const child = entity.child;
       const parent = child.parent as Partial<Entity>;
-      if (parent && (parent as any).position) {
-        entity.position.x = (parent as any).position.x + child.offsetX;
-        entity.position.y = (parent as any).position.y + child.offsetY;
+      if (parent?.position) {
+        entity.position.x = parent.position.x + child.offsetX;
+        entity.position.y = parent.position.y + child.offsetY;
       }
     }
   },

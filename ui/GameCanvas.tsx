@@ -20,7 +20,7 @@ interface GameSetupResult {
   startScene: string;
   screens?: Record<string, ComponentType>;
   hud?: ComponentType[];
-  store?: StoreSlice<any>;
+  store?: StoreSlice<Record<string, unknown>>;
 }
 
 export function GameCanvas({ children }: { children?: React.ReactNode }) {

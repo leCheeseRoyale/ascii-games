@@ -37,7 +37,7 @@
  * ```
  */
 
-import type { AchievementTracker } from "../behaviors/achievements";
+import type { AchievementState, AchievementTracker } from "../behaviors/achievements";
 import type { CurrencyWallet, SerializedWallet } from "../behaviors/currency";
 import { deserializeWallet, serializeWallet } from "../behaviors/currency";
 import {
@@ -55,16 +55,16 @@ import {
   type SerializedInventory,
   serializeInventory,
 } from "../behaviors/inventory";
-import type { QuestTracker } from "../behaviors/quests";
+import type { QuestState, QuestTracker } from "../behaviors/quests";
 import { deserializeStats, type Stats, serializeStats } from "../behaviors/stats";
 
 export interface SerializedGameState {
-  stats?: Record<string, any>;
+  stats?: Record<string, unknown>;
   equipment?: SerializedEquipment;
   inventory?: SerializedInventory;
   wallet?: SerializedWallet;
-  quests?: Record<string, any>;
-  achievements?: Record<string, any>;
+  quests?: Record<string, unknown>;
+  achievements?: Record<string, unknown>;
   /**
    * Opaque per-game data — the engine never reads it. Use this to bundle
    * game-specific state (board layout, deck, hero HP, etc.) into the same
@@ -170,9 +170,10 @@ export function rehydrateGameState(
 
   if (data.wallet) out.wallet = deserializeWallet(data.wallet);
 
-  if (data.quests && opts.quests) opts.quests.deserialize(data.quests as any);
+  if (data.quests && opts.quests)
+    opts.quests.deserialize(data.quests as Record<string, QuestState>);
   if (data.achievements && opts.achievements)
-    opts.achievements.deserialize(data.achievements as any);
+    opts.achievements.deserialize(data.achievements as Record<string, AchievementState>);
 
   if (data.custom) out.custom = data.custom;
 

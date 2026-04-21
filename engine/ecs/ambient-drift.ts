@@ -19,7 +19,7 @@ export function createAmbientDriftSystem(opts?: AmbientDriftOpts) {
     update(engine, _dt) {
       const time = engine.time.elapsed;
       for (const e of engine.world.with("position", "velocity", "spring")) {
-        if (tag && (!e.tags || !e.tags.values.has(tag))) continue;
+        if (tag && !e.tags?.values.has(tag)) continue;
         // Unique phase per entity based on home position
         const phase = e.spring.targetX * 0.01 + e.spring.targetY * 0.013;
         e.velocity.vx += Math.sin(time * speed + phase) * amplitude;

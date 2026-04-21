@@ -55,8 +55,8 @@ export class SceneManager {
     this.current = scene;
     try {
       await scene.setup(engine);
-    } catch (err: any) {
-      const msg = `Scene "${name}" setup failed: ${err?.message ?? String(err)}`;
+    } catch (err: unknown) {
+      const msg = `Scene "${name}" setup failed: ${err instanceof Error ? err.message : String(err)}`;
       console.error(`[SceneManager] ${msg}`, err);
       engine.debug.showError(msg);
       throw err;

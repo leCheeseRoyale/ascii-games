@@ -141,7 +141,7 @@ export class InputBindings {
     }
     if (entry.mouseButtons && this.mouse) {
       for (const b of entry.mouseButtons) {
-        if (this.isMouseButtonHeld(b)) return true;
+        if (this.checkMouseButton(this.mouse!.down, b)) return true;
       }
     }
     return false;
@@ -163,7 +163,7 @@ export class InputBindings {
     }
     if (entry.mouseButtons && this.mouse) {
       for (const b of entry.mouseButtons) {
-        if (this.isMouseButtonJustDown(b)) return true;
+        if (this.checkMouseButton(this.mouse!.justDown, b)) return true;
       }
     }
     return false;
@@ -185,7 +185,7 @@ export class InputBindings {
     }
     if (entry.mouseButtons && this.mouse) {
       for (const b of entry.mouseButtons) {
-        if (this.isMouseButtonJustUp(b)) return true;
+        if (this.checkMouseButton(this.mouse!.justUp, b)) return true;
       }
     }
     return false;
@@ -301,29 +301,10 @@ export class InputBindings {
     return undefined;
   }
 
-  private isMouseButtonHeld(button: number): boolean {
+  private checkMouseButton(flag: boolean, button: number): boolean {
     if (!this.mouse) return false;
-    // If no per-button info, treat button 0 as the canonical one.
-    if (this.mouse.button !== undefined) {
-      return this.mouse.down && this.mouse.button === button;
-    }
-    return this.mouse.down && button === 0;
-  }
-
-  private isMouseButtonJustDown(button: number): boolean {
-    if (!this.mouse) return false;
-    if (this.mouse.button !== undefined) {
-      return this.mouse.justDown && this.mouse.button === button;
-    }
-    return this.mouse.justDown && button === 0;
-  }
-
-  private isMouseButtonJustUp(button: number): boolean {
-    if (!this.mouse) return false;
-    if (this.mouse.button !== undefined) {
-      return this.mouse.justUp && this.mouse.button === button;
-    }
-    return this.mouse.justUp && button === 0;
+    const matchBtn = this.mouse.button !== undefined ? this.mouse.button === button : button === 0;
+    return flag && matchBtn;
   }
 }
 

@@ -95,8 +95,8 @@ function defaultReset(entity: Partial<Entity>): void {
  * same reference). Otherwise assign the override value directly.
  */
 function applyOverrides(entity: Partial<Entity>, overrides: Partial<Entity>): void {
-  const e = entity as Record<string, any>;
-  const src = overrides as Record<string, any>;
+  const e = entity as Record<string, unknown>;
+  const src = overrides as Record<string, unknown>;
   for (const key in src) {
     const incoming = src[key];
     const existing = e[key];

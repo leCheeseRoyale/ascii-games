@@ -131,10 +131,7 @@ function cleanLines(rawLines: string[]): string[] {
  * `, { '*': '#ffcc00' })
  * ```
  */
-export function artFromString(
-  text: string,
-  colorMap?: Record<string, string>,
-): ArtAsset {
+export function artFromString(text: string, colorMap?: Record<string, string>): ArtAsset {
   const rawLines = text.split("\n");
   const trimmedLines = cleanLines(rawLines);
   return { lines: trimmedLines, ...(colorMap ? { colorMap } : {}) };

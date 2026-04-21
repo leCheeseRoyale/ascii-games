@@ -74,7 +74,7 @@ export interface QuestDefinition {
   /** Prerequisite quest IDs (must all be completed before this becomes available). */
   prerequisites?: string[];
   /** Reward data — game-specific (items, xp, etc.). */
-  rewards?: Record<string, any>;
+  rewards?: Record<string, unknown>;
 }
 
 /** Quest runtime state. */
@@ -92,7 +92,7 @@ export interface QuestState {
 export type QuestEvent = "start" | "progress" | "complete" | "fail";
 
 /** Handler signature for tracker events. */
-export type QuestEventHandler = (questId: string, data?: any) => void;
+export type QuestEventHandler = (questId: string, data?: unknown) => void;
 
 // ── Implementation ──────────────────────────────────────────────
 
@@ -360,7 +360,7 @@ export class QuestTracker {
 
   // ── Internals ──────────────────────────────────────────────────
 
-  private emit(event: QuestEvent, questId: string, data?: any): void {
+  private emit(event: QuestEvent, questId: string, data?: unknown): void {
     const set = this.listeners.get(event);
     if (!set) return;
     for (const handler of set) {
