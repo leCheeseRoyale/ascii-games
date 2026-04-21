@@ -109,6 +109,7 @@ export function extendStore<T extends Record<string, unknown>>(slice: StoreSlice
   }
 
   _extensionInitialState = { ...slice.initialState };
+  _actionsRegistered = false;
   useStore.setState(slice.initialState as Partial<GameStore>);
 
   // Only register actions once (or when a different slice replaces the previous one)
@@ -123,6 +124,13 @@ export function extendStore<T extends Record<string, unknown>>(slice: StoreSlice
       useStore.setState(actions as Partial<GameStore>);
     }
   }
+}
+
+/** @internal Reset extension state — for tests only. */
+export function _resetExtension(): void {
+  _extensionInitialState = {};
+  _actionsRegistered = false;
+  useStore.setState(initialState);
 }
 
 /**

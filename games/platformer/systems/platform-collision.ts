@@ -1,4 +1,4 @@
-import { defineSystem } from "@engine";
+import { defineSystem, SystemPriority } from "@engine";
 import { GAME } from "../config";
 
 /**
@@ -10,6 +10,7 @@ import { GAME } from "../config";
  */
 export const platformCollisionSystem = defineSystem({
   name: "platformCollision",
+  priority: SystemPriority.physics + 2,
 
   update(engine) {
     const platforms = [...engine.world.with("position", "collider", "tags")].filter((e) =>

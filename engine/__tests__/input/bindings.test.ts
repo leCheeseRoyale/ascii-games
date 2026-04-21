@@ -442,4 +442,46 @@ describe("InputBindings", () => {
       expect(conflicts[0].actions.sort()).toEqual(["a", "b", "c"]);
     });
   });
+
+  describe("capture with AbortSignal", () => {
+    test("aborting the signal resolves with null", async () => {
+      input.set("remap", { keys: ["KeyX"] });
+      const ac = new AbortController();
+
+      const promise = input.capture("remap", 10, ac.signal);
+      // Abort immediately.
+      ac.abort();
+
+      const result = await promise;
+      expect(result).toBeNull();
+    });
+
+    test("passing an already-aborted signal resolves with null immediately", async () => {
+      input.set("remap", { keys: ["KeyX"] });
+      const ac = new AbortController();
+      ac.abort();
+
+      const result = await input.capture("remap", 10, ac.signal);
+      expect(result).toBeNull();
+    });
+
+    test("abort does not assign the binding", async () => {
+      input.set("remap", { keys: ["KeyX"] });
+      const ac = new AbortController();
+
+      const promise = input.capture("remap", 10, ac.signal);
+      ac.abort();
+      await promise;
+
+      // The binding should remain unchanged — capture was cancelled.
+      expect(input.get("remap")?.keys).toEqual(["KeyX"]);
+    });
+
+    test("capture still works normally when no signal is provided", async () => {
+      // Press a key before capture so the first poll picks it up.
+      kb.press("KeyZ");
+      const result = await input.capture("remap", 10);
+      expect(result).toEqual({ keys: ["KeyZ"] });
+    });
+  });
 });

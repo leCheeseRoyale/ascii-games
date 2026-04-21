@@ -341,6 +341,14 @@ export class GameRuntime<TState, TPlayer extends string | number = string | numb
       }
     }
 
+    // Snapshot turn state so we can restore it if game-over fires.
+    // A move with autoEnd:false may call ctx.endTurn() explicitly, advancing
+    // the player index before dispatch() gets to evaluate endIf. If endIf
+    // then triggers game-over, we roll back so the final state reflects the
+    // player/turn at the time of the winning move, not one step past it.
+    const prevPlayerIndex = this._playerIndex;
+    const prevTurn = this._turn;
+
     const ctx = this.buildCtx();
     const res = moveFn(ctx, ...args);
     if (res === "invalid") return "invalid";
@@ -356,6 +364,9 @@ export class GameRuntime<TState, TPlayer extends string | number = string | numb
     const gameResult = this.def.endIf?.(this.buildCtx());
     if (gameResult) {
       this._result = gameResult as GameResult;
+      // Roll back any turn advancement that happened inside the move.
+      this._playerIndex = prevPlayerIndex;
+      this._turn = prevTurn;
       return undefined;
     }
 
@@ -368,12 +379,14 @@ export class GameRuntime<TState, TPlayer extends string | number = string | numb
 
   /** Advance to the next player, incrementing turn when wrapping. */
   endTurn(): void {
+    if (this._result !== null) return;
     this._playerIndex = (this._playerIndex + 1) % this._order.length;
     if (this._playerIndex === 0) this._turn++;
   }
 
   /** Advance to the next phase. */
   endPhase(): void {
+    if (this._result !== null) return;
     if (this._phaseOrder.length === 0) return;
     const idx = this._phaseOrder.indexOf(this._currentPhase ?? "");
     const next = this._phaseOrder[(idx + 1) % this._phaseOrder.length];
@@ -382,6 +395,7 @@ export class GameRuntime<TState, TPlayer extends string | number = string | numb
 
   /** Jump to a specific phase by name. */
   goToPhase(phaseName: string): void {
+    if (this._result !== null) return;
     if (!this._phaseOrder.includes(phaseName)) {
       throw new Error(`[defineGame] unknown phase "${phaseName}"`);
     }

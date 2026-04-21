@@ -337,4 +337,54 @@ describe("defineGame", () => {
     runtime.dispatch("done", []);
     expect(runtime.currentPlayer).toBe("B");
   });
+
+  test("endTurn/endPhase/goToPhase are no-ops after game-over", () => {
+    const def = defineGame<{ count: number }>({
+      name: "post-gameover-guard",
+      setup: () => ({ count: 0 }),
+      turns: { order: ["A", "B"], autoEnd: false },
+      phases: {
+        order: ["round", "finale"],
+        round: {},
+        finale: {},
+      },
+      moves: {
+        inc(ctx) {
+          ctx.state.count++;
+          // Explicitly trigger endTurn inside the move — when game-over
+          // fires from endIf, this endTurn should be a no-op.
+          ctx.endTurn();
+        },
+      },
+      endIf: (ctx) => (ctx.state.count >= 2 ? { winner: "A" } : undefined),
+    });
+    const engine = stubEngine();
+    const runtime = new GameRuntime(def, engine);
+    runtime.start();
+
+    // First move: count=1, no game-over, endTurn advances to B.
+    runtime.dispatch("inc", []);
+    expect(runtime.currentPlayer).toBe("B");
+    expect(runtime.result).toBeNull();
+
+    // Second move: count=2, endIf fires game-over. The explicit endTurn
+    // inside the move must NOT advance the player index.
+    const playerBeforeGameOver = runtime.currentPlayer; // "B"
+    const turnBeforeGameOver = runtime.turn;
+    runtime.dispatch("inc", []);
+    expect(runtime.result).toEqual({ winner: "A" });
+    expect(runtime.currentPlayer).toBe(playerBeforeGameOver);
+    expect(runtime.turn).toBe(turnBeforeGameOver);
+
+    // Calling endTurn/endPhase/goToPhase directly after game-over is a no-op.
+    runtime.endTurn();
+    expect(runtime.currentPlayer).toBe(playerBeforeGameOver);
+    expect(runtime.turn).toBe(turnBeforeGameOver);
+
+    runtime.endPhase();
+    expect(runtime.phase).toBe("round");
+
+    runtime.goToPhase("finale");
+    expect(runtime.phase).toBe("round");
+  });
 });

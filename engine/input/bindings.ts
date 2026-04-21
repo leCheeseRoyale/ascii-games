@@ -196,18 +196,42 @@ export class InputBindings {
    * Resolves with the captured BindingEntry. Used by settings UIs for rebinding.
    * Cancel by pressing Escape (returns null). Times out after `timeoutSec`.
    */
-  capture(action: string, timeoutSec = 10): Promise<BindingEntry | null> {
+  capture(
+    action: string,
+    timeoutSec = 10,
+    signal?: AbortSignal,
+  ): Promise<BindingEntry | null> {
     return new Promise((resolve) => {
+      // Already aborted before we even start.
+      if (signal?.aborted) {
+        resolve(null);
+        return;
+      }
+
       const start = typeof performance !== "undefined" ? performance.now() : Date.now();
       let intervalId: ReturnType<typeof setInterval> | null = null;
+      let finished = false;
 
       const finish = (result: BindingEntry | null) => {
+        if (finished) return;
+        finished = true;
         if (intervalId !== null) clearInterval(intervalId);
+        // Remove the abort listener to avoid leaks if capture completed normally.
+        if (signal && onAbort) {
+          signal.removeEventListener("abort", onAbort);
+        }
         if (result) {
           this.set(action, result);
         }
         resolve(result);
       };
+
+      // Wire up external cancellation via AbortSignal.
+      let onAbort: (() => void) | undefined;
+      if (signal) {
+        onAbort = () => finish(null);
+        signal.addEventListener("abort", onAbort, { once: true });
+      }
 
       const poll = () => {
         // Cancel on Escape.
