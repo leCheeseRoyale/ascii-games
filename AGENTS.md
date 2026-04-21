@@ -215,6 +215,12 @@ export function setupGame(engine: Engine) {
 | `textEffect` | `{ fn: (charIndex, total, time) => CharTransform }` | Per-char effects |
 | `typewriter` | `{ fullText, revealed, speed, done, _acc, onComplete?, onChar? }` | Progressive text |
 | `emitter` | `{ rate, spread, speed, lifetime, char, color, _acc }` | Particle emitter |
+| `spring` | `{ targetX, targetY, strength, damping }` | Spring force toward target |
+| `trail` | `{ interval, lifetime, color, opacity }` | Fading afterimages |
+| `visualBounds` | `{ width, height, dirty }` | Measured text dimensions |
+
+**Collider extensions:** `collider: { ..., group: 1, mask: 0b11 }` — bitmask collision filtering. Default group=1, mask=all.
+**Auto-collider:** `collider: "auto"` — auto-sizes from Pretext measurement at spawn. Updated by `_measure` system.
 
 **Custom components:** `Entity` has `[key: string]: any` — add any field. Use `GameEntity<T>` for typed custom entities.
 
@@ -227,7 +233,9 @@ export function setupGame(engine: Engine) {
 
 | System | Priority | Handles |
 |---|---|---|
+| `_measure` | 5 | Auto-collider from Pretext measurement, VisualBounds tracking |
 | `_parent` | 10 | Child position offsets |
+| `_spring` | 15 | Spring force toward target positions (spawnText, spawnSprite) |
 | `_physics` | 20 | `position += velocity * dt`, gravity, friction, drag, bounce |
 | `_tween` | 30 | Tween entry interpolation |
 | `_animation` | 40 | Frame cycling |
@@ -235,6 +243,8 @@ export function setupGame(engine: Engine) {
 | `_stateMachine` | 60 | FSM transitions + updates |
 | `_lifetime` | 70 | Countdown + destroy |
 | `_screenBounds` | 80 | screenWrap / screenClamp / offScreenDestroy |
+| `_trail` | 85 | Fading afterimage spawning |
+| `_collisionEvents` | lazy | Declarative `engine.onCollide()` callbacks (registered on first call) |
 
 Custom systems default to priority `0` (before all built-ins). Use `SystemPriority.physics + 1` to interleave.
 
@@ -349,6 +359,31 @@ const b = pool.acquire({ position: { x, y }, velocity: { vx: 0, vy: -400 } });
 pool.release(b);
 ```
 
+### Interactive text (per-character physics)
+```ts
+import { SpringPresets, createCursorRepelSystem, createAmbientDriftSystem } from "@engine";
+engine.spawnText({ text: "HELLO", font: FONTS.large, position: { x: 100, y: 200 }, spring: SpringPresets.bouncy, tag: "title", color: "#fff" });
+engine.addSystem(createCursorRepelSystem({ radius: 120, force: 800, tag: "title" }));
+engine.addSystem(createAmbientDriftSystem({ amplitude: 3, speed: 0.8, tag: "title" }));
+```
+
+### Juice helpers
+```ts
+engine.flash("#f00", 0.15);                          // full-screen flash
+engine.blink(entity, 1.0, 0.1);                     // opacity oscillation (i-frames)
+engine.knockback(entity, fromX, fromY, 300);         // impulse away from point
+engine.timeScale = 0.3;                              // slowmo (1 = normal)
+```
+
+### Declarative collisions
+```ts
+const unsub = engine.onCollide("bullet", "enemy", (bullet, enemy) => {
+  engine.destroy(bullet);
+  enemy.health.current -= 1;
+});
+// unsub() to remove callback; auto-cleaned on scene change
+```
+
 ### Tween
 ```ts
 engine.tweenEntity(entity, "position.x", from, to, duration, "easeOut");
@@ -443,10 +478,16 @@ const server = new GameServer({ port: 3000 });
 | `roguelike` | ECS + canvas-only UI | Turn phases, FOV, BSP dungeon, pathfinding, save/load, dialog | Turn-based RPG |
 | `tic-tac-toe` | `defineGame` | Mouse input, board rendering, game-over detection | Board/puzzle games |
 | `connect-four` | `defineGame` | Gravity, 4-in-a-row detection, 2D grid | Grid strategy games |
+| `physics-text` | ECS + canvas-only | Spring physics, cursor repel, ambient drift | Interactive ASCII art |
 
 ## Debug Overlay
 
 Backtick (`` ` ``) toggles the debug overlay (`engine.debug.toggle()`). Shows collider bounds, entity inspector, system profiler, and error log.
+
+## Documentation
+
+- **`docs/`** — user-facing: QUICKSTART, TUTORIAL, COOKBOOK, WIRING, API-generated, AI-WORKFLOWS
+- **`wiki/`** — engine internals (45 pages): architecture, systems, components, patterns. Single source of truth for how the engine works. See `wiki/_index.md`.
 
 ## Verification Loop
 

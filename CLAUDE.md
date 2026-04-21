@@ -106,9 +106,16 @@ These cause the highest-frequency bugs in AI-generated code in this repo:
 
 Engine defensiveness you can rely on (don't reinvent): `engine.spawn()` validates components, systems are try/catch-wrapped (one broken system logs but doesn't crash the loop), physics auto-recovers from `NaN` positions/velocities, scene load failures list available scene names. Warnings surface in the debug overlay (backtick `` ` `` key) and the browser console.
 
+## Documentation Split
+
+Two audiences, two locations:
+
+- **`docs/`** — user-facing guides for game developers: QUICKSTART, TUTORIAL, COOKBOOK, WIRING, API-generated, AI-WORKFLOWS. Ships with scaffolded projects.
+- **`wiki/`** — engine internals and architecture (45 pages). Single source of truth for how systems work, design decisions, implementation details. Structured with frontmatter, wikilinks, and schema (`wiki/_schema.md`).
+
 ## Where to Look for Depth
 
-- `wiki/_index.md` — engine architecture and internals.
+- `wiki/_index.md` — engine architecture and internals (45 pages).
 - `AGENTS.md` — terse API cheat sheet organized for agents.
 - `docs/API-generated.md` — auto-generated API reference (regenerate, don't edit).
 - `docs/COOKBOOK.md` — patterns and recipes.
