@@ -413,6 +413,8 @@ export interface EngineConfig {
   font: string;
   fontSize: number;
   debug: boolean;
+  headlessWidth?: number;
+  headlessHeight?: number;
 }
 
 export const DEFAULT_CONFIG: EngineConfig = {

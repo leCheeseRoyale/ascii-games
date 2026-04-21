@@ -15,14 +15,23 @@ export class Mouse {
   private pendingDown = false;
   private pendingUp = false;
   private pendingWheel = 0;
-  private canvas: HTMLCanvasElement;
+  private _headless = false;
+  private canvas: HTMLCanvasElement | null;
   private onMove: (e: MouseEvent) => void;
   private onDown: (e: MouseEvent) => void;
   private onUp: () => void;
   private onWheel: (e: WheelEvent) => void;
 
-  constructor(canvas: HTMLCanvasElement) {
-    this.canvas = canvas;
+  constructor(canvas?: HTMLCanvasElement | null) {
+    this.canvas = canvas ?? null;
+    if (!canvas) {
+      this._headless = true;
+      this.onMove = () => {};
+      this.onDown = () => {};
+      this.onUp = () => {};
+      this.onWheel = () => {};
+      return;
+    }
     this.onMove = (e: MouseEvent) => {
       const r = canvas.getBoundingClientRect();
       this.x = e.clientX - r.left;
@@ -58,9 +67,10 @@ export class Mouse {
   }
 
   destroy(): void {
-    this.canvas.removeEventListener("mousemove", this.onMove);
-    this.canvas.removeEventListener("mousedown", this.onDown);
+    if (this._headless) return;
+    this.canvas!.removeEventListener("mousemove", this.onMove);
+    this.canvas!.removeEventListener("mousedown", this.onDown);
     window.removeEventListener("mouseup", this.onUp);
-    this.canvas.removeEventListener("wheel", this.onWheel);
+    this.canvas!.removeEventListener("wheel", this.onWheel);
   }
 }

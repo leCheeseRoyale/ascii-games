@@ -36,6 +36,7 @@ import {
   measureSpriteCharacterPositions,
   resolveAutoCollider,
 } from "../render/measure-entity";
+import { createNullCanvas, createNullCtx } from "../render/null-ctx";
 import { ParticlePool } from "../render/particles";
 import { ToastManager } from "../render/toast";
 import { Transition, type TransitionType } from "../render/transitions";
@@ -63,6 +64,7 @@ const BUILTIN_SYSTEMS = [
 export class Engine {
   // ── Public API ────────────────────────────────────────────────
   readonly config: EngineConfig;
+  readonly headless: boolean;
   readonly world: GameWorld;
   readonly systems: SystemRunner;
   readonly scenes: SceneManager;
@@ -132,15 +134,14 @@ export class Engine {
   private _flash: { color: string; remaining: number; duration: number } | null = null;
   private _collisionManager: ReturnType<typeof createCollisionEventSystem> | null = null;
 
-  constructor(canvas: HTMLCanvasElement, config: Partial<EngineConfig> = {}) {
+  constructor(canvas?: HTMLCanvasElement | null, config: Partial<EngineConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
+    this.headless = !canvas;
     this.world = createWorld();
     this.systems = new SystemRunner();
     this.scenes = new SceneManager();
-    this.renderer = new AsciiRenderer(canvas);
     this.camera = new Camera();
     this.keyboard = new Keyboard();
-    this.mouse = new Mouse(canvas);
     this.gamepad = new Gamepad();
     this.particles = new ParticlePool();
     this.scheduler = new Scheduler();
@@ -148,9 +149,22 @@ export class Engine {
     this.debug = new DebugOverlay();
     this.toast = new ToastManager();
     this.turns = new TurnManager();
-    this.ui = new CanvasUI(canvas.getContext("2d")!);
     this.dialog = new DialogManager();
     this.viewport = new Viewport();
+
+    if (canvas) {
+      this.renderer = new AsciiRenderer(canvas);
+      this.mouse = new Mouse(canvas);
+      this.ui = new CanvasUI(canvas.getContext("2d")!);
+    } else {
+      const nullCanvas = createNullCanvas(
+        this.config.headlessWidth ?? 800,
+        this.config.headlessHeight ?? 600,
+      );
+      this.renderer = new AsciiRenderer(nullCanvas);
+      this.mouse = new Mouse();
+      this.ui = new CanvasUI(createNullCtx());
+    }
 
     // Wire debug overlay back to engine so the profiler can access
     // systems/world/scheduler when rendering.
@@ -164,14 +178,18 @@ export class Engine {
       this.config.targetFps,
     );
 
-    this.renderer.resize();
-    const onResize = () => {
+    if (!this.headless) {
       this.renderer.resize();
-      this.camera.setViewport(this.renderer.width, this.renderer.height);
-    };
-    window.addEventListener("resize", onResize);
-    onResize();
-    this._onResize = onResize;
+      const onResize = () => {
+        this.renderer.resize();
+        this.camera.setViewport(this.renderer.width, this.renderer.height);
+      };
+      window.addEventListener("resize", onResize);
+      onResize();
+      this._onResize = onResize;
+    } else {
+      this.camera.setViewport(this.config.headlessWidth ?? 800, this.config.headlessHeight ?? 600);
+    }
   }
 
   // ── Entity helpers ────────────────────────────────────────────
@@ -776,7 +794,14 @@ export class Engine {
     }
   }
 
+  /** Advance the engine by a fixed time step. Useful for headless / test-driven stepping. */
+  tick(dt: number): void {
+    this.update(dt);
+    if (!this.headless) this.render();
+  }
+
   private render(): void {
+    if (this.headless) return;
     // Dialog queues its draw commands into the UI system
     this.dialog.draw(this.ui, this.width, this.height);
 

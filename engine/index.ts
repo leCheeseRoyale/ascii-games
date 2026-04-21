@@ -410,6 +410,8 @@ export {
   measureTextBlockVisual,
   resolveAutoCollider,
 } from "./render/measure-entity";
+// Null context/canvas for headless engine mode
+export { createNullCanvas, createNullCtx } from "./render/null-ctx";
 export { type Particle, ParticlePool } from "./render/particles";
 // Quick HUD — one-liner score/health/lives overlay
 export { drawQuickHud, type QuickHudOpts } from "./render/quick-hud";
