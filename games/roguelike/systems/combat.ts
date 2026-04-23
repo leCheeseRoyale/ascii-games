@@ -46,9 +46,11 @@ export const combatSystem = defineSystem({
           player.playerStats.level += 1;
           player.playerStats.attack += 1;
           player.playerStats.defense += 1;
-          player.health!.max += 5;
-          player.health!.current = player.health?.max;
-          useStore.getState().setHealth(player.health?.current, player.health?.max);
+          if (player.health) {
+            player.health.max += 5;
+            player.health.current = player.health.max;
+            useStore.getState().setHealth(player.health.current, player.health.max);
+          }
           addMessage(`LEVEL UP! You are now level ${player.playerStats.level}!`);
           if (player.position) {
             engine.particles.sparkle(player.position.x, player.position.y, "#ffcc00");

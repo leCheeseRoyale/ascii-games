@@ -2,11 +2,9 @@ import { Cooldown, defineSystem, sfx } from "@engine";
 import { GAME } from "../config";
 import { createBullet } from "../entities/bullet";
 
-let shootCooldown = new Cooldown(GAME.player.bulletCooldown);
-
-// Track last aim direction for shooting
-let lastDirX = 0;
-let lastDirY = -1;
+let shootCooldown: Cooldown;
+let lastDirX: number;
+let lastDirY: number;
 
 export const playerInputSystem = defineSystem({
   name: "playerInput",
@@ -47,15 +45,6 @@ export const playerInputSystem = defineSystem({
         lastDirX = dx;
         lastDirY = dy;
       }
-
-      // Screen wrapping
-      const margin = 20;
-      const w = engine.width;
-      const h = engine.height;
-      if (e.position.x < -margin) e.position.x = w + margin;
-      if (e.position.x > w + margin) e.position.x = -margin;
-      if (e.position.y < -margin) e.position.y = h + margin;
-      if (e.position.y > h + margin) e.position.y = -margin;
 
       // Shoot with Space
       if (kb.held("Space") && shootCooldown.fire()) {

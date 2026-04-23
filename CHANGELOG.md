@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Declarative games** — `defineGame({ setup, moves, turns, phases, endIf, render })` wraps scenes, turn rotation, and game-over detection in one object. `engine.runGame(def)` registers the generated scene. See [`docs/COOKBOOK.md`](docs/COOKBOOK.md) and the `tic-tac-toe` template.
-- **One-line multiplayer** — `createMultiplayerGame(def, { transport, engineFactory, ... })` wraps any `defineGame` definition with lockstep sync + desync detection via `TurnSync`. Transports: `local` (N `MockAdapter` peers for dev) and `socket` (`SocketAdapter` against `GameServer`). See [`docs/COOKBOOK.md#multiplayer-games-in-one-line`](docs/COOKBOOK.md#multiplayer-games-in-one-line).
+- **Declarative games** — `defineGame({ setup, moves, turns, phases, endIf, render })` wraps scenes, turn rotation, and game-over detection in one object. `engine.runGame(def)` registers the generated scene. See [`docs/cookbook/define-game.md`](docs/cookbook/define-game.md) and the `tic-tac-toe` template.
+- **One-line multiplayer** — `createMultiplayerGame(def, { transport, engineFactory, ... })` wraps any `defineGame` definition with lockstep sync + desync detection via `TurnSync`. Transports: `local` (N `MockAdapter` peers for dev) and `socket` (`SocketAdapter` against `GameServer`). See [`docs/cookbook/define-game.md`](docs/cookbook/define-game.md#multiplayer-games-in-one-line).
 - **AI CLI scripts** — `bun run ai:sprite`, `ai:mechanic`, `ai:juice` generate entity factories, systems, and juice helpers via Claude. Setup in [`docs/AI-WORKFLOWS.md`](docs/AI-WORKFLOWS.md).
 - **AI CLI** — `ai:game` generates a complete `defineGame<TState>({...})` module from a natural-language pitch. Fourth command in the AI suite.
 - **`MoveInputCtx<TState, TPlayer>`** — convenience type alias exported from `@engine` for render/input helpers; `Pick<GameContext, 'engine' | 'moves' | 'state' | 'result' | 'currentPlayer'>`.

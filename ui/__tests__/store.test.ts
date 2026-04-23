@@ -3,7 +3,7 @@
  */
 
 import { beforeEach, describe, expect, test } from "bun:test";
-import { _resetExtension, extendStore, useStore, type StoreSlice } from "../store";
+import { _resetExtension, extendStore, type StoreSlice, useStore } from "../store";
 
 /** Shorthand — get the store snapshot as a loose record for dynamic key access. */
 function snap(): Record<string, unknown> {

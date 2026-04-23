@@ -142,10 +142,14 @@ export interface TextBlock {
   maxWidth: number
   lineHeight: number
   color: string
+  align?: "left" | "center" | "right" | "justify"
+  glow?: string
+  preWrap?: boolean
+  layer?: number
 }
 ```
 
-Multi-line text rendering. Entities with `position` + `textBlock` are auto-rendered. Uses Pretext for layout (see [[pretext-integration]]).
+Multi-line text rendering. Entities with `position` + `textBlock` are auto-rendered. Uses Pretext for layout (see [[pretext-integration]]). Supports styled tags (`[#hex]`, `[b]`, `[i]`, `[u]`, `[dim]`, `[bg:#hex]`) and justification.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -154,6 +158,10 @@ Multi-line text rendering. Entities with `position` + `textBlock` are auto-rende
 | `maxWidth` | number | Maximum line width before wrapping |
 | `lineHeight` | number | Vertical spacing between lines |
 | `color` | string | CSS color string |
+| `align` | `"left" \| "center" \| "right" \| "justify"` | Horizontal alignment. Default `left` |
+| `glow` | string | Glow / shadow color via canvas shadowBlur |
+| `preWrap` | boolean | Preserve `\n` as hard line breaks. Default false |
+| `layer` | number | Render order. Default 0 |
 
 **Used by:** Renderer (via Pretext layout)
 

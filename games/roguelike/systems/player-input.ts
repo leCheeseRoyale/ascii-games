@@ -64,7 +64,9 @@ export const playerInputSystem = defineSystem({
       const def = enemyAtTarget.enemyStats?.defense ?? 0;
       const damage = Math.max(1, atk - def);
 
-      enemyAtTarget.health!.current -= damage;
+      if (enemyAtTarget.health) {
+        enemyAtTarget.health.current -= damage;
+      }
 
       const enemyName = enemyAtTarget.enemyStats?.name ?? "enemy";
       addMessage(`You hit the ${enemyName} for ${damage} damage!`);

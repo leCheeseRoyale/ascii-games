@@ -35,6 +35,7 @@ function printHelp(): void {
       "  --model=opus|sonnet|haiku   Default: sonnet",
       "  --force                Overwrite existing file",
       "  --dry-run              Print the prompts that would be sent; don't call API",
+      "  --verify               Run bun run check after generation",
       "",
       "Examples:",
       '  bun run ai:game "2-player strategy where you place walls to maze a runner"',
@@ -196,7 +197,12 @@ async function main(): Promise<void> {
   try {
     parsed = parseArgs(process.argv.slice(2));
   } catch (err) {
-    console.error(err instanceof Error ? err.message : String(err));
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg === "HELP") {
+      printHelp();
+      process.exit(0);
+    }
+    console.error(msg);
     printHelp();
     process.exit(1);
   }
@@ -256,6 +262,18 @@ async function main(): Promise<void> {
   }
 
   console.log(`Wrote ${outPath}`);
+
+  if (flags.verify) {
+    console.log("\nRunning typecheck...");
+    const proc = Bun.spawn(["bun", "run", "check"], { stdout: "inherit", stderr: "inherit" });
+    await proc.exited;
+    if (proc.exitCode !== 0) {
+      console.error("\nTypecheck failed. Please fix the generated code.");
+      process.exit(1);
+    }
+    console.log("Typecheck passed.");
+  }
+
   console.log("\nNext steps:");
   console.log("Wire it as your starting scene in game/index.ts:");
   console.log(`  import { setupGame as ${camel} } from './${slug}'`);

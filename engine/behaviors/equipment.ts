@@ -131,7 +131,7 @@ export function createEquipment(
  */
 function blockedBy(equipment: EquipmentComponent, slotId: EquipmentSlotId): EquipmentSlotId[] {
   const list = equipment.blocks?.[slotId];
-  return list ? list.slice() : [];
+  return list ?? [];
 }
 
 /**

@@ -11,6 +11,8 @@ import type { Entity } from "@shared/types";
 import type { Engine } from "../core/engine";
 import type { GameWorld } from "../ecs/world";
 import type { Camera } from "./camera";
+import { spriteCacheSize } from "./sprite-cache";
+import { getTextCacheStats, preparedCacheSize, widthCacheSize } from "./text-layout";
 
 /** Archetype (component combination) to sample for the profiler counts panel. */
 interface ArchetypeQuery {
@@ -209,6 +211,7 @@ export class DebugOverlay {
     const systemsRows = Math.max(1, entries.length);
     const archetypeRows = DEFAULT_ARCHETYPES.length;
     const memoryRows = 3;
+    const cacheRows = 3;
     const totalLines =
       1 + // title bar
       2 + // FPS + frame bar
@@ -221,7 +224,10 @@ export class DebugOverlay {
       archetypeRows +
       1 + // gap
       1 + // memory separator
-      memoryRows;
+      memoryRows +
+      1 + // gap
+      1 + // cache separator
+      cacheRows;
 
     const panelH = padY * 2 + totalLines * lineH + sectionGap * 2;
     const x = w - panelW - 10;
@@ -331,6 +337,28 @@ export class DebugOverlay {
     ctx.fillText(`tween entities: ${tweenCount}`, tx, cy);
     cy += lineH;
     ctx.fillText(`scheduler tasks: ${schedulerCount}`, tx, cy);
+    cy += lineH + sectionGap;
+
+    // --- Pretext cache section ---
+    ctx.fillStyle = "#88ffcc";
+    ctx.fillText("\u2500\u2500\u2500 Pretext Caches \u2500\u2500\u2500", tx, cy);
+    cy += lineH;
+
+    const cacheStats = getTextCacheStats();
+    ctx.fillStyle = "#dddddd";
+    ctx.fillText(
+      `prepared: ${preparedCacheSize()} / 512  +${cacheStats.prepared.hits} -${cacheStats.prepared.misses}`,
+      tx,
+      cy,
+    );
+    cy += lineH;
+    ctx.fillText(
+      `width:    ${widthCacheSize()} / 512  +${cacheStats.width.hits} -${cacheStats.width.misses}`,
+      tx,
+      cy,
+    );
+    cy += lineH;
+    ctx.fillText(`sprite:   ${spriteCacheSize()} / 128`, tx, cy);
 
     // Sum row is useful context — append to budget line if space permits; instead
     // we fold it into the budget bar's tooltip via a subtle overlay label.

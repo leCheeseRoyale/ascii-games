@@ -28,14 +28,26 @@ export interface System {
   init?: (engine: Engine) => void
   /** Optional: called when system is removed */
   cleanup?: (engine: Engine) => void
+  /** Optional: only run during this turn phase. Ignored when turn management is inactive. */
+  phase?: string
+  /** Execution order — lower runs first. Default 0. Built-in systems use
+   *  5–80 (measure=5, parent=10, spring=15, physics=20, tween=30, animation=40,
+   *  emitter=50, stateMachine=60, lifetime=70, screenBounds=80), so custom systems
+   *  with the default priority run before all built-ins. Ties preserve registration order. */
+  priority?: number
 }
 ```
 
-### The Three Hooks
+### Hooks
 
 - **`update(engine, dt)`** — Called every fixed timestep. This is where the work happens: query entities, apply physics, check collisions, etc.
 - **`init(engine)`** — Called once when the system is added via `engine.addSystem()`. Use for one-time setup like caching queries.
 - **`cleanup(engine)`** — Called when the system is removed or when the scene clears all systems. Use for teardown.
+
+### Ordering and Phase
+
+- **`priority`** — Lower runs first. Default `0`. Built-in systems use 5–80, so custom systems run before all built-ins by default. Set e.g. `SystemPriority.physics + 1` to run between physics (20) and tweens (30). Ties preserve registration order.
+- **`phase`** — For turn-based games. When set, the system only runs during that turn phase. Ignored when turn management is inactive.
 
 ## Defining a System
 
@@ -49,8 +61,8 @@ export const movementSystem = defineSystem({
 
   update(engine, dt) {
     for (const e of engine.world.with('position', 'velocity')) {
-      e.position.x += e.velocity.x * dt
-      e.position.y += e.velocity.y * dt
+      e.position.x += e.velocity.vx * dt
+      e.position.y += e.velocity.vy * dt
     }
   },
 })
@@ -58,71 +70,66 @@ export const movementSystem = defineSystem({
 
 ## SystemRunner
 
-The `SystemRunner` maintains an ordered array and provides add/remove/clear operations:
+The `SystemRunner` maintains a priority-sorted array and provides add/remove/clear operations:
 
 ```ts
-// engine/ecs/systems.ts
+// engine/ecs/systems.ts (simplified)
 export class SystemRunner {
   private systems: System[] = []
 
   add(system: System, engine: Engine): void {
-    this.systems.push(system)
+    // Insert at the end of the block sharing this priority (stable by registration order)
+    const p = system.priority ?? 0
+    let idx = this.systems.length
+    for (let i = 0; i < this.systems.length; i++) {
+      if ((this.systems[i].priority ?? 0) > p) { idx = i; break }
+    }
+    this.systems.splice(idx, 0, system)
     system.init?.(engine)
   }
 
-  remove(name: string, engine: Engine): void {
-    const idx = this.systems.findIndex(s => s.name === name)
-    if (idx >= 0) {
-      this.systems[idx].cleanup?.(engine)
-      this.systems.splice(idx, 1)
-    }
-  }
-
-  update(engine: Engine, dt: number): void {
-    for (const sys of this.systems) {
-      sys.update(engine, dt)
-    }
-  }
-
-  clear(engine: Engine): void {
-    for (const sys of this.systems) sys.cleanup?.(engine)
-    this.systems = []
-  }
-
-  list(): string[] {
-    return this.systems.map(s => s.name)
-  }
+  remove(name: string, engine: Engine): void { /* ... cleanup + splice ... */ }
+  update(engine: Engine, dt: number): void { /* iterate and call update */ }
+  clear(engine: Engine): void { /* cleanup all, empty list */ }
 }
 ```
 
 ## Execution Order
 
-Systems run in **registration order** — the order they were added via `engine.addSystem()`. This is critical because systems may depend on each other's results within a frame. A typical ordering:
+Systems run in **priority order** — lower `priority` values run first. Ties preserve registration order. Custom systems default to `priority: 0`, so they run before all built-in systems (which use 5–80). Use `SystemPriority` constants to interleave:
 
-```
-1. input-system       — read input, set velocity/actions
-2. movement-system    — apply velocity to position
-3. collision-system   — detect and resolve overlaps
-4. lifetime-system    — tick down timers, destroy expired
-5. spawn-system       — create new entities based on game logic
+```ts
+import { SystemPriority } from '@engine/ecs/systems'
+
+// Runs after physics (20) but before tweens (30)
+defineSystem({ name: 'post-physics', priority: SystemPriority.physics + 1, update(engine, dt) { ... } })
 ```
 
-If system A must run before system B, add A first in your scene's `setup()`.
+If two custom systems both have the default priority (0), they run in the order they were added in your scene's `setup()`.
 
 ## Built-in Systems
 
-The engine auto-registers 4 built-in systems on every scene load, before any user systems. They always run first, in this order:
+The engine auto-registers 11 built-in systems on every scene load. They use priorities 5–80, so custom systems (priority 0 by default) run **before** them:
 
-```
-1. _parent     — sync child positions to parents
-2. _physics    — gravity, friction, drag, bounce, velocity integration
-3. _tween      — declarative property animation
-4. _animation  — frame-by-frame sprite/ascii cycling
-```
+| System | Priority | Description |
+|--------|----------|-------------|
+| `_measure` | 5 | Auto-sizes `collider: "auto"` from Pretext text measurement |
+| `_parent` | 10 | Syncs child positions to parent + offset |
+| `_spring` | 15 | Applies spring force toward `spring.targetX/Y` |
+| `_physics` | 20 | Gravity, friction, drag, bounce, velocity integration |
+| `_tween` | 30 | Declarative property animation |
+| `_animation` | 40 | Frame-by-frame sprite/ascii cycling |
+| `_emitter` | 50 | Spawns particles from `ParticleEmitter` components |
+| `_stateMachine` | 60 | Ticks entity state machines |
+| `_lifetime` | 70 | Decrements `lifetime.remaining`, destroys at zero |
+| `_screenBounds` | 80 | Handles `screenWrap`, `screenClamp`, `offScreenDestroy` |
+| `_trail` | after animation | Spawns fading afterimage entities from the `trail` component |
+
+One additional system is **lazy-registered** (zero cost unless used):
+
+| `_collisionEvents` | First `engine.onCollide()` call | Tracks tag-pair overlaps and fires callbacks |
 
 These use underscore-prefixed names to avoid collision with user system names.
-
-User systems added in scene `setup()` run **after** these built-in systems. So by the time your system runs, physics has already been applied, tweens have been updated, and child positions have been synced.
 
 ## Adding and Removing Systems
 

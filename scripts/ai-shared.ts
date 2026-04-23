@@ -15,6 +15,7 @@ export interface ParsedFlags {
   out?: string;
   force?: boolean;
   dryRun?: boolean;
+  verify?: boolean;
   frames?: number;
   physics?: boolean;
 }
@@ -44,9 +45,16 @@ export function parseArgs(argv: string[]): ParsedArgs {
       flags.dryRun = true;
       continue;
     }
+    if (arg === "--verify") {
+      flags.verify = true;
+      continue;
+    }
     if (arg === "--physics") {
       flags.physics = true;
       continue;
+    }
+    if (arg === "--help" || arg === "-h") {
+      throw new Error("HELP");
     }
     if (arg.startsWith("--model=")) {
       const val = arg.slice("--model=".length);
@@ -128,7 +136,12 @@ export async function loadEnv(): Promise<LoadedEnv> {
 
 /** Read a skill file from `plugins/ascii-games-dev/skills/<name>/SKILL.md`. */
 export async function loadSkill(name: string): Promise<string> {
-  const path = `plugins/ascii-games-dev/skills/${name}/SKILL.md`;
+  // Sanitize skill name to prevent path traversal
+  const safeName = name.replace(/[^a-zA-Z0-9_-]/g, "");
+  if (!safeName) {
+    throw new Error(`Invalid skill name: ${name}`);
+  }
+  const path = `plugins/ascii-games-dev/skills/${safeName}/SKILL.md`;
   const file = Bun.file(path);
   if (!(await file.exists())) {
     throw new Error(`Skill file not found: ${path}`);
@@ -224,6 +237,14 @@ export interface WriteFileSafeResult {
  */
 export async function writeFileSafe(args: WriteFileSafeArgs): Promise<WriteFileSafeResult> {
   const { path, content, force } = args;
+  // Prevent path traversal outside the project
+  const normalized = path.replace(/\\/g, "/");
+  if (normalized.startsWith("..") || normalized.includes("/../")) {
+    return {
+      written: false,
+      reason: `Path traversal blocked: ${path}. Paths must stay within the project.`,
+    };
+  }
   const file = Bun.file(path);
   if ((await file.exists()) && !force) {
     return {

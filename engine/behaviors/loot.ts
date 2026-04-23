@@ -238,7 +238,7 @@ function rollTableInternal<T>(table: LootTable<T>, ctx: LootContext): LootDrop<T
     for (let i = 0; i < rollCount; i++) {
       const idx = weightedPick(ctx.random, initialPool);
       if (idx < 0) break;
-      evaluateEntryWithoutCondition(initialPool[idx], ctx, drops);
+      evaluateEntry(initialPool[idx], ctx, drops);
     }
   } else {
     const pool = initialPool.slice();
@@ -248,40 +248,11 @@ function rollTableInternal<T>(table: LootTable<T>, ctx: LootContext): LootDrop<T
       if (idx < 0) break;
       const picked = pool[idx];
       pool.splice(idx, 1);
-      evaluateEntryWithoutCondition(picked, ctx, drops);
+      evaluateEntry(picked, ctx, drops);
     }
   }
 
   return drops;
-}
-
-/**
- * Variant of `evaluateEntry` used after the weight pool has already been
- * filtered by `condition`. Skips the redundant condition check but still
- * applies `chance` and handles nested tables / count ranges.
- */
-function evaluateEntryWithoutCondition<T>(
-  entry: LootEntry<T>,
-  ctx: LootContext,
-  out: LootDrop<T>[],
-): void {
-  const chance = entry.chance ?? 1;
-  if (chance < 1 && ctx.random() >= chance) return;
-
-  const count = resolveCount(ctx.random, entry.count);
-  if (count <= 0) return;
-
-  if (entry.table) {
-    for (let i = 0; i < count; i++) {
-      const nested = rollTableInternal(entry.table, ctx);
-      mergeAll(out, nested);
-    }
-    return;
-  }
-
-  if (entry.item !== undefined) {
-    mergeDrop(out, { item: entry.item, count });
-  }
 }
 
 // ── Public API ──────────────────────────────────────────────────

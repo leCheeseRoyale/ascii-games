@@ -25,12 +25,17 @@ export function save(name: string, data: unknown): void {
   }
 }
 
+function safeReviver(key: string, value: unknown): unknown {
+  if (key === "__proto__" || key === "constructor") return undefined;
+  return value;
+}
+
 /** Load a value from persistent storage. Returns undefined if not found. */
 export function load<T = unknown>(name: string): T | undefined {
   try {
     const raw = localStorage.getItem(key(name));
     if (raw === null) return undefined;
-    return JSON.parse(raw) as T;
+    return JSON.parse(raw, safeReviver) as T;
   } catch {
     return undefined;
   }

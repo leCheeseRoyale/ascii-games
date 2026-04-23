@@ -75,7 +75,7 @@ export function setupGame(engine: Engine) {
 }
 ```
 
-<sup>Full example: [`games/tic-tac-toe/index.ts`](games/tic-tac-toe/index.ts) · API reference: [`docs/COOKBOOK.md`](docs/COOKBOOK.md#declarative-games-with-definegame)</sup>
+<sup>Full example: [`games/tic-tac-toe/index.ts`](games/tic-tac-toe/index.ts) · API reference: [`docs/cookbook/define-game.md`](docs/cookbook/define-game.md)</sup>
 
 ---
 
@@ -113,7 +113,7 @@ const handle = await createMultiplayerGame(ticTacToe, {
 handle.runtime.dispatch('place', [4]) // player 1 plays center
 ```
 
-Wraps any `defineGame` definition with lockstep transport (local / WebSocket) and desync detection, built on `TurnSync`, `MockAdapter`, `SocketAdapter`, and `GameServer`. Full example: [`docs/COOKBOOK.md#multiplayer-games-in-one-line`](docs/COOKBOOK.md#multiplayer-games-in-one-line).
+Wraps any `defineGame` definition with lockstep transport (local / WebSocket) and desync detection, built on `TurnSync`, `MockAdapter`, `SocketAdapter`, and `GameServer`. Full example: [`docs/cookbook/define-game.md`](docs/cookbook/define-game.md#multiplayer-games-in-one-line).
 
 ---
 
@@ -174,12 +174,9 @@ bun run list:games   # List available game templates
 |:----|:---------------|
 | [`QUICKSTART.md`](docs/QUICKSTART.md) | 15-minute first game |
 | [`TUTORIAL.md`](docs/TUTORIAL.md) | Full walkthrough |
-| [`COOKBOOK.md`](docs/COOKBOOK.md) | Copy-pasteable recipes, `defineGame` deep-dive |
-| [`PROJECT-GUIDE.md`](docs/PROJECT-GUIDE.md) | Architecture, APIs, gotchas |
+| [`COOKBOOK.md`](docs/COOKBOOK.md) | Recipe index (split into `docs/cookbook/` topic files) |
 | [`AI-WORKFLOWS.md`](docs/AI-WORKFLOWS.md) | AI CLI setup and guide |
 | [`API-generated.md`](docs/API-generated.md) | Auto-generated API reference |
-| [`PERF.md`](docs/PERF.md) | Performance notes |
-| [`DEVELOPER.md`](docs/DEVELOPER.md) | Contributing to the engine |
 
 ---
 

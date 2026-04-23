@@ -175,8 +175,8 @@ export function generateDungeon(): DungeonResult {
       if (!leaf.left && !leaf.right) {
         if (leaf.w > GAME.dungeon.minLeafSize * 2 || leaf.h > GAME.dungeon.minLeafSize * 2) {
           if (splitLeaf(leaf, GAME.dungeon.minLeafSize)) {
-            leaves.push(leaf.left!);
-            leaves.push(leaf.right!);
+            if (leaf.left) leaves.push(leaf.left);
+            if (leaf.right) leaves.push(leaf.right);
             didSplit = true;
           }
         }

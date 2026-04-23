@@ -1,11 +1,12 @@
 import type { Engine } from "@engine";
-import { createTags, defineScene, defineSystem, FONTS } from "@engine";
+import { defineScene, defineSystem } from "@engine";
 import { useStore } from "@ui/store";
 import { GAME } from "../config";
+import { createPlayer } from "../entities/player";
 
 const playerSystem = defineSystem({
   name: "player-input",
-  update(engine: Engine, dt: number) {
+  update(engine: Engine, _dt: number) {
     for (const player of engine.world.with("position", "velocity", "player")) {
       const speed = GAME.player.speed;
       player.velocity.vx = 0;
@@ -28,15 +29,8 @@ export const playScene = defineScene({
   setup(engine: Engine) {
     useStore.getState().setScreen("playing");
 
-    // Player — move with WASD or arrow keys
-    engine.spawn({
-      position: { x: engine.centerX, y: engine.centerY },
-      velocity: { vx: 0, vy: 0 },
-      ascii: { char: "@", font: FONTS.large, color: GAME.player.color, glow: GAME.player.glow },
-      tags: createTags("player"),
-      player: { index: 0 },
-      screenWrap: { margin: 10 },
-    });
+    // Spawn player using the factory pattern
+    engine.spawn(createPlayer(engine.centerX, engine.centerY));
 
     engine.addSystem(playerSystem);
 

@@ -1,16 +1,16 @@
 # Engine API Reference (Auto-Generated)
 
 > Generated from actual TypeScript declarations. Do not edit manually.
-> Last generated: 2026-04-20
+> Last generated: 2026-04-22
 
 ## Uncategorized
 
 ```ts
 export { COLORS, FONTS, PALETTES } from "@shared/constants";
 export { events } from "@shared/events";
-export type { Acceleration, Animation, AnimationFrame, Ascii, CharTransform, Child, Collider, EngineConfig, Entity, GameEntity, GameTime, Gauge, Health, ImageComponent, InputState, Interactive, Lifetime, Obstacle, OffScreenDestroy, Parent, ParticleEmitter, Physics, Player, Position, ScreenClamp, ScreenWrap, Sprite, StateMachine, StateMachineState, Tags, TextBlock, TextEffectComponent, TextEffectFn, TileLegendEntry, TilemapComponent, Tween, TweenEntry, TypewriterComponent, Velocity, } from "@shared/types";
+export type { Acceleration, Animation, AnimationFrame, Ascii, CharTransform, Child, Collider, CollisionCallback, EngineConfig, Entity, GameEntity, GameTime, Gauge, Health, ImageComponent, InputState, Interactive, Lifetime, Obstacle, OffScreenDestroy, Parent, ParticleEmitter, Physics, Player, Position, ScreenClamp, ScreenWrap, SpawnInput, Spring, Sprite, StateMachine, StateMachineState, Tags, TextBlock, TextEffectComponent, TextEffectFn, TileLegendEntry, TilemapComponent, Trail, Tween, TweenEntry, TypewriterComponent, Velocity, VisualBounds, } from "@shared/types";
 export { DEFAULT_CONFIG } from "@shared/types";
-export { audio, beep, getVolume, isMuted, mute, pauseMusic, playMusic, resumeMusic, setMusicVolume, setVolume, sfx, stopMusic, toggleMute, unmute, } from "./audio/audio";
+export { audio, beep, type Channel, getVolume, type Instrument, isMuted, mute, type Pattern, pauseMusic, playMusic, playTrackerMusic, resumeMusic, setMusicVolume, setVolume, sfx, stopMusic, stopTrackerMusic, type TrackerSong, toggleMute, unmute, } from "./audio/audio";
 export { type Achievement, type AchievementCondition, type AchievementState, AchievementTracker, } from "./behaviors/achievements";
 export { type ChaseOptions, createChaseBehavior, createFleeBehavior, createPatrolBehavior, createWanderBehavior, type FleeOptions, type PatrolOptions, type WanderOptions, } from "./behaviors/ai";
 export { type CanCraftResult, type CraftIngredient, type CraftOutput, type CraftResult, canCraft, craft, type Recipe, RecipeBook, } from "./behaviors/crafting";
@@ -20,6 +20,7 @@ export { type DialogChoice, type DialogContext, type DialogNode, type DialogTree
 export { canEquip, clearEquipment, createEquipment, deserializeEquipment, type EquipmentComponent, type EquipmentSlotId, type EquippableItem, equipItem, getEquipped, isSlotAvailable, type SerializedEquipment, serializeEquipment, unequipItem, } from "./behaviors/equipment";
 export { addItem, clearInventory, countItem, createInventory, findSlot, getSlot, hasItem, type InventoryComponent, type InventoryItem, type InventorySlot, isFull, removeItem, totalWeight, transferItem, } from "./behaviors/inventory";
 export { createSeededRandom, type LootContext, type LootDrop, type LootEntry, type LootTable, rollLoot, } from "./behaviors/loot";
+export { createPlatformSystem, type PlatformSystemOpts, } from "./behaviors/platform";
 export { type QuestDefinition, type QuestObjective, type QuestState, type QuestStatus, QuestTracker, } from "./behaviors/quests";
 export { addModifier, clearModifiers, createStats, deserializeStats, getModifiersFor, getStat, hasModifier, type ModifierType, removeModifier, removeModifiersBySource, type StatModifier, type Stats, serializeStats, setBaseStat, tickModifiers, } from "./behaviors/stats";
 export { createWaveSpawner, type WaveDefinition, type WaveEnemy, type WaveSpawnerConfig, } from "./behaviors/wave-spawner";
@@ -29,18 +30,25 @@ export { Engine } from "./core/engine";
 export { defineScene, type Scene } from "./core/scene";
 export { defaultHashState, fnv1a32, stableStringify } from "./core/state-hash";
 export { type TurnConfig, TurnManager } from "./core/turn-manager";
+export { type AnimatedArtAsset, type ArtAsset, artFromString, type SpriteSheet, spriteSheetFrames, } from "./data/art-asset";
 export { ASCII_SPRITES, asciiBox, createAsciiFrames, createAsciiSprite, parseAsciiArt, } from "./data/ascii-sprites";
+export { type AmbientDriftOpts, createAmbientDriftSystem, } from "./ecs/ambient-drift";
 export { animationSystem } from "./ecs/animation-system";
+export { createCollisionEventSystem } from "./ecs/collision-event-system";
+export { type CursorRepelOpts, createCursorRepelSystem, } from "./ecs/cursor-repel";
 export { emitterSystem } from "./ecs/emitter-system";
 export { gaugeSystem } from "./ecs/gauge-system";
 export { interactionSystem, makeInteractive } from "./ecs/interaction-system";
 export { lifetimeSystem } from "./ecs/lifetime-system";
+export { measureSystem } from "./ecs/measure-system";
 export { parentSystem } from "./ecs/parent-system";
 export { createEntityPool, type EntityPool, type PoolOptions, } from "./ecs/pool";
 export { screenBoundsSystem } from "./ecs/screen-bounds-system";
+export { springSystem } from "./ecs/spring-system";
 export { stateMachineSystem, transition } from "./ecs/state-machine-system";
 export { defineSystem, type System, SystemPriority } from "./ecs/systems";
 export { createTags } from "./ecs/tags";
+export { trailSystem } from "./ecs/trail-system";
 export { typewriterSystem } from "./ecs/typewriter-system";
 export { createWorld, type GameWorld, type WorldEntity } from "./ecs/world";
 export { type BindingEntry, type BindingsConfig, createDefaultBindings, DEFAULT_BINDINGS, InputBindings, } from "./input/bindings";
@@ -58,16 +66,20 @@ export { physicsSystem } from "./physics/physics-system";
 export { pairsFromHash, SpatialHash } from "./physics/spatial-hash";
 export { AsciiRenderer } from "./render/ascii-renderer";
 export { Camera, type CameraBounds, type CameraFollowOpts, type CameraFollowTarget, } from "./render/camera";
-export { type Anchor, BORDERS, type BorderStyle, CanvasUI, DialogManager, type UIBarOpts, type UIChoiceOpts, type UIDialogOpts, UIGrid, type UIGridCell, type UIGridOpts, type UIInlineChunk, type UIInlineRunOpts, UIMenu, type UIMenuOpts, type UIPanelOpts, UIScrollPanel, type UIScrollPanelOpts, type UITabDef, UITabs, type UITabsOpts, type UITextOpts, type UITextPanelOpts, UITooltip, type UITooltipOpts, } from "./render/canvas-ui";
+export { type Anchor, BORDERS, type BorderStyle, CanvasUI, DialogManager, type UIBarOpts, type UIChoiceOpts, type UIDialogOpts, UIGrid, type UIGridCell, type UIGridOpts, type UIInlineChunk, type UIInlineRunOpts, UIMenu, type UIMenuOpts, type UIPanelOpts, UIScrollPanel, type UIScrollPanelOpts, type UITabDef, UITabs, type UITabsOpts, UITextField, type UITextFieldOpts, type UITextOpts, type UITextPanelOpts, UITextView, type UITextViewOpts, UITooltip, type UITooltipOpts, } from "./render/canvas-ui";
 export { clearImageCache, getCachedImage, loadImage, preloadImages } from "./render/image-loader";
+export { buildVisualBounds, type CharacterPosition, measureAsciiVisual, measureCharacterPositions, measureSpriteCharacterPositions, measureSpriteVisual, measureTextBlockVisual, resolveAutoCollider, } from "./render/measure-entity";
+export { createNullCanvas, createNullCtx } from "./render/null-ctx";
 export { type Particle, ParticlePool } from "./render/particles";
+export { drawQuickHud, type QuickHudOpts } from "./render/quick-hud";
+export { type CachedSprite, getCachedSprite, invalidateSpriteCache, spriteCacheSize, } from "./render/sprite-cache";
 export { compose, fadeIn, flicker, float, glitch, popIn, pulse, rainbow, scatter, shake, spiral, sway, textEffect, throb, wave, } from "./render/text-effects";
 export { clearTextCache, getLineCount, insertSoftHyphens, type JustifiedLine, type JustifiedWord, layoutJustifiedBlock, layoutTextAroundObstacles, layoutTextBlock, measureHeight, measureLineWidth, parseStyledText, type RenderedLine, type StyledSegment, shrinkwrap, stripTags, } from "./render/text-layout";
 export { ToastManager } from "./render/toast";
 export { Transition, type TransitionType } from "./render/transitions";
 export { type Orientation, type SafeAreaInsets, Viewport } from "./render/viewport";
 export { VirtualDpad, type VirtualDpadOptions, VirtualJoystick, type VirtualJoystickOptions, } from "./render/virtual-controls";
-export { clearAll as clearStorage, clearHighScores, type GameStateSources, getHighScores, getTopScore, has as hasStorage, isHighScore, load, type RehydratedGameState, type RehydrateOptions, rehydrateGameState, remove as removeStorage, type ScoreEntry, type SerializedGameState, save, serializeGameState, setStoragePrefix, submitScore, } from "./storage/index";
+export { clearAll as clearStorage, clearHighScores, type GameStateSources, getHighScores, getTopScore, has as hasStorage, isHighScore, load, loadCompressed, type RehydratedGameState, type RehydrateOptions, rehydrateGameState, remove as removeStorage, type ScoreEntry, type SerializedGameState, save, saveCompressed, serializeGameState, setStoragePrefix, submitScore, } from "./storage/index";
 export { type SaveSlot, SaveSlotManager, type SaveSlotManagerOptions, type SaveSlotMetadata, } from "./storage/save-slots";
 export { createTilemap, isSolidAt, tileAt } from "./tiles/tilemap";
 export { hsl, hsla, lerpColor, rainbow as rainbowColor } from "./utils/color";
@@ -79,6 +91,7 @@ export { createNoise2D, generateNoiseGrid, type NoiseOptions } from "./utils/noi
 export { findPath, type PathOptions } from "./utils/pathfinding";
 export { clearAssetCache, getAsset, type PreloadAsset, type PreloadOptions, type PreloadResult, preloadAssets, } from "./utils/preloader";
 export { Scheduler } from "./utils/scheduler";
+export { SpringPresets } from "./utils/spring-presets";
 export { Cooldown, easeOut, tween } from "./utils/timer";
 ```
 
@@ -149,6 +162,10 @@ export interface TextBlock {
     color: string;
     /** Text alignment. Default 'left'. */
     align?: "left" | "center" | "right" | "justify";
+    /** Glow / shadow color. Applied via canvas shadowBlur. */
+    glow?: string;
+    /** If true, preserve \n as hard line breaks (pre-wrap mode). Default false. */
+    preWrap?: boolean;
     /** Render layer. Default 0. */
     layer?: number;
 }
@@ -158,7 +175,15 @@ export interface Collider {
     width: number;
     height: number;
     sensor?: boolean;
+    /** Internal marker — set when collider was resolved from `"auto"`. */
+    _auto?: boolean;
+    /** Collision group bitmask. Default 1. Entities collide when (a.group & b.mask) !== 0 AND (b.group & a.mask) !== 0. */
+    group?: number;
+    /** Collision mask bitmask. Default 0xFFFFFFFF (all groups). */
+    mask?: number;
 }
+
+export type CollisionCallback = (a: Partial<Entity>, b: Partial<Entity>) => void;
 
 export interface Health {
     current: number;
@@ -263,9 +288,7 @@ export interface Animation {
 export interface StateMachineState {
     /** Called once when entering this state */
     enter?: (entity: Partial<Entity>, engine: any) => void;
-    /** Called every frame while in this state */
     update?: (entity: Partial<Entity>, engine: any, dt: number) => void;
-    /** Called once when leaving this state */
     exit?: (entity: Partial<Entity>, engine: any) => void;
 }
 
@@ -309,6 +332,35 @@ export interface OffScreenDestroy {
     margin?: number;
 }
 
+export interface Trail {
+    /** Spawn interval in seconds. Default 0.05. */
+    interval?: number;
+    /** Lifetime of each trail entity in seconds. Default 0.3. */
+    lifetime?: number;
+    /** Trail color. If omitted, uses the entity's ascii/sprite color. */
+    color?: string;
+    /** Opacity of trail when spawned (fades to 0). Default 0.5. */
+    opacity?: number;
+    /** Internal accumulator. */
+    _acc?: number;
+}
+
+export interface VisualBounds {
+    width: number;
+    height: number;
+    halfW: number;
+    halfH: number;
+    /** Dirty-tracking key — hash of (text + font + scale). Internal use. */
+    _key: string;
+}
+
+export interface Spring {
+    targetX: number;
+    targetY: number;
+    strength: number;
+    damping: number;
+}
+
 export interface Gauge {
     current: number;
     max: number;
@@ -349,7 +401,7 @@ export interface TileLegendEntry {
     color?: string;
     bg?: string;
     solid?: boolean;
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 export interface TilemapComponent {
@@ -391,11 +443,18 @@ export interface Entity {
     interactive: Interactive;
     tilemap: TilemapComponent;
     textEffect: TextEffectComponent;
-    /** Game-specific custom components. Use this for any data not covered above. */
+    trail: Trail;
+    visualBounds: VisualBounds;
+    spring: Spring;
     [key: string]: any;
 }
 
 export type GameEntity<T extends Record<string, any> = {}> = Partial<Entity> & T;
+
+export type SpawnInput = Omit<Partial<Entity>, "collider"> & {
+    /** Pass `"auto"` to auto-size from the entity's ascii/sprite/textBlock bounds via Pretext measurement. */
+    collider?: Collider | "auto";
+};
 
 export interface GameTime {
     dt: number;
@@ -425,6 +484,8 @@ export interface EngineConfig {
     font: string;
     fontSize: number;
     debug: boolean;
+    headlessWidth?: number;
+    headlessHeight?: number;
 }
 
 export declare const DEFAULT_CONFIG: EngineConfig;

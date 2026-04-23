@@ -130,6 +130,11 @@ export interface CharacterPosition {
  * Compute per-character home positions for a text string using Pretext line breaks
  * and per-character width measurement. This is the bridge from Pretext layout to
  * per-character physics entities.
+ *
+ * `align` controls how `baseX` is interpreted:
+ *   - "left" (default): `baseX` is the left edge of the first line
+ *   - "center": `baseX` is the horizontal center of each line
+ *   - "right": `baseX` is the right edge of each line
  */
 export function measureCharacterPositions(
   text: string,
@@ -138,16 +143,24 @@ export function measureCharacterPositions(
   baseY: number,
   maxWidth: number,
   lineHeight: number,
+  align: "left" | "center" | "right" = "left",
 ): CharacterPosition[] {
   const lines = layoutTextBlock(text, font, maxWidth, lineHeight);
   const result: CharacterPosition[] = [];
   const charHeight = parseFloat(font) || 16;
 
   for (let li = 0; li < lines.length; li++) {
+    const line = lines[li];
     const lineY = baseY + li * lineHeight;
+    const lineWidth = line.width;
     let xc = baseX;
+    if (align === "center") {
+      xc = baseX - lineWidth / 2;
+    } else if (align === "right") {
+      xc = baseX - lineWidth;
+    }
 
-    for (const char of lines[li].text) {
+    for (const char of line.text) {
       if (char === " ") {
         xc += measureLineWidth(" ", font);
         continue;

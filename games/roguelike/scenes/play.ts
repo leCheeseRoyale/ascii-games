@@ -122,8 +122,10 @@ export const playScene = defineScene({
     const playerEntity = engine.spawn(
       createPlayer(dungeon.playerStart.col, dungeon.playerStart.row, playerWorld.x, playerWorld.y),
     );
-    playerEntity.health!.current = playerHealth;
-    playerEntity.health!.max = playerMaxHealth;
+    if (playerEntity.health) {
+      playerEntity.health.current = playerHealth;
+      playerEntity.health.max = playerMaxHealth;
+    }
     playerEntity.playerStats = { ...playerStats, floor };
 
     store.setHealth(playerHealth, playerMaxHealth);

@@ -32,13 +32,15 @@ export const trailSystem: System = {
             opacity: startOpacity,
             layer: (ascii.layer ?? 0) - 1,
           }
-        : {
-            lines: [...sprite!.lines],
-            font: sprite!.font,
-            color,
-            opacity: startOpacity,
-            layer: (sprite!.layer ?? 0) - 1,
-          };
+        : sprite
+          ? {
+              lines: [...sprite.lines],
+              font: sprite.font,
+              color,
+              opacity: startOpacity,
+              layer: (sprite.layer ?? 0) - 1,
+            }
+          : { char: "", font: "", color, opacity: startOpacity, layer: 0 };
 
       engine.spawn({
         position: { x: entity.position.x, y: entity.position.y },

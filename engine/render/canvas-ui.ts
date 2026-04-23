@@ -16,9 +16,11 @@ import {
   layoutTextBlock,
   measureLineWidth,
   parseStyledText,
+  type StyledSegment,
   stripTags,
   measureHeight as tlMeasureHeight,
 } from "./text-layout";
+import { UITextField, type UITextFieldOpts } from "./ui-textfield";
 
 // ── Constants ───────────────────────────────────────────────────
 
@@ -321,9 +323,10 @@ export class CanvasUI {
       ctx.font = font;
       ctx.textBaseline = "top";
 
-      const hasTags = /\[(#[0-9a-fA-F]{3,8}|\/|b|\/b|dim|\/dim|bg:#[0-9a-fA-F]{3,8}|\/bg)\]/.test(
-        text,
-      );
+      const hasTags =
+        /\[(#[0-9a-fA-F]{3,8}|\/|b|\/b|i|\/i|u|\/u|dim|\/dim|bg:#[0-9a-fA-F]{3,8}|\/bg)\]/.test(
+          text,
+        );
 
       if (!hasTags) {
         ctx.textAlign = align;
@@ -366,6 +369,13 @@ export class CanvasUI {
           }
           ctx.fillStyle = seg.color;
           ctx.fillText(seg.text, cursor, y);
+
+          if (seg.underline) {
+            const segW = measureLineWidth(seg.text, seg.font);
+            const fontSize = parseFloat(seg.font) || 16;
+            ctx.fillRect(cursor, y + fontSize * 0.9, segW, 1);
+          }
+
           cursor += measureLineWidth(seg.text, seg.font);
           ctx.globalAlpha = baseAlpha;
         }
@@ -398,11 +408,11 @@ export class CanvasUI {
       else if (align === "right") startX = x - totalW;
 
       // Measure each char width for positioning.
-      // Canvas measureText is required for per-char positioning — this
-      // is a hot path for text effects, but it does NOT trigger DOM reflow.
+      // Uses Pretext-cached measureLineWidth for consistency with the rest
+      // of the text pipeline and to avoid repeated canvas measureText calls.
       const charWidths: number[] = [];
       for (const ch of chars) {
-        charWidths.push(ctx.measureText(ch).width);
+        charWidths.push(measureLineWidth(ch, font));
       }
 
       let cx = startX;
@@ -665,6 +675,195 @@ export class CanvasUI {
     });
 
     return Math.max(0, running - (kept.length > 0 ? gap : 0));
+  }
+
+  // ── Multiline text ──────────────────────────────────────────────
+
+  /** Draw wrapped multi-line text in screen space. No panel — just text.
+   *  Supports styled tags and alignment. Returns the rendered height in pixels. */
+  multiline(
+    x: number,
+    y: number,
+    text: string,
+    maxWidth: number,
+    opts?: UITextOpts & { lineHeight?: number },
+  ): number {
+    const font = opts?.font ?? DEFAULT_FONT;
+    const color = opts?.color ?? DEFAULT_COLOR;
+    const glow = opts?.glow;
+    const align = opts?.align ?? "left";
+    const opacity = opts?.opacity;
+    const lineHeight = opts?.lineHeight ?? _lineHeight(font);
+
+    // Use the layout engine to compute wrapped lines
+    const lines = layoutTextBlock(text, font, maxWidth, lineHeight);
+    const totalHeight = lines.length * lineHeight;
+
+    this._queue.push(() => {
+      const ctx = this.ctx;
+      ctx.save();
+      ctx.font = font;
+      ctx.textBaseline = "top";
+
+      if (opacity !== undefined) {
+        ctx.globalAlpha = opacity;
+      }
+      if (glow) {
+        ctx.shadowColor = glow;
+        ctx.shadowBlur = 8;
+      }
+
+      const hasTags =
+        /\[(#[0-9a-fA-F]{3,8}|\/|b|\/b|i|\/i|u|\/u|dim|\/dim|bg:#[0-9a-fA-F]{3,8}|\/bg)\]/.test(
+          text,
+        );
+
+      if (!hasTags) {
+        ctx.fillStyle = color;
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          let lx = x;
+          if (align === "center") lx = x + (maxWidth - line.width) / 2;
+          else if (align === "right") lx = x + maxWidth - line.width;
+          ctx.textAlign = "left";
+          ctx.fillText(line.text, lx, y + i * lineHeight);
+        }
+      } else {
+        // Styled multiline: parse once, then render line-by-line using drawStyledRun logic
+        const segments = parseStyledText(text, font, color);
+        const plainText = stripTags(text);
+
+        // Build flat char-to-style map
+        let charIndex = 0;
+        const plainChars = plainText.length;
+        const charStyles: StyledSegment[] = new Array(plainChars);
+        for (const seg of segments) {
+          for (let ci = 0; ci < seg.text.length && charIndex < plainChars; ci++) {
+            charStyles[charIndex] = seg;
+            charIndex++;
+          }
+        }
+
+        let lineCharStart = 0;
+        for (let i = 0; i < lines.length; i++) {
+          const lineText = lines[i].text;
+          let lx = x;
+          if (align === "center") lx = x + (maxWidth - lines[i].width) / 2;
+          else if (align === "right") lx = x + maxWidth - lines[i].width;
+
+          this._drawStyledRunInline(
+            ctx,
+            lineText,
+            lx,
+            y + i * lineHeight,
+            charStyles,
+            lineCharStart,
+            font,
+            color,
+            lineHeight,
+          );
+          lineCharStart += lineText.length;
+          while (
+            lineCharStart < plainChars &&
+            (plainText[lineCharStart] === " " || plainText[lineCharStart] === "\n")
+          ) {
+            lineCharStart++;
+          }
+        }
+      }
+
+      ctx.restore();
+    });
+
+    return totalHeight;
+  }
+
+  /** Inline styled-run renderer for multiline text (no save/restore — caller handles). */
+  private _drawStyledRunInline(
+    ctx: CanvasRenderingContext2D,
+    lineText: string,
+    startX: number,
+    y: number,
+    charStyles: StyledSegment[],
+    charOffset: number,
+    baseFont: string,
+    baseColor: string,
+    lineHeight: number,
+  ): void {
+    const baseAlpha = ctx.globalAlpha;
+    let drawX = startX;
+    let runStart = 0;
+
+    while (runStart < lineText.length) {
+      const style = charStyles[charOffset + runStart] ?? {
+        text: "",
+        color: baseColor,
+        font: baseFont,
+        opacity: 1,
+        bgColor: null,
+        italic: false,
+        underline: false,
+      };
+
+      let runEnd = runStart + 1;
+      while (runEnd < lineText.length) {
+        const nextStyle = charStyles[charOffset + runEnd];
+        if (
+          !nextStyle ||
+          nextStyle.color !== style.color ||
+          nextStyle.font !== style.font ||
+          nextStyle.opacity !== style.opacity ||
+          nextStyle.bgColor !== style.bgColor ||
+          nextStyle.italic !== style.italic ||
+          nextStyle.underline !== style.underline
+        ) {
+          break;
+        }
+        runEnd++;
+      }
+
+      const runText = lineText.slice(runStart, runEnd);
+      ctx.font = style.font;
+      const runWidth = measureLineWidth(runText, style.font);
+
+      if (style.bgColor) {
+        const prevFill = ctx.fillStyle;
+        const prevAlpha = ctx.globalAlpha;
+        ctx.fillStyle = style.bgColor;
+        ctx.globalAlpha = baseAlpha * style.opacity;
+        ctx.fillRect(drawX, y, runWidth, lineHeight);
+        ctx.fillStyle = prevFill;
+        ctx.globalAlpha = prevAlpha;
+      }
+
+      ctx.globalAlpha = baseAlpha * style.opacity;
+      ctx.fillStyle = style.color;
+      ctx.fillText(runText, drawX, y);
+
+      if (style.underline) {
+        const fontSize = parseFloat(style.font) || 16;
+        ctx.fillRect(drawX, y + fontSize * 0.9, runWidth, 1);
+      }
+
+      drawX += runWidth;
+      runStart = runEnd;
+    }
+
+    ctx.globalAlpha = baseAlpha;
+  }
+
+  // ── Text field ──────────────────────────────────────────────────
+
+  /**
+   * Draw a single-line text input field. Returns a UITextField instance that
+   * must be updated each frame (`field.update(engine)`) to process input.
+   *
+   * This is a convenience factory — the returned field is owned by the caller.
+   */
+  textField(x: number, y: number, opts?: UITextFieldOpts): UITextField {
+    const field = new UITextField(opts);
+    field.draw(this, x, y);
+    return field;
   }
 
   // ── Measurement helpers ─────────────────────────────────────────
@@ -2038,3 +2237,7 @@ export class UITabs {
     this.activeIndex = 0;
   }
 }
+
+// Re-export standalone UI components that live in separate files
+export { UITextField, type UITextFieldOpts } from "./ui-textfield";
+export { UITextView, type UITextViewOpts } from "./ui-textview";

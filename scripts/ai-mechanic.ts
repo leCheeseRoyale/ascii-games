@@ -25,7 +25,7 @@ import {
 function printHelp(): void {
   console.error(
     [
-      "Usage: bun run ai:mechanic \"<description>\" [flags]",
+      'Usage: bun run ai:mechanic "<description>" [flags]',
       "",
       "Generates a defineSystem(...) module using Claude.",
       "",
@@ -34,6 +34,8 @@ function printHelp(): void {
       "  --model=opus|sonnet|haiku   Default: sonnet",
       "  --force                Overwrite existing file",
       "  --dry-run              Print the prompts that would be sent; don't call API",
+      "  --verify               Run bun run check after generation",
+      "  --verify               Run bun run check after generation",
       "",
       "Examples:",
       '  bun run ai:mechanic "enemy that patrols then chases player when close"',
@@ -62,9 +64,9 @@ import { defineSystem, type System, type Engine } from '@engine'
 // State machine component (preferred for multi-state AI):
 interface StateMachine { current: string; states: Record<string, StateMachineState>; next?: string }
 interface StateMachineState {
-  enter?(entity, engine): void
-  update?(entity, engine, dt): void
-  exit?(entity, engine): void
+  enter?(entity: Partial<Entity>, engine: Engine): void
+  update?(entity: Partial<Entity>, engine: Engine, dt: number): void
+  exit?(entity: Partial<Entity>, engine: Engine): void
 }
 // transition(entity, 'nextStateName') from '@engine' switches states.
 
@@ -76,7 +78,7 @@ function buildSystemPrompt(skillMaster: string, skillMechanic: string): string {
     "Your job: given a free-text mechanic description, output ONE TypeScript file implementing it via `defineSystem(...)`.",
     "",
     "Rules:",
-    "1. Import ONLY from '@engine' (plus '@shared/types' if you need `Entity`).",
+    "1. Import ONLY from '@engine' (Entity type is re-exported from '@engine').",
     "2. Export a named system constant, e.g. `export const fooSystem = defineSystem({...})`.",
     "3. Use `engine.world.with(...)` for queries. Collect entities into an array before destroying/mutating.",
     "4. Prefer reusing `createPatrolBehavior` / `createChaseBehavior` / `createFleeBehavior` / `createWanderBehavior` / `createWaveSpawner` / `createDamageSystem` before writing custom logic.",
@@ -112,7 +114,12 @@ async function main(): Promise<void> {
   try {
     parsed = parseArgs(process.argv.slice(2));
   } catch (err) {
-    console.error(err instanceof Error ? err.message : String(err));
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg === "HELP") {
+      printHelp();
+      process.exit(0);
+    }
+    console.error(msg);
     printHelp();
     process.exit(1);
   }
@@ -171,10 +178,24 @@ async function main(): Promise<void> {
 
   const pascal = pascalCase(slug);
   console.log(`Wrote ${outPath}`);
+
+  if (flags.verify) {
+    console.log("\nRunning typecheck...");
+    const proc = Bun.spawn(["bun", "run", "check"], { stdout: "inherit", stderr: "inherit" });
+    await proc.exited;
+    if (proc.exitCode !== 0) {
+      console.error("\nTypecheck failed. Please fix the generated code.");
+      process.exit(1);
+    }
+    console.log("Typecheck passed.");
+  }
+
   console.log("\nNext steps:");
   console.log(`  import { ${camel}System } from './systems/${slug}'`);
   console.log(`  engine.addSystem(${camel}System)    // in your scene's setup()`);
-  console.log(`\nAfter it works, polish with: bun run ai:juice "${pascal} hit / death / spawn event"`);
+  console.log(
+    `\nAfter it works, polish with: bun run ai:juice "${pascal} hit / death / spawn event"`,
+  );
 }
 
 main().catch((err: unknown) => {

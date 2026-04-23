@@ -39,14 +39,14 @@ The world is accessible as `engine.world` from any system or scene.
 
 ## The Entity Type
 
-The `Entity` interface is a union of all possible components (currently 18). Every property is optional when spawning — an entity only has the components you give it:
+The `Entity` interface is a union of all possible components. Every property is optional when spawning — an entity only has the components you give it. See `shared/types.ts` for the full definition. Key components:
 
 ```ts
-// shared/types.ts
+// shared/types.ts (subset — see source for full list)
 export interface Entity {
   position: Position       // { x, y }
-  velocity: Velocity       // { x, y }
-  acceleration: Acceleration // { x, y }
+  velocity: Velocity       // { vx, vy }
+  acceleration: Acceleration // { ax, ay }
   ascii: Ascii             // { char, font, color, glow?, opacity?, scale? }
   sprite: Sprite           // { lines, font, color, glow?, opacity? }
   image: ImageComponent    // { src, width, height, rotation?, anchor?, opacity? }
@@ -64,6 +64,16 @@ export interface Entity {
   child: Child             // { parent: Entity, offsetX, offsetY }
   layer: number            // render order (lower = behind)
   physics: Physics         // { bounce?, friction?, mass? }
+  screenWrap: ScreenWrap   // auto-wrap at screen edges
+  screenClamp: ScreenClamp // keep entity on screen
+  offScreenDestroy: OffScreenDestroy // auto-remove when off screen
+  trail: Trail             // fading afterimage effect
+  spring: Spring           // spring-to-home physics
+  stateMachine: StateMachine // entity state machine
+  gauge: Gauge             // visual gauge bar
+  typewriter: TypewriterComponent // character-reveal effect
+  interactive: Interactive // clickable/hoverable
+  // ... plus open-ended [key: string] for custom components
 }
 ```
 
@@ -77,7 +87,7 @@ Use `engine.spawn()` (or `engine.world.add()` directly) with a `Partial<Entity>`
 // Spawn a simple character
 const player = engine.spawn({
   position: { x: 100, y: 200 },
-  velocity: { x: 0, y: 0 },
+  velocity: { vx: 0, vy: 0 },
   ascii: { char: '@', font: '24px monospace', color: '#00ff00' },
   player: { speed: 200 },
   collider: { width: 20, height: 20, layer: 'player' },
@@ -110,8 +120,8 @@ const movers = engine.world.with('position', 'velocity')
 
 // Iterate in a system
 for (const entity of movers) {
-  entity.position.x += entity.velocity.x * dt
-  entity.position.y += entity.velocity.y * dt
+  entity.position.x += entity.velocity.vx * dt
+  entity.position.y += entity.velocity.vy * dt
 }
 ```
 
@@ -135,7 +145,7 @@ Rather than scattering spawn calls throughout scenes, use factory functions:
 export function createBullet(x: number, y: number, dx: number, dy: number): Partial<Entity> {
   return {
     position: { x, y },
-    velocity: { x: dx, y: dy },
+    velocity: { vx: dx, vy: dy },
     ascii: { char: '·', font: '16px monospace', color: '#ffff00' },
     lifetime: { remaining: 2 },
     collider: { width: 4, height: 4, layer: 'bullet' },

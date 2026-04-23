@@ -30,6 +30,7 @@ bun run ai:game "<pitch>"      # AI-generated defineGame module (needs ANTHROPIC
 bun run ai:sprite "<prompt>"   # AI-generated sprite factory
 bun run ai:mechanic "<desc>"   # AI-generated behavior system
 bun run ai:juice "<event>"     # AI-generated juice/feedback helper
+# All ai:* scripts support --help, --dry-run, --verify (typecheck after generation)
 ```
 
 **Verification loop** before declaring work done: `bun run check:all` → `bun test` (or targeted `bun test <path>`). This runs typecheck + boundary enforcement + lint. Type-check + tests are the mechanical contract. UI/render correctness is **not** verifiable headlessly — state that limitation explicitly instead of claiming success.
@@ -75,12 +76,17 @@ When `defineGame` games need canvas-only UI (no React), `setupGame` returns `{ s
 - **Scenes:** `defineScene({ name, setup, update, cleanup })`. Optional `phase` on systems gates them to a turn phase in turn-based games; no phase = always runs.
 - **Store bridge:** game code writes with `useStore.getState().setScore(10)`; React reads with `useStore(s => s.score)`.
 - **`collider: "auto"`** — auto-sizes the collider from Pretext text measurement at spawn time. Updated each frame by `_measure` if text changes.
-- **`engine.spawnText(opts)`** / **`engine.spawnSprite(opts)`** — decompose text into per-character entities with spring-to-home physics. Each character is a normal entity with position, velocity, collider, and spring.
+- **`engine.spawnText(opts)`** / **`engine.spawnSprite(opts)`** — decompose text into per-character entities with spring-to-home physics. Each character is a normal entity with position, velocity, collider, and spring. `spawnText` supports `align: "left" | "center" | "right"`.
 - **Spring presets:** `SpringPresets.stiff`, `.snappy`, `.bouncy`, `.smooth`, `.floaty`, `.gentle` — named spring configs for `engine.spawnText()` / `engine.spawnSprite()`.
 - **`createCursorRepelSystem(opts?)`** / **`createAmbientDriftSystem(opts?)`** — one-line helpers for interactive text. Add via `engine.addSystem(createCursorRepelSystem({ radius: 120 }))`.
 - **Collision groups:** `collider: { ..., group: 1, mask: 0b11 }` -- bitmask filtering. Default group=1, mask=all.
 - **`engine.onCollide(tagA, tagB, callback)`** -- fires callback on first overlap frame between tagged entities. Returns unsubscribe function. Lazy-creates `_collisionEvents` system on first call.
 - **`engine.flash(color?, duration?)`** -- full-screen flash for damage/powerup feedback.
+- **`engine.restartScene(freshData?)`** -- reload current scene with same or new data.
+- **`engine.clearWorld()`** -- remove all entities without changing scene.
+- **`engine.getEntityById(id)`** -- look up entity by miniplex ID.
+- **`engine.cloneEntity(entity)`** -- shallow-clone an entity and spawn it.
+- **`engine.touch`** -- touch/gesture input (tap, swipe, pinch). Only available when canvas is present.
 - **`engine.blink(entity, duration?, interval?)`** -- oscillates opacity for i-frames.
 - **`engine.knockback(entity, fromX, fromY, force)`** -- impulse away from a point.
 - **`engine.timeScale`** -- multiplies dt for all systems. Set to 0.3 for slowmo, 1 for normal.
@@ -88,6 +94,7 @@ When `defineGame` games need canvas-only UI (no React), `setupGame` returns `{ s
 - **Auto-stop music on scene change:** `stopMusic()` is called automatically when leaving a scene. Scenes that want continuous music re-start it in `setup()`.
 - **Art assets:** Define reusable ASCII art with `ArtAsset` type. Spawn static art with `engine.spawnArt(asset, opts)`. Spawn interactive physics art with `engine.spawnInteractiveArt(asset, opts)`.
 - **Art files convention:** Store art in `game/art/*.ts` exporting `ArtAsset` objects. Import in scenes.
+- **Input:** `engine.keyboard.typedChars` / `engine.keyboard.typedString` capture printable characters per frame. `engine.keyboard.compositionText` / `.compositionActive` support IME input. `engine.mouse.held(button)`, `.pressed(button)`, `.released(button)` track per-button state (0=left, 1=middle, 2=right). `engine.touch` exposes `.touches`, `.primary`, `.gestures` (tap/swipe/pinch) on mobile.
 - **Timers/schedulers:** `engine.after(sec, fn)` (one-shot), `engine.every(sec, fn)` (repeating), `engine.spawnEvery(sec, factory)` (repeating spawn). `engine.sequence([...])` chains timed callbacks. `Cooldown` class: advance with `cd.update(dt)`, fire with `if (cd.fire()) { ... }`, check `cd.ready`.
 - **Debug overlay:** Toggle with backtick (`` ` ``) or `engine.debug.toggle()`. Shows collider bounds, entity counts, per-system timing, and errors. Warnings from `engine.spawn()` validation and system errors surface here and in the browser console.
 
@@ -98,6 +105,7 @@ These cause the highest-frequency bugs in AI-generated code in this repo:
 - **Don't integrate velocity manually.** `_physics` already runs `position += velocity * dt`. Writing it again in a custom system causes double-speed movement.
 - **Don't mutate the world during iteration.** Materialize first: `const list = [...engine.world.with(...)]`, then iterate/destroy.
 - **Don't call Pretext `prepare()` directly.** The renderer caches it; bypassing the cache kills perf. Set component data and let the engine render.
+- **Don't use non-null assertions (`!`).** Biome forbids them. Use runtime checks or guard clauses instead.
 - **Don't use `setInterval`/`setTimeout`.** Use `engine.after(sec, fn)`, `engine.every(sec, fn)`, `engine.spawnEvery(sec, factory)`, `engine.sequence([...])`, or the `Cooldown` class (advance with `dt`).
 - **Don't put game logic in `engine/`.** It's a reusable framework — belongs in `game/` (or `games/<template>/` for template changes).
 - **Don't re-register built-in systems.** They run automatically on scene load.
@@ -118,7 +126,7 @@ Two audiences, two locations:
 - `wiki/_index.md` — engine architecture and internals (45 pages).
 - `AGENTS.md` — terse API cheat sheet organized for agents.
 - `docs/API-generated.md` — auto-generated API reference (regenerate, don't edit).
-- `docs/COOKBOOK.md` — patterns and recipes.
+- `docs/COOKBOOK.md` — recipe index; split into `docs/cookbook/` topic files.
 - `docs/WIRING.md` — step-by-step wiring for `defineGame` and `defineScene` games.
 - `docs/QUICKSTART.md`, `docs/TUTORIAL.md` — hands-on walkthroughs.
 - `shared/types.ts` — `Entity` + every component shape.

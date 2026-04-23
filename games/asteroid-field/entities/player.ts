@@ -14,5 +14,6 @@ export function createPlayer(x: number, y: number): Partial<Entity> {
     player: { index: 0 },
     collider: { type: "circle", width: 20, height: 20 },
     health: { current: GAME.player.maxHealth, max: GAME.player.maxHealth },
+    screenWrap: { margin: 20 },
   };
 }

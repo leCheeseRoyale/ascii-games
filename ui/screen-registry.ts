@@ -18,7 +18,3 @@ export function registerScreen(name: string, component: ComponentType): void {
 export function getScreen(name: string): ComponentType | undefined {
   return registry.get(name);
 }
-
-export function getAllScreens(): ScreenRegistry {
-  return registry;
-}

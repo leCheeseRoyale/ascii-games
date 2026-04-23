@@ -44,7 +44,9 @@ export class AsciiRenderer {
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext("2d")!;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas 2D context not available");
+    this.ctx = ctx;
   }
 
   /** Resize canvas to fill its container. Call on mount + window resize. */
@@ -162,8 +164,10 @@ export class AsciiRenderer {
 
   private drawTilemap(entity: Partial<Entity>): void {
     const { ctx } = this;
-    const { x: ox, y: oy } = entity.position!;
-    const tm = entity.tilemap!;
+    const pos = entity.position;
+    const tm = entity.tilemap;
+    if (!pos || !tm) return;
+    const { x: ox, y: oy } = pos;
     const font = tm.font ?? '16px "Fira Code", monospace';
     const cs = tm.cellSize;
 
@@ -197,8 +201,10 @@ export class AsciiRenderer {
 
   private drawImage(entity: Partial<Entity>): void {
     const { ctx } = this;
-    const { x, y } = entity.position!;
-    const img = entity.image!;
+    const pos = entity.position;
+    const img = entity.image;
+    if (!pos || !img) return;
+    const { x, y } = pos;
 
     const w = img.width || img.image.naturalWidth;
     const h = img.height || img.image.naturalHeight;
@@ -220,8 +226,10 @@ export class AsciiRenderer {
 
   private drawAscii(entity: Partial<Entity>): void {
     const { ctx } = this;
-    const { x, y } = entity.position!;
-    const a = entity.ascii!;
+    const pos = entity.position;
+    const a = entity.ascii;
+    if (!pos || !a) return;
+    const { x, y } = pos;
     const effectFn = entity.textEffect?.fn;
 
     ctx.save();
@@ -286,8 +294,10 @@ export class AsciiRenderer {
 
   private drawSprite(entity: Partial<Entity>): void {
     const { ctx } = this;
-    const { x, y } = entity.position!;
-    const s = entity.sprite!;
+    const pos = entity.position;
+    const s = entity.sprite;
+    if (!pos || !s) return;
+    const { x, y } = pos;
 
     // Entities with textEffect need per-character transforms each frame — skip the cache.
     if (entity.textEffect) {
@@ -310,9 +320,12 @@ export class AsciiRenderer {
   /** Per-character sprite rendering for entities with textEffect. */
   private drawSpritePerChar(entity: Partial<Entity>): void {
     const { ctx } = this;
-    const { x, y } = entity.position!;
-    const s = entity.sprite!;
-    const effectFn = entity.textEffect!.fn;
+    const pos = entity.position;
+    const s = entity.sprite;
+    const te = entity.textEffect;
+    if (!pos || !s || !te) return;
+    const { x, y } = pos;
+    const effectFn = te.fn;
 
     const fontSize = parseFloat(s.font) || 16;
     const lineHeight = fontSize * 1.2;
@@ -382,8 +395,10 @@ export class AsciiRenderer {
     obstacles: { position: Position; obstacle: Obstacle }[],
   ): void {
     const { ctx } = this;
-    const { x, y } = entity.position!;
-    const tb = entity.textBlock!;
+    const pos = entity.position;
+    const tb = entity.textBlock;
+    if (!pos || !tb) return;
+    const { x, y } = pos;
     const align = tb.align ?? "left";
 
     ctx.save();
@@ -391,10 +406,18 @@ export class AsciiRenderer {
     ctx.fillStyle = tb.color;
     ctx.textBaseline = "top";
 
+    if (tb.glow) {
+      ctx.shadowColor = tb.glow;
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+    }
+
+    const whiteSpace = tb.preWrap ? "pre-wrap" : undefined;
+
     // Check if text contains style tags
-    const hasStyleTags = /\[(#[0-9a-fA-F]{3,8}|b|\/b|dim|\/dim|bg:#[0-9a-fA-F]{3,8}|\/bg)\]/.test(
-      tb.text,
-    );
+    const hasStyleTags =
+      /\[(#[0-9a-fA-F]{3,8}|b|\/b|i|\/i|u|\/u|dim|\/dim|bg:#[0-9a-fA-F]{3,8}|\/bg)\]/.test(tb.text);
     const plainText = hasStyleTags ? stripTags(tb.text) : tb.text;
 
     if (align === "justify" && obstacles.length === 0 && !hasStyleTags) {
@@ -405,6 +428,7 @@ export class AsciiRenderer {
         tb.maxWidth,
         tb.lineHeight,
         x,
+        whiteSpace,
       );
       for (const jline of justifiedLines) {
         for (const word of jline.words) {
@@ -420,12 +444,13 @@ export class AsciiRenderer {
         tb.maxWidth,
         tb.lineHeight,
         obstacles,
+        whiteSpace,
       );
       for (const line of lines) {
         ctx.fillText(line.text, line.x, line.y);
       }
     } else {
-      const lines = layoutTextBlock(plainText, tb.font, tb.maxWidth, tb.lineHeight);
+      const lines = layoutTextBlock(plainText, tb.font, tb.maxWidth, tb.lineHeight, whiteSpace);
       const alignX = (lineWidth: number) =>
         align === "center"
           ? x + (tb.maxWidth - lineWidth) / 2
@@ -471,6 +496,40 @@ export class AsciiRenderer {
             lineCharStart++;
           }
         }
+      } else if (entity.textEffect) {
+        // Per-character effects on wrapped text (plain text only)
+        const effectFn = entity.textEffect.fn;
+        const totalChars = plainText.length;
+        let charIdx = 0;
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          const lineY = y + i * tb.lineHeight;
+          let cx = alignX(line.width);
+          for (const char of line.text) {
+            const cw = measureLineWidth(char, tb.font);
+            const transform = effectFn(charIdx, totalChars, this.sceneTime);
+            const dx = transform.dx ?? 0;
+            const dy = transform.dy ?? 0;
+
+            ctx.save();
+            if (transform.opacity !== undefined) {
+              ctx.globalAlpha = transform.opacity;
+            }
+            if (transform.scale !== undefined) {
+              const mid = cx + cw / 2;
+              const midY = lineY + tb.lineHeight / 2;
+              ctx.translate(mid, midY);
+              ctx.scale(transform.scale, transform.scale);
+              ctx.translate(-mid, -midY);
+            }
+            ctx.fillStyle = transform.color ?? tb.color;
+            ctx.fillText(transform.char ?? char, cx + dx, lineY + dy);
+            ctx.restore();
+
+            charIdx++;
+            cx += cw;
+          }
+        }
       } else {
         for (let i = 0; i < lines.length; i++) {
           ctx.fillText(lines[i].text, alignX(lines[i].width), y + i * tb.lineHeight);
@@ -507,6 +566,8 @@ export class AsciiRenderer {
         font: baseFont,
         opacity: 1,
         bgColor: null,
+        italic: false,
+        underline: false,
       };
 
       // Find end of run with same style
@@ -518,7 +579,9 @@ export class AsciiRenderer {
           nextStyle.color !== style.color ||
           nextStyle.font !== style.font ||
           nextStyle.opacity !== style.opacity ||
-          nextStyle.bgColor !== style.bgColor
+          nextStyle.bgColor !== style.bgColor ||
+          nextStyle.italic !== style.italic ||
+          nextStyle.underline !== style.underline
         ) {
           break;
         }
@@ -545,34 +608,26 @@ export class AsciiRenderer {
       ctx.fillStyle = style.color;
       ctx.fillText(runText, drawX, y);
 
+      // Draw underline
+      if (style.underline) {
+        const fontSize = parseFloat(style.font) || 16;
+        ctx.fillRect(drawX, y + fontSize * 0.9, runWidth, 1);
+      }
+
       drawX += runWidth;
       runStart = runEnd;
     }
   }
 
-  /** Draw debug overlays: collider outlines, velocity arrows, position dots. */
+  /** Draw debug overlays: velocity arrows and position dots.
+   *  Collider outlines are handled by the debug overlay (backtick toggle). */
   private renderDebug(world: GameWorld): void {
     const { ctx } = this;
     ctx.save();
 
-    // --- Collider outlines ---
-    ctx.strokeStyle = "#00ff00";
-    ctx.lineWidth = 1;
-    ctx.globalAlpha = 0.5;
-    for (const e of world.with("position", "collider")) {
-      const { x, y } = e.position;
-      const { type, width, height } = e.collider;
-      if (type === "circle") {
-        ctx.beginPath();
-        ctx.arc(x, y, width / 2, 0, Math.PI * 2);
-        ctx.stroke();
-      } else {
-        ctx.strokeRect(x - width / 2, y - height / 2, width, height);
-      }
-    }
-
     // --- Velocity arrows ---
     ctx.strokeStyle = "#ffff00";
+    ctx.lineWidth = 1;
     ctx.globalAlpha = 0.4;
     for (const e of world.with("position", "velocity")) {
       const { vx, vy } = e.velocity;

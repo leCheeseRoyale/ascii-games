@@ -42,7 +42,7 @@ engine.spawnText({
 engine.addSystem(createCursorRepelSystem())
 ```
 
-Move your mouse and the characters scatter, then reassemble. Try `bun run init:game physics-text` for a full interactive demo, or see the [Tutorial -- Interactive ASCII Art](TUTORIAL.md#13-interactive-ascii-art) section and the [Cookbook](COOKBOOK.md#text-aware-physics--auto-colliders) for recipes.
+Move your mouse and the characters scatter, then reassemble. Try `bun run init:game physics-text` for a full interactive demo, or see the [Tutorial -- Interactive ASCII Art](TUTORIAL.md#13-interactive-ascii-art) section and the [Cookbook](cookbook/text-physics.md) for recipes.
 
 ---
 
@@ -233,7 +233,7 @@ engine.onCollide("a", "b", fn)  // declarative collision callback
 trail: { lifetime: 0.3 }        // afterimage component (add at spawn)
 ```
 
-Full recipes in [COOKBOOK.md](COOKBOOK.md#game-feel--juice).
+Full recipes in [COOKBOOK.md](cookbook/game-feel.md).
 
 ---
 
@@ -248,7 +248,7 @@ bun run ai:mechanic "description"  # generates a behavior system
 bun run ai:juice "event"           # generates juice/feedback helper
 ```
 
-See [Game Authoring Workflows](guides/game-authoring-workflows.md) for details.
+See [AI-WORKFLOWS.md](AI-WORKFLOWS.md) for details.
 
 ---
 
@@ -256,13 +256,6 @@ See [Game Authoring Workflows](guides/game-authoring-workflows.md) for details.
 
 - [`TUTORIAL.md`](TUTORIAL.md) — a full guided build from blank template to complete game.
 - [`COOKBOOK.md`](COOKBOOK.md) — copy-paste recipes for common patterns.
-- [`guides/`](guides/) — deep dives on specific systems:
-  - [Engine Core & Architecture](guides/engine-core-architecture.md)
-  - [Physics, Input & Audio](guides/physics-input-audio.md)
-  - [Rendering Pipeline](guides/rendering-pipeline.md)
-  - [Behaviors System](guides/behaviors-system.md)
-  - [UI & Store Bridge](guides/ui-and-store-bridge.md)
-  - [Multiplayer & Networking](guides/multiplayer-networking.md)
+- [`wiki/`](../wiki/_index.md) — deep dives on engine internals (45 pages).
 - [`AGENTS.md`](../AGENTS.md) — terse API cheat sheet for quick reference.
-- [`PROJECT-GUIDE.md`](PROJECT-GUIDE.md) — architecture, conventions, and critical gotchas.
 - [`API-generated.md`](API-generated.md) — full auto-generated API reference.

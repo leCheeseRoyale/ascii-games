@@ -16,7 +16,7 @@
  */
 
 import type { Engine, Entity } from "@engine";
-import { defineScene, defineSystem, FONTS } from "@engine";
+import { defineScene, defineSystem, FONTS, measureLineWidth } from "@engine";
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Spring presets — higher strength = snappier return to home position,
@@ -184,9 +184,9 @@ function spawnArtLayer(
   layer: number,
   initialScatter: number,
 ) {
-  // Monospace character width is roughly 60% of font pixel size
+  // Measure actual character dimensions via Pretext instead of guessing
   const fontSize = parseFloat(font);
-  const charW = fontSize * 0.6;
+  const charW = measureLineWidth("M", font);
   const lineH = fontSize * 1.3;
 
   for (let row = 0; row < art.length; row++) {
@@ -236,7 +236,7 @@ export const playScene = defineScene({
     // ── Layer 0: Background stars ─────────────────────────────────
     // Floaty springs (low strength, high damping) = slow, dreamy drift.
     // Wide initial scatter so they float in from all directions.
-    const starArtW = STARS[0].length * 12 * 0.6;
+    const starArtW = STARS[0].length * measureLineWidth("M", FONTS.small);
     spawnArtLayer(
       engine,
       STARS,
@@ -253,7 +253,7 @@ export const playScene = defineScene({
     // ── Layer 1: Mountains ────────────────────────────────────────
     // Medium springs — responsive but not twitchy.
     // Snow-capped peaks via the mountainColor helper.
-    const mtArtW = MOUNTAINS[0].length * 16 * 0.6;
+    const mtArtW = MOUNTAINS[0].length * measureLineWidth("M", FONTS.normal);
     spawnArtLayer(
       engine,
       MOUNTAINS,
@@ -270,7 +270,7 @@ export const playScene = defineScene({
     // ── Layer 2: Fox creature ─────────────────────────────────────
     // Bouncy springs — satisfying to poke with the cursor.
     // Larger scatter for a dramatic entrance.
-    const foxArtW = FOX[0].length * 16 * 0.6;
+    const foxArtW = FOX[0].length * measureLineWidth("M", FONTS.normal);
     spawnArtLayer(
       engine,
       FOX,
@@ -295,6 +295,7 @@ export const playScene = defineScene({
       color: "#00ffaa",
       spring: SPRINGS.stiff,
       tags: ["title"],
+      align: "center",
     });
 
     // ── Hint text (single entity, not decomposed) ─────────────────

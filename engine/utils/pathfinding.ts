@@ -15,7 +15,10 @@ import type { GridMap } from "./grid";
 /** Binary min-heap for O(log n) insert/extract-min. */
 class MinHeap<T> {
   private data: T[] = [];
-  constructor(private compare: (a: T, b: T) => number) {}
+  private compare: (a: T, b: T) => number;
+  constructor(compare: (a: T, b: T) => number) {
+    this.compare = compare;
+  }
 
   push(item: T): void {
     this.data.push(item);
@@ -26,8 +29,8 @@ class MinHeap<T> {
     const { data } = this;
     if (data.length === 0) return undefined;
     const top = data[0];
-    const last = data.pop()!;
-    if (data.length > 0) {
+    const last = data.pop();
+    if (last !== undefined && data.length > 0) {
       data[0] = last;
       this.siftDown(0);
     }
@@ -39,10 +42,10 @@ class MinHeap<T> {
   }
 
   private siftUp(i: number): void {
-    const { data, compare } = this;
+    const { data } = this;
     while (i > 0) {
       const parent = (i - 1) >> 1;
-      if (compare(data[i], data[parent]) >= 0) break;
+      if (this.compare(data[i], data[parent]) >= 0) break;
       const tmp = data[i];
       data[i] = data[parent];
       data[parent] = tmp;
@@ -51,14 +54,14 @@ class MinHeap<T> {
   }
 
   private siftDown(i: number): void {
-    const { data, compare } = this;
+    const { data } = this;
     const n = data.length;
     while (true) {
       let smallest = i;
       const left = 2 * i + 1;
       const right = 2 * i + 2;
-      if (left < n && compare(data[left], data[smallest]) < 0) smallest = left;
-      if (right < n && compare(data[right], data[smallest]) < 0) smallest = right;
+      if (left < n && this.compare(data[left], data[smallest]) < 0) smallest = left;
+      if (right < n && this.compare(data[right], data[smallest]) < 0) smallest = right;
       if (smallest === i) break;
       const tmp = data[i];
       data[i] = data[smallest];
@@ -152,7 +155,8 @@ export function findPath<T>(
   while (openHeap.size > 0 && iterations < maxIter) {
     iterations++;
 
-    const current = openHeap.pop()!;
+    const current = openHeap.pop();
+    if (!current) continue;
 
     if (current.col === goal.col && current.row === goal.row) {
       // Reconstruct path

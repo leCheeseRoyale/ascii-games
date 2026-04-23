@@ -26,7 +26,7 @@ import {
 function printHelp(): void {
   console.error(
     [
-      "Usage: bun run ai:sprite \"<prompt>\" [flags]",
+      'Usage: bun run ai:sprite "<prompt>" [flags]',
       "",
       "Generates an ASCII sprite entity factory using Claude.",
       "",
@@ -37,6 +37,7 @@ function printHelp(): void {
       "  --physics              Generate spawnSprite()-ready code with spring physics",
       "  --force                Overwrite existing file",
       "  --dry-run              Print the prompts that would be sent; don't call API",
+      "  --verify               Run bun run check after generation",
       "",
       "Examples:",
       '  bun run ai:sprite "space invader" --frames=2',
@@ -135,9 +136,8 @@ function buildPhysicsSystemPrompt(skillMaster: string): string {
     "2. Define the ASCII art as a `string[]` constant (one string per row, equal-padded).",
     "3. Export a function named `spawn<Pascal>(engine: Engine, x: number, y: number)` that calls",
     "   `engine.spawnSprite()` and returns the resulting `Partial<Entity>[]`.",
-    "4. Pick a spring preset that fits the visual mood: gentle for floaty things, bouncy for lively,",
-    "   stiff for rigid objects. Express as a literal `{ strength, damping }` object — there is no",
-    "   `SpringPresets` import.",
+    "4. Pick a spring preset that fits the visual mood. Import `SpringPresets` from '@engine'",
+    "   and use `SpringPresets.gentle`, `SpringPresets.bouncy`, or `SpringPresets.stiff`.",
     "5. Keep the art tasteful — printable ASCII only, no emoji.",
     "6. Prefer COLORS.* values (accent, primary, success, danger, warning) when they fit; otherwise pick a single hex color.",
     "7. No extra systems, no classes, no side effects at module scope.",
@@ -182,7 +182,12 @@ async function main(): Promise<void> {
   try {
     parsed = parseArgs(process.argv.slice(2));
   } catch (err) {
-    console.error(err instanceof Error ? err.message : String(err));
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg === "HELP") {
+      printHelp();
+      process.exit(0);
+    }
+    console.error(msg);
     printHelp();
     process.exit(1);
   }
@@ -201,9 +206,7 @@ async function main(): Promise<void> {
   const outPath = flags.out ?? `game/entities/${slug}.ts`;
 
   const skillMaster = await loadSkill("ascii-games-dev");
-  const system = physics
-    ? buildPhysicsSystemPrompt(skillMaster)
-    : buildSystemPrompt(skillMaster);
+  const system = physics ? buildPhysicsSystemPrompt(skillMaster) : buildSystemPrompt(skillMaster);
   const user = physics
     ? buildPhysicsUserPrompt(promptText, pascal)
     : buildUserPrompt(promptText, frames, pascal);
@@ -245,6 +248,18 @@ async function main(): Promise<void> {
   }
 
   console.log(`Wrote ${outPath}`);
+
+  if (flags.verify) {
+    console.log("\nRunning typecheck...");
+    const proc = Bun.spawn(["bun", "run", "check"], { stdout: "inherit", stderr: "inherit" });
+    await proc.exited;
+    if (proc.exitCode !== 0) {
+      console.error("\nTypecheck failed. Please fix the generated code.");
+      process.exit(1);
+    }
+    console.log("Typecheck passed.");
+  }
+
   console.log("\nNext steps:");
   if (physics) {
     console.log(`  import { spawn${pascal} } from './entities/${slug}'`);

@@ -26,7 +26,7 @@ import {
 function printHelp(): void {
   console.error(
     [
-      "Usage: bun run ai:juice \"<event description>\" [flags]",
+      'Usage: bun run ai:juice "<event description>" [flags]',
       "",
       "Generates a helper function that layers particles + sfx + camera shake + floating text.",
       "",
@@ -35,6 +35,7 @@ function printHelp(): void {
       "  --model=opus|sonnet|haiku   Default: sonnet",
       "  --force                Overwrite existing file",
       "  --dry-run              Print the prompts that would be sent; don't call API",
+      "  --verify               Run bun run check after generation",
       "",
       "Examples:",
       '  bun run ai:juice "player getting hit by bullet"',
@@ -108,7 +109,12 @@ async function main(): Promise<void> {
   try {
     parsed = parseArgs(process.argv.slice(2));
   } catch (err) {
-    console.error(err instanceof Error ? err.message : String(err));
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg === "HELP") {
+      printHelp();
+      process.exit(0);
+    }
+    console.error(msg);
     printHelp();
     process.exit(1);
   }
@@ -166,6 +172,18 @@ async function main(): Promise<void> {
   }
 
   console.log(`Wrote ${outPath}`);
+
+  if (flags.verify) {
+    console.log("\nRunning typecheck...");
+    const proc = Bun.spawn(["bun", "run", "check"], { stdout: "inherit", stderr: "inherit" });
+    await proc.exited;
+    if (proc.exitCode !== 0) {
+      console.error("\nTypecheck failed. Please fix the generated code.");
+      process.exit(1);
+    }
+    console.log("Typecheck passed.");
+  }
+
   console.log("\nNext steps:");
   console.log(`  import { ${helperName} } from './helpers/${slug}'`);
   console.log(`  ${helperName}(engine, x, y)   // call from your collision or event handler`);

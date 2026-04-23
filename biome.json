@@ -1,7 +1,16 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.4.10/schema.json",
   "files": {
-    "includes": ["engine/**", "game/**", "games/**", "ui/**", "shared/**", "src/**"]
+    "includes": [
+      "engine/**",
+      "game/**",
+      "games/**",
+      "ui/**",
+      "shared/**",
+      "src/**",
+      "plugins/**",
+      "scripts/**"
+    ]
   },
   "linter": {
     "enabled": true,

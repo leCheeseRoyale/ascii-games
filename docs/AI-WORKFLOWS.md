@@ -1,6 +1,6 @@
 # AI-assisted workflows
 
-Three CLI scripts use Claude to scaffold game content: sprites, mechanics, and juice.
+Four CLI scripts use Claude to scaffold game content: sprites, mechanics, juice, and full games.
 
 ## Setup
 
@@ -72,6 +72,8 @@ Token-cost note: higher than the other AI scripts — expect ~10–20k tokens pe
 | `--force` | off | Overwrite an existing file |
 | `--dry-run` | off | Print prompts; don't call API |
 | `--frames=N` | `1` | **ai:sprite only** — animation frame count |
+| `--verify` | off | Run `bun run check` after generation |
+| `--physics` | off | **ai:sprite only** — generate spring-physics sprite |
 
 ## Models
 

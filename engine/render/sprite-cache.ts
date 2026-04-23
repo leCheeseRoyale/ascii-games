@@ -87,13 +87,14 @@ export function getCachedSprite(
   let ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
   try {
     canvas = new OffscreenCanvas(canvasW, canvasH);
-    ctx = canvas.getContext("2d")!;
   } catch {
     canvas = document.createElement("canvas");
     canvas.width = canvasW;
     canvas.height = canvasH;
-    ctx = canvas.getContext("2d")!;
   }
+  const maybeCtx = canvas.getContext("2d");
+  if (!maybeCtx) throw new Error("Canvas 2D context not available");
+  ctx = maybeCtx;
 
   ctx.font = font;
   ctx.textBaseline = "top";

@@ -13,7 +13,7 @@
 
 ## Recipes & Patterns
 
-- **[COOKBOOK.md](COOKBOOK.md)** -- Copy-pasteable recipes for common tasks: `defineGame`, ECS patterns, collisions, UI, audio, physics text.
+- **[COOKBOOK.md](COOKBOOK.md)** -- Recipe index linking to topic files in [`cookbook/`](cookbook/).
 - **[WIRING.md](WIRING.md)** -- Step-by-step wiring for `defineGame` and `defineScene` games.
 - **[AI-WORKFLOWS.md](AI-WORKFLOWS.md)** -- AI-assisted scaffolding: `ai:sprite`, `ai:mechanic`, `ai:juice`, `ai:game`.
 

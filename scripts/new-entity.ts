@@ -5,21 +5,21 @@
  * Example: bun run new:entity power-up  →  game/entities/power-up.ts
  */
 
-const name = process.argv[2]
+const name = process.argv[2];
 
 if (!name) {
-  console.error('Usage: bun run new:entity <name>')
-  console.error('Example: bun run new:entity power-up')
-  process.exit(1)
+  console.error("Usage: bun run new:entity <name>");
+  console.error("Example: bun run new:entity power-up");
+  process.exit(1);
 }
 
-const kebab = name.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()
-const pascal = kebab.replace(/(^|-)(\w)/g, (_m, _d, c) => c.toUpperCase())
+const kebab = name.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
+const pascal = kebab.replace(/(^|-)(\w)/g, (_m, _d, c) => c.toUpperCase());
 
-const path = `game/entities/${kebab}.ts`
+const path = `game/entities/${kebab}.ts`;
 if (await Bun.file(path).exists()) {
-  console.error(`✗ Already exists: ${path}`)
-  process.exit(1)
+  console.error(`✗ Already exists: ${path}`);
+  process.exit(1);
 }
 
 const template = `import type { Entity } from '@engine'
@@ -44,8 +44,8 @@ export function create${pascal}(x: number, y: number): Partial<Entity> {
     // lifetime: { remaining: 5 },
   }
 }
-`
+`;
 
-await Bun.write(path, template)
-console.log(`✓ Created entity: ${path}`)
-console.log(`  Usage: engine.spawn(create${pascal}(x, y))`)
+await Bun.write(path, template);
+console.log(`✓ Created entity: ${path}`);
+console.log(`  Usage: engine.spawn(create${pascal}(x, y))`);

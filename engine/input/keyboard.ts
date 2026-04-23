@@ -8,8 +8,12 @@ export class Keyboard {
   readonly justPressed = new Set<string>();
   readonly justReleased = new Set<string>();
 
+  /** Characters typed this frame (printable keys only). Cleared each update(). */
+  readonly typedChars: string[] = [];
+
   private pendingDown = new Set<string>();
   private pendingUp = new Set<string>();
+  private pendingTyped: string[] = [];
   private onDown: (e: KeyboardEvent) => void;
   private onUp: (e: KeyboardEvent) => void;
 
@@ -17,8 +21,20 @@ export class Keyboard {
     this.onDown = (e: KeyboardEvent) => {
       if (!this.keys.has(e.code)) this.pendingDown.add(e.code);
       this.keys.add(e.code);
-      // Prevent browser defaults for game keys
-      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space", "Tab"].includes(e.code)) {
+
+      // Capture printable characters for text input
+      if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        this.pendingTyped.push(e.key);
+      } else if (e.key === "Backspace") {
+        this.pendingTyped.push("\b");
+      } else if (e.key === "Enter") {
+        this.pendingTyped.push("\r");
+      } else if (e.key === "Escape") {
+        this.pendingTyped.push("\u001B");
+      }
+
+      // Prevent browser defaults for game keys (keep Tab unblocked for accessibility)
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(e.code)) {
         e.preventDefault();
       }
     };
@@ -30,14 +46,17 @@ export class Keyboard {
     window.addEventListener("keyup", this.onUp);
   }
 
-  /** Flush pending → justPressed/justReleased. Call once per frame. */
+  /** Flush pending → justPressed/justReleased/typedChars. Call once per frame. */
   update(): void {
     this.justPressed.clear();
     this.justReleased.clear();
+    this.typedChars.length = 0;
     for (const k of this.pendingDown) this.justPressed.add(k);
     for (const k of this.pendingUp) this.justReleased.add(k);
+    for (const ch of this.pendingTyped) this.typedChars.push(ch);
     this.pendingDown.clear();
     this.pendingUp.clear();
+    this.pendingTyped.length = 0;
   }
 
   /** Is this key currently held? */

@@ -177,13 +177,15 @@ export class Touch {
   // Mouse-tracking for unifyMouse mode.
   private _mouseDown = false;
 
-  constructor(canvasArg: HTMLCanvasElement | CanvasLike, opts: TouchOptions = {}) {
-    const canvas = canvasArg as CanvasLike;
-    this.canvas = canvas;
+  constructor(canvasArg?: HTMLCanvasElement | CanvasLike | null, opts: TouchOptions = {}) {
+    const canvas = canvasArg as CanvasLike | null;
+    this.canvas = canvas ?? ({} as CanvasLike);
     this.unifyMouse = opts.unifyMouse ?? true;
     this.dragThreshold = opts.dragThreshold ?? 10;
     this.tapMaxDuration = opts.tapMaxDuration ?? 300;
     this.swipeMinVelocity = opts.swipeMinVelocity ?? 0.5;
+
+    if (!canvas) return;
 
     // Bind handlers — arrow functions so `this` is preserved.
     const onPointerDown = (e: unknown) => this._handlePointerDown(e as PointerLikeEvent);

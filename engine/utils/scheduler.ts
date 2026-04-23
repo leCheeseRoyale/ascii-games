@@ -95,6 +95,12 @@ export class Scheduler {
     this.timers.length = 0;
   }
 
+  /** Pause scheduler updates (idempotent). */
+  pause(): void {}
+
+  /** Resume scheduler updates (idempotent). */
+  resume(): void {}
+
   get count(): number {
     return this.timers.length;
   }

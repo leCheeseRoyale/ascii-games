@@ -2,7 +2,7 @@ import { Cooldown, defineSystem, rng } from "@engine";
 import { GAME } from "../config";
 import { createStar } from "../entities/star";
 
-let spawnTimer = new Cooldown(GAME.star.spawnInterval);
+let spawnTimer: Cooldown;
 
 export const starSpawnerSystem = defineSystem({
   name: "starSpawner",

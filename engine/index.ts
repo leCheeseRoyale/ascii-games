@@ -392,8 +392,12 @@ export {
   type UITabDef,
   UITabs,
   type UITabsOpts,
+  UITextField,
+  type UITextFieldOpts,
   type UITextOpts,
   type UITextPanelOpts,
+  UITextView,
+  type UITextViewOpts,
   UITooltip,
   type UITooltipOpts,
 } from "./render/canvas-ui";

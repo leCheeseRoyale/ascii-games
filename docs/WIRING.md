@@ -75,7 +75,7 @@ render(ctx) {
   e.ui.text(x, y, "Hello", { font: '20px "Fira Code", monospace', color: "#e0e0e0" });
 
   // Draw a bar
-  e.ui.bar(x, y, width, segments, hp / maxHp, { fillColor: "#0f8", emptyColor: "#222" });
+  e.ui.bar(x, y, width, hp / maxHp, { fillColor: "#0f8", emptyColor: "#222" });
 
   // Handle mouse click
   if (e.mouse.justDown && !ctx.result) {
@@ -119,7 +119,7 @@ phases: {
 
 ```ts
 // game/entities/player.ts
-import { FONTS, type Entity } from "@engine";
+import { createTags, FONTS, type Entity } from "@engine";
 import { GAME } from "../config";
 
 export function createPlayer(x: number, y: number): Partial<Entity> {
@@ -127,9 +127,9 @@ export function createPlayer(x: number, y: number): Partial<Entity> {
     position: { x, y },
     velocity: { vx: 0, vy: 0 },
     ascii: { char: "@", font: FONTS.large, color: GAME.player.color, glow: GAME.player.glow },
-    collider: { type: "circle", width: 20, height: 20 },
+    collider: "auto" as const,
     physics: { gravity: 0, friction: 0.85 },
-    tags: { values: new Set(["player"]) },
+    tags: createTags("player"),
   };
 }
 ```

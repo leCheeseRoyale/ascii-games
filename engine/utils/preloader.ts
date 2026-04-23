@@ -201,7 +201,8 @@ export function preloadAssets(
 
       // Dispatch up to concurrency.
       while (active < concurrency && nextIndex < assets.length && !rejected) {
-        const asset = assets[nextIndex]!;
+        const asset = assets[nextIndex];
+        if (!asset) break;
         nextIndex++;
         active++;
         const key = asset.id ?? asset.url;

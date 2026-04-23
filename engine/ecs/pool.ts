@@ -98,6 +98,7 @@ function applyOverrides(entity: Partial<Entity>, overrides: Partial<Entity>): vo
   const e = entity as Record<string, unknown>;
   const src = overrides as Record<string, unknown>;
   for (const key in src) {
+    if (key === "__proto__" || key === "constructor") continue;
     const incoming = src[key];
     const existing = e[key];
     if (
@@ -108,7 +109,12 @@ function applyOverrides(entity: Partial<Entity>, overrides: Partial<Entity>): vo
       typeof existing === "object" &&
       !Array.isArray(existing)
     ) {
-      Object.assign(existing, incoming);
+      for (const nestedKey in incoming as Record<string, unknown>) {
+        if (nestedKey === "__proto__" || nestedKey === "constructor") continue;
+        (existing as Record<string, unknown>)[nestedKey] = (incoming as Record<string, unknown>)[
+          nestedKey
+        ];
+      }
     } else {
       e[key] = incoming;
     }
@@ -133,7 +139,12 @@ export function createEntityPool<T extends Partial<Entity>>(
 
     if (available.length > 0) {
       // Reuse a previously released entity.
-      entity = available.pop()!;
+      const recycled = available.pop();
+      if (!recycled)
+        throw new Error(
+          "Pool invariant violated: available was non-empty but pop returned undefined",
+        );
+      entity = recycled;
       if (overrides) applyOverrides(entity, overrides);
       engine.world.add(entity as Entity);
       active.push(entity);
@@ -145,7 +156,12 @@ export function createEntityPool<T extends Partial<Entity>>(
       active.push(entity);
     } else {
       // Pool is saturated — recycle the oldest active entity (FIFO).
-      entity = active.shift()!;
+      const oldest = active.shift();
+      if (!oldest)
+        throw new Error(
+          "Pool invariant violated: active was non-empty but shift returned undefined",
+        );
+      entity = oldest;
       if (overrides) applyOverrides(entity, overrides);
       // Make sure miniplex sees it as "added" (it still is — this is a no-op
       // in miniplex since it's already in the world, but calling it is safe).

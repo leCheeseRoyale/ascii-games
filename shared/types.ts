@@ -70,6 +70,10 @@ export interface TextBlock {
   color: string;
   /** Text alignment. Default 'left'. */
   align?: "left" | "center" | "right" | "justify";
+  /** Glow / shadow color. Applied via canvas shadowBlur. */
+  glow?: string;
+  /** If true, preserve \n as hard line breaks (pre-wrap mode). Default false. */
+  preWrap?: boolean;
   /** Render layer. Default 0. */
   layer?: number;
 }

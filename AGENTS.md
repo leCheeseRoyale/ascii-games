@@ -33,7 +33,7 @@
 | `bun run ai:mechanic "<desc>"` | `game/systems/<slug>.ts` — behavior system |
 | `bun run ai:juice "<event>"` | `game/helpers/<slug>.ts` — particles+sfx+shake |
 
-Flags: `--model=opus|sonnet|haiku`, `--out=<path>`, `--force`, `--dry-run`
+Flags: `--model=opus|sonnet|haiku`, `--out=<path>`, `--force`, `--dry-run`, `--verify` (runs `bun run check` after generation), `--help`
 
 ## Architecture
 
@@ -194,7 +194,7 @@ export function setupGame(engine: Engine) {
 | `acceleration` | `{ ax, ay }` | Applied to velocity each frame |
 | `ascii` | `{ char, font, color, glow?, opacity?, scale?, layer? }` | Single-character/text render |
 | `sprite` | `{ lines: string[], font, color, colorMap?, glow?, opacity?, layer? }` | Multi-line ASCII art |
-| `textBlock` | `{ text, font, maxWidth, lineHeight, color, align?, layer? }` | Wrapped paragraph |
+| `textBlock` | `{ text, font, maxWidth, lineHeight, color, align?, glow?, preWrap?, layer? }` | Wrapped paragraph |
 | `collider` | `{ type: "circle"\|"rect", width, height, sensor? }` | Collision bounds |
 | `health` | `{ current, max }` | HP tracking |
 | `lifetime` | `{ remaining }` | Auto-destroy countdown |
@@ -225,7 +225,7 @@ export function setupGame(engine: Engine) {
 **Custom components:** `Entity` has `[key: string]: any` — add any field. Use `GameEntity<T>` for typed custom entities.
 
 **Spawn:** `engine.spawn({ position: {x,y}, ascii: {char,font,color} })` — validates + adds to world
-**Destroy:** `engine.destroy(entity)` / `engine.destroyAll('tag')` / `engine.destroyWithChildren(entity)`
+**Destroy:** `engine.destroy(entity)` / `engine.destroyAll('tag')` / `engine.destroyWithChildren(entity)` / `engine.clearWorld()`
 **Query:** `engine.world.with('position', 'velocity')`, `.without('health')`, `.where(e => ...)`, `engine.findByTag('player')`, `engine.findAllByTag('enemy')`
 **Factory pattern:** `function createX(x,y): Partial<Entity> { return { position, ascii, ... } }`
 
@@ -264,8 +264,15 @@ Custom systems default to priority `0` (before all built-ins). Use `SystemPriori
 engine.keyboard.held("ArrowLeft")    // true while held
 engine.keyboard.pressed("Space")     // true only on frame it went down
 engine.keyboard.released("KeyE")     // true only on frame it went up
+engine.keyboard.typedChars            // printable characters typed this frame
+engine.keyboard.typedString           // joined typed characters
 engine.mouse.x / engine.mouse.y     // cursor position
 engine.mouse.justDown / .justUp      // single-frame click
+engine.mouse.held(button)             // per-button: 0=left, 1=middle, 2=right
+engine.mouse.pressed(button)          // per-button pressed this frame
+engine.mouse.released(button)         // per-button released this frame
+engine.touch?.primary                 // first active touch point (mobile)
+engine.touch?.gestures                // tap/swipe/pinch recognized this frame
 ```
 
 ### Movement (set velocity only — physics integrates)
@@ -289,7 +296,16 @@ for (const e of engine.world.with("health")) if (e.health.current <= 0) toKill.p
 for (const e of toKill) engine.destroy(e);
 ```
 
-### Scene transitions + data
+### Scene management
+
+```ts
+engine.loadScene("play", { transition: "fade", duration: 0.4, data: { floor: 2 } });
+engine.restartScene();               // reload current scene with same data
+engine.restartScene({ floor: 3 });   // reload with fresh data
+engine.clearWorld();                 // remove all entities without changing scene
+engine.getEntityById(id);            // look up entity by miniplex ID
+engine.cloneEntity(entity);          // shallow-clone and spawn
+```
 ```ts
 // Transition types: "fade" | "fadeWhite" | "wipe" | "dissolve" | "scanline" | "none"
 engine.loadScene("play", { transition: "fade", duration: 0.4, data: { floor: 2, hp: 50 } });
@@ -332,14 +348,27 @@ engine.camera.shake(magnitude);
 ### Canvas UI (immediate-mode — call each frame)
 ```ts
 engine.ui.panel(x, y, w, h, { bg, border, borderColor });
-engine.ui.text(x, y, str, { font, color, glow?, align? });
-engine.ui.bar(x, y, w, segments, fillPct, { fillColor, emptyColor, label? });
+engine.ui.text(x, y, str, { font, color, glow?, align? }); // supports [b][i][u][dim][bg:#hex][#hex]
+engine.ui.multiline(x, y, str, maxWidth, { font, color, align?, lineHeight? }); // wrapped, no panel
+engine.ui.bar(x, y, w, fillPct, { fillColor, emptyColor, label? });
 engine.ui.inlineRun(x, y, chunks, { gap? }); // mixed-font badges
 engine.dialog.show(text, { speaker?, typeSpeed?, border?, onChar? });
 engine.dialog.choice(text, options, { border? });
 const menu = new UIMenu(items, { border, title, anchor, onMove });
 menu.update(engine); menu.draw(engine.ui, x, y);
 if (menu.confirmed) handle(menu.selectedIndex);
+
+// Text input — canvas-rendered, Pretext cursor, mobile keyboard support
+const field = new UITextField({ width: 240, placeholder: "Name...", maxLength: 16 });
+field.update(engine);
+field.draw(engine.ui, x, y);
+if (field.confirmed) console.log(field.value);
+
+// Scrollable text view — lore, credits, dialog history
+const lore = new UITextView({ width: 360, height: 200 });
+lore.setText(longLoreText);
+lore.update(engine); // ArrowUp/ArrowDown/PageUp/PageDown/Home/End
+lore.draw(engine.ui, x, y);
 ```
 
 ### Timers
@@ -362,7 +391,7 @@ pool.release(b);
 ### Interactive text (per-character physics)
 ```ts
 import { SpringPresets, createCursorRepelSystem, createAmbientDriftSystem } from "@engine";
-engine.spawnText({ text: "HELLO", font: FONTS.large, position: { x: 100, y: 200 }, spring: SpringPresets.bouncy, tag: "title", color: "#fff" });
+engine.spawnText({ text: "HELLO", font: FONTS.large, position: { x: 100, y: 200 }, spring: SpringPresets.bouncy, tag: "title", color: "#fff", align: "center" });
 engine.addSystem(createCursorRepelSystem({ radius: 120, force: 800, tag: "title" }));
 engine.addSystem(createAmbientDriftSystem({ amplitude: 3, speed: 0.8, tag: "title" }));
 ```
@@ -482,7 +511,7 @@ const server = new GameServer({ port: 3000 });
 
 ## Debug Overlay
 
-Backtick (`` ` ``) toggles the debug overlay (`engine.debug.toggle()`). Shows collider bounds, entity inspector, system profiler, and error log.
+Backtick (`` ` ``) toggles the debug overlay (`engine.debug.toggle()`). Shows collider bounds, entity inspector, system profiler, Pretext cache stats (size + hit/miss counters), and error log.
 
 ## Documentation
 

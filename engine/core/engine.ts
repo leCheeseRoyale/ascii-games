@@ -25,6 +25,7 @@ import { createWorld, type GameWorld } from "../ecs/world";
 import { Gamepad } from "../input/gamepad";
 import { Keyboard } from "../input/keyboard";
 import { Mouse } from "../input/mouse";
+import { Touch } from "../input/touch";
 import { physicsSystem } from "../physics/physics-system";
 import { AsciiRenderer } from "../render/ascii-renderer";
 import { Camera } from "../render/camera";
@@ -73,6 +74,7 @@ export class Engine {
   readonly keyboard: Keyboard;
   readonly mouse: Mouse;
   readonly gamepad: Gamepad;
+  readonly touch: Touch | null;
   readonly particles: ParticlePool;
   readonly scheduler: Scheduler;
   readonly transition: Transition;
@@ -143,6 +145,7 @@ export class Engine {
     this.camera = new Camera();
     this.keyboard = new Keyboard();
     this.gamepad = new Gamepad();
+    this.touch = null;
     this.particles = new ParticlePool();
     this.scheduler = new Scheduler();
     this.transition = new Transition();
@@ -155,7 +158,10 @@ export class Engine {
     if (canvas) {
       this.renderer = new AsciiRenderer(canvas);
       this.mouse = new Mouse(canvas);
-      this.ui = new CanvasUI(canvas.getContext("2d")!);
+      this.touch = new Touch(canvas, { unifyMouse: false });
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas 2D context not available");
+      this.ui = new CanvasUI(ctx);
     } else {
       const nullCanvas = createNullCanvas(
         this.config.headlessWidth ?? 800,
@@ -319,6 +325,36 @@ export class Engine {
     });
   }
 
+  /** Restart the current scene, preserving or resetting its data. */
+  restartScene(freshData?: Record<string, unknown>): void {
+    const current = this.scenes.current;
+    if (!current) return;
+    this.loadScene(current.name, { data: freshData ?? this._sceneData, transition: "none" });
+  }
+
+  /** Remove all entities from the world. Useful for resetting a scene manually. */
+  clearWorld(): void {
+    for (const entity of [...this.world.entities]) {
+      this.world.remove(entity as Entity);
+    }
+  }
+
+  /** Get an entity by its miniplex ID. */
+  getEntityById(id: number): (Entity & { id: number }) | undefined {
+    return this.world.entity(id) as (Entity & { id: number }) | undefined;
+  }
+
+  /** Shallow-clone an entity (components are shared references, not deep-copied). */
+  cloneEntity(entity: Partial<Entity>): Partial<Entity> {
+    const clone: Partial<Entity> = {};
+    for (const [key, value] of Object.entries(entity)) {
+      if (key === "id") continue;
+      // biome-ignore lint/suspicious/noExplicitAny: cloning arbitrary components
+      (clone as any)[key] = value;
+    }
+    return this.spawn(clone as SpawnInput);
+  }
+
   // ── Juice helpers ──────────────────────────────────────────────
 
   /** Full-screen color flash for damage/powerup feedback. Draws on top of everything. */
@@ -451,10 +487,12 @@ export class Engine {
     layer?: number;
     tags?: string[];
     collider?: boolean;
+    align?: "left" | "center" | "right";
   }): Partial<Entity>[] {
     const { text, font, position: pos, maxWidth = Infinity } = opts;
     const lineHeight = opts.lineHeight ?? (parseFloat(font) || 16) * 1.3;
-    const chars = measureCharacterPositions(text, font, pos.x, pos.y, maxWidth, lineHeight);
+    const align = opts.align ?? "left";
+    const chars = measureCharacterPositions(text, font, pos.x, pos.y, maxWidth, lineHeight, align);
     return this.spawnCharEntities(chars, opts);
   }
 
@@ -542,6 +580,7 @@ export class Engine {
     frameDuration = 0.1,
     loop = true,
   ): void {
+    if (frames.length === 0) return;
     entity.animation = { frames, frameDuration, currentFrame: 0, elapsed: 0, loop, playing: true };
     const first = frames[0];
     if (first.char && entity.ascii) entity.ascii.char = first.char;
@@ -736,6 +775,7 @@ export class Engine {
     this.scheduler.clear();
     this.keyboard.destroy();
     this.mouse.destroy();
+    this.touch?.destroy();
     this.gamepad.destroy();
     if (this._onResize) {
       window.removeEventListener("resize", this._onResize);
@@ -746,11 +786,13 @@ export class Engine {
 
   pause(): void {
     this.loop.pause();
+    this.scheduler.pause();
     events.emit("engine:paused");
   }
 
   resume(): void {
     this.loop.resume();
+    this.scheduler.resume();
     events.emit("engine:resumed");
   }
 
@@ -764,6 +806,7 @@ export class Engine {
     this._sceneTime += dt;
     this.keyboard.update();
     this.mouse.update();
+    this.touch?.update();
     this.gamepad.update();
 
     if (this.keyboard.pressed("Backquote")) {

@@ -155,7 +155,7 @@ Save the file. A yellow `*` appears at position (200, 150). It just sits there b
 
 You only add the components you need. An entity with just `position` + `ascii` is a static decoration. Add `velocity` and it moves. Add `collider` and it can collide with things.
 
-> **Deep dive:** [Engine Core & Architecture](guides/engine-core-architecture.md) covers the ECS model, entity lifecycle, and system ordering in detail.
+> **Deep dive:** The [wiki](../wiki/_index.md) covers the ECS model, entity lifecycle, and system ordering in detail.
 
 ---
 
@@ -494,7 +494,7 @@ const off = engine.onCollide("bullet", "enemy", (bullet, enemy) => {
 
 `onCollide` registers a per-frame check internally -- it fires once per overlap pair per contact (not every frame they stay overlapping). It returns an unsubscribe function you can call to stop checking. The manual `overlaps()` loop above is still useful when you need full control (custom filtering, multi-step responses, etc.).
 
-> **Deep dive:** [Physics, Input & Audio](guides/physics-input-audio.md) covers collision groups, bitmask filtering, spatial hashing, and advanced input handling.
+> **Deep dive:** The [wiki](../wiki/_index.md) covers collision groups, bitmask filtering, spatial hashing, and advanced input handling.
 
 ---
 
@@ -768,9 +768,9 @@ engine.after(0.5, () => { engine.timeScale = 1; });  // dramatic slowmo on boss 
 trail: { lifetime: 0.3, color: "#ffcc00" }
 ```
 
-See [COOKBOOK.md](COOKBOOK.md) for full recipes with each of these.
+See the [Cookbook](COOKBOOK.md) for full recipes split by topic.
 
-> **Deep dive:** [Rendering Pipeline](guides/rendering-pipeline.md) covers the Pretext integration, text measurement, camera, and draw ordering.
+> **Deep dive:** The [wiki](../wiki/_index.md) covers the Pretext integration, text measurement, camera, and draw ordering.
 
 ### Decomposed text (advanced)
 
@@ -1275,11 +1275,11 @@ engine.spawnInteractiveArt(FOX, {
 })
 ```
 
-See `docs/COOKBOOK.md` for the full art asset reference, including `colorMap` details, space transparency, and when to choose static vs interactive rendering.
+See [`cookbook/rendering-and-art.md`](cookbook/rendering-and-art.md) for the full art asset reference, including `colorMap` details, space transparency, and when to choose static vs interactive rendering.
 
 ### Going further
 
-The `physics-text` template (`bun run init:game physics-text`) demonstrates a full multi-layer composition with different spring strengths per layer, ambient drift on background elements, and per-character coloring. See `docs/COOKBOOK.md` for the spring preset reference table and more recipes.
+The `physics-text` template (`bun run init:game physics-text`) demonstrates a full multi-layer composition with different spring strengths per layer, ambient drift on background elements, and per-character coloring. See [`cookbook/text-physics.md`](cookbook/text-physics.md) for the spring preset reference table and more recipes.
 
 ---
 
@@ -1365,7 +1365,7 @@ for (const e of engine.world.with('position', 'mana')) {
 
 ### Turn-based games
 
-The engine also supports turn-based gameplay via `engine.turns`. Systems can declare a `phase` to only run during specific turn phases, while animations and particles stay real-time. See the Turn Management section in `docs/DEVELOPER.md` for a full card game example.
+The engine also supports turn-based gameplay via `engine.turns`. Systems can declare a `phase` to only run during specific turn phases, while animations and particles stay real-time. See `games/roguelike/` for a turn-based example with phases.
 
 ```ts
 engine.turns.configure({ phases: ['draw', 'play', 'attack', 'end'] })
@@ -1382,9 +1382,7 @@ The full asteroid-field game in `games/asteroid-field/` demonstrates all these c
 ### Further reading
 
 - [`COOKBOOK.md`](COOKBOOK.md) — copy-paste recipes for common patterns (spawning, collision groups, juice, etc.).
-- [`guides/`](guides/) — deep dives on specific systems:
-  - [Engine Core & Architecture](guides/engine-core-architecture.md) | [Physics, Input & Audio](guides/physics-input-audio.md) | [Rendering Pipeline](guides/rendering-pipeline.md)
-  - [Behaviors System](guides/behaviors-system.md) | [UI & Store Bridge](guides/ui-and-store-bridge.md) | [Multiplayer & Networking](guides/multiplayer-networking.md)
+- [`wiki/`](../wiki/_index.md) — deep dives on engine internals (45 pages).
 - [`AGENTS.md`](../AGENTS.md) — terse API cheat sheet for quick reference.
 
 ---

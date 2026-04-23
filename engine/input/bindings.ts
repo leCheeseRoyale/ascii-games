@@ -140,8 +140,9 @@ export class InputBindings {
       }
     }
     if (entry.mouseButtons && this.mouse) {
+      const mouse = this.mouse;
       for (const b of entry.mouseButtons) {
-        if (this.checkMouseButton(this.mouse!.down, b)) return true;
+        if (this.checkMouseButton(mouse.down, b)) return true;
       }
     }
     return false;
@@ -162,8 +163,9 @@ export class InputBindings {
       }
     }
     if (entry.mouseButtons && this.mouse) {
+      const mouse = this.mouse;
       for (const b of entry.mouseButtons) {
-        if (this.checkMouseButton(this.mouse!.justDown, b)) return true;
+        if (this.checkMouseButton(mouse.justDown, b)) return true;
       }
     }
     return false;
@@ -184,8 +186,9 @@ export class InputBindings {
       }
     }
     if (entry.mouseButtons && this.mouse) {
+      const mouse = this.mouse;
       for (const b of entry.mouseButtons) {
-        if (this.checkMouseButton(this.mouse!.justUp, b)) return true;
+        if (this.checkMouseButton(mouse.justUp, b)) return true;
       }
     }
     return false;
@@ -196,11 +199,7 @@ export class InputBindings {
    * Resolves with the captured BindingEntry. Used by settings UIs for rebinding.
    * Cancel by pressing Escape (returns null). Times out after `timeoutSec`.
    */
-  capture(
-    action: string,
-    timeoutSec = 10,
-    signal?: AbortSignal,
-  ): Promise<BindingEntry | null> {
+  capture(action: string, timeoutSec = 10, signal?: AbortSignal): Promise<BindingEntry | null> {
     return new Promise((resolve) => {
       // Already aborted before we even start.
       if (signal?.aborted) {

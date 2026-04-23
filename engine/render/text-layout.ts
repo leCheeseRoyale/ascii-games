@@ -16,6 +16,7 @@ import {
   layoutNextLine,
   layoutWithLines,
   type PreparedTextWithSegments,
+  type PrepareOptions,
   prepareWithSegments,
   walkLineRanges,
 } from "@chenglou/pretext";
@@ -33,6 +34,8 @@ const MAX_CACHE_SIZE = 512;
 class LRUCache<V> {
   private map = new Map<string, V>();
   private maxSize: number;
+  hits = 0;
+  misses = 0;
 
   constructor(maxSize: number) {
     this.maxSize = maxSize;
@@ -44,6 +47,9 @@ class LRUCache<V> {
       // Move to end (most recently used)
       this.map.delete(key);
       this.map.set(key, v);
+      this.hits++;
+    } else {
+      this.misses++;
     }
     return v;
   }
@@ -66,6 +72,11 @@ class LRUCache<V> {
   get size(): number {
     return this.map.size;
   }
+
+  resetStats(): void {
+    this.hits = 0;
+    this.misses = 0;
+  }
 }
 
 // ── Caches ───────────────────────────────────────────────────────
@@ -78,15 +89,19 @@ const preparedCache = new LRUCache<PreparedTextWithSegments>(MAX_CACHE_SIZE);
 // and also used by CanvasUI for per-chunk width reuse across frames.
 const widthCache = new LRUCache<number>(MAX_CACHE_SIZE);
 
-function cacheKey(text: string, font: string): string {
-  return `${font}\x00${text}`;
+function cacheKey(text: string, font: string, whiteSpace?: string): string {
+  return whiteSpace ? `${font}\x00${text}\x00${whiteSpace}` : `${font}\x00${text}`;
 }
 
-function getSegments(text: string, font: string): PreparedTextWithSegments {
-  const k = cacheKey(text, font);
+function getSegments(
+  text: string,
+  font: string,
+  whiteSpace?: PrepareOptions["whiteSpace"],
+): PreparedTextWithSegments {
+  const k = cacheKey(text, font, whiteSpace);
   let p = preparedCache.get(k);
   if (!p) {
-    p = prepareWithSegments(text, font);
+    p = prepareWithSegments(text, font, whiteSpace ? { whiteSpace } : undefined);
     preparedCache.set(k, p);
   }
   return p;
@@ -97,6 +112,30 @@ export function clearTextCache(): void {
   preparedCache.clear();
   widthCache.clear();
   clearPretextCache();
+}
+
+/** Current number of entries in the prepared text cache. */
+export function preparedCacheSize(): number {
+  return preparedCache.size;
+}
+
+/** Current number of entries in the single-line width cache. */
+export function widthCacheSize(): number {
+  return widthCache.size;
+}
+
+/** Pretext cache hit/miss stats for debugging. Resets counters after read. */
+export function getTextCacheStats(): {
+  prepared: { size: number; hits: number; misses: number };
+  width: { size: number; hits: number; misses: number };
+} {
+  const result = {
+    prepared: { size: preparedCache.size, hits: preparedCache.hits, misses: preparedCache.misses },
+    width: { size: widthCache.size, hits: widthCache.hits, misses: widthCache.misses },
+  };
+  preparedCache.resetStats();
+  widthCache.resetStats();
+  return result;
 }
 
 /** Widest line when text is wrapped at maxWidth (Infinity = natural/unwrapped width). */
@@ -117,10 +156,12 @@ export interface StyledSegment {
   font: string;
   opacity: number;
   bgColor: string | null;
+  italic?: boolean;
+  underline?: boolean;
 }
 
-// Tag regex matches: [#hex], [/], [b], [/b], [dim], [/dim], [bg:#hex], [/bg]
-const TAG_RE = /\[(#[0-9a-fA-F]{3,8}|\/|b|\/b|dim|\/dim|bg:#[0-9a-fA-F]{3,8}|\/bg)\]/g;
+// Tag regex matches: [#hex], [/], [b], [/b], [i], [/i], [u], [/u], [dim], [/dim], [bg:#hex], [/bg]
+const TAG_RE = /\[(#[0-9a-fA-F]{3,8}|\/|b|\/b|i|\/i|u|\/u|dim|\/dim|bg:#[0-9a-fA-F]{3,8}|\/bg)\]/g;
 
 /**
  * Parse styled text with inline tags into an array of segments.
@@ -128,6 +169,8 @@ const TAG_RE = /\[(#[0-9a-fA-F]{3,8}|\/|b|\/b|dim|\/dim|bg:#[0-9a-fA-F]{3,8}|\/b
  * Supported tags:
  *   [#rrggbb]text[/]      -- color (existing syntax, also [#rgb])
  *   [b]text[/b]           -- bold (increases font weight)
+ *   [i]text[/i]           -- italic
+ *   [u]text[/u]           -- underline
  *   [dim]text[/dim]       -- dim (50% opacity)
  *   [bg:#rrggbb]text[/bg] -- background color behind text
  *
@@ -146,6 +189,8 @@ export function parseStyledText(
     font: string;
     opacity: number;
     bgColor: string | null;
+    italic: boolean;
+    underline: boolean;
   }
   const stack: StyleState[] = [];
   let current: StyleState = {
@@ -153,14 +198,16 @@ export function parseStyledText(
     font: baseFont,
     opacity: 1,
     bgColor: null,
+    italic: false,
+    underline: false,
   };
 
   let lastIndex = 0;
   // Reset regex state for each call
   TAG_RE.lastIndex = 0;
-  let match: RegExpExecArray | null;
+  let match: RegExpExecArray | null = TAG_RE.exec(text);
 
-  while ((match = TAG_RE.exec(text)) !== null) {
+  while (match !== null) {
     // Flush text before this tag
     if (match.index > lastIndex) {
       const chunk = text.slice(lastIndex, match.index);
@@ -180,7 +227,8 @@ export function parseStyledText(
     if (tag === "/") {
       // Close color tag
       if (stack.length > 0) {
-        current = stack.pop()!;
+        const prev = stack.pop();
+        if (prev) current = prev;
       }
     } else if (tag.startsWith("#")) {
       // Color tag: [#hex]
@@ -191,25 +239,45 @@ export function parseStyledText(
       current = { ...current, font: makeBold(current.font) };
     } else if (tag === "/b") {
       if (stack.length > 0) {
-        current = stack.pop()!;
+        const prev = stack.pop();
+        if (prev) current = prev;
+      }
+    } else if (tag === "i") {
+      stack.push({ ...current });
+      current = { ...current, font: makeItalic(current.font), italic: true };
+    } else if (tag === "/i") {
+      if (stack.length > 0) {
+        const prev = stack.pop();
+        if (prev) current = prev;
+      }
+    } else if (tag === "u") {
+      stack.push({ ...current });
+      current = { ...current, underline: true };
+    } else if (tag === "/u") {
+      if (stack.length > 0) {
+        const prev = stack.pop();
+        if (prev) current = prev;
       }
     } else if (tag === "dim") {
       stack.push({ ...current });
       current = { ...current, opacity: current.opacity * 0.5 };
     } else if (tag === "/dim") {
       if (stack.length > 0) {
-        current = stack.pop()!;
+        const prev = stack.pop();
+        if (prev) current = prev;
       }
     } else if (tag.startsWith("bg:#")) {
       stack.push({ ...current });
       current = { ...current, bgColor: tag.slice(3) };
     } else if (tag === "/bg") {
       if (stack.length > 0) {
-        current = stack.pop()!;
+        const prev = stack.pop();
+        if (prev) current = prev;
       }
     }
 
     lastIndex = match.index + match[0].length;
+    match = TAG_RE.exec(text);
   }
 
   // Flush remaining text
@@ -238,13 +306,24 @@ function makeBold(font: string): string {
   return font.replace(/^(\s*)(\d)/, "$1bold $2");
 }
 
+/** Convert a CSS font string to italic variant. */
+function makeItalic(font: string): string {
+  if (/\bitalic\b/.test(font)) {
+    return font;
+  }
+  return `italic ${font}`;
+}
+
 /**
  * Strip all style tags from text, returning plain text.
  * Used for measurement with Pretext (which does not understand our tags).
  */
 export function stripTags(text: string): string {
   // Use a fresh regex or reset, since TAG_RE is global and has state
-  return text.replace(/\[(#[0-9a-fA-F]{3,8}|\/|b|\/b|dim|\/dim|bg:#[0-9a-fA-F]{3,8}|\/bg)\]/g, "");
+  return text.replace(
+    /\[(#[0-9a-fA-F]{3,8}|\/|b|\/b|i|\/i|u|\/u|dim|\/dim|bg:#[0-9a-fA-F]{3,8}|\/bg)\]/g,
+    "",
+  );
 }
 
 // ── Public API ───────────────────────────────────────────────────
@@ -264,34 +343,49 @@ export function measureHeight(
   font: string,
   maxWidth: number,
   lineHeight: number,
+  whiteSpace?: PrepareOptions["whiteSpace"],
 ): number {
-  return layout(getSegments(text, font), maxWidth, lineHeight).height;
+  return layout(getSegments(text, font, whiteSpace), maxWidth, lineHeight).height;
 }
 
 /**
  * Get line count for text at a given width.
  */
-export function getLineCount(text: string, font: string, maxWidth: number): number {
-  return layout(getSegments(text, font), maxWidth, 1).lineCount;
+export function getLineCount(
+  text: string,
+  font: string,
+  maxWidth: number,
+  whiteSpace?: PrepareOptions["whiteSpace"],
+): number {
+  return layout(getSegments(text, font, whiteSpace), maxWidth, 1).lineCount;
 }
 
 /**
  * Find the widest line width when text is laid out at maxWidth (shrinkwrap).
  * Returns a ceiled integer suitable for container sizing.
  */
-export function shrinkwrap(text: string, font: string, maxWidth: number): number {
-  return Math.ceil(measureMaxLineWidth(getSegments(text, font), maxWidth));
+export function shrinkwrap(
+  text: string,
+  font: string,
+  maxWidth: number,
+  whiteSpace?: PrepareOptions["whiteSpace"],
+): number {
+  return Math.ceil(measureMaxLineWidth(getSegments(text, font, whiteSpace), maxWidth));
 }
 
 /**
  * Measure the width of a single line of text with no wrapping.
  * Returns the raw fractional pixel width (no rounding) for precise positioning.
  */
-export function measureLineWidth(text: string, font: string): number {
-  const k = cacheKey(text, font);
+export function measureLineWidth(
+  text: string,
+  font: string,
+  whiteSpace?: PrepareOptions["whiteSpace"],
+): number {
+  const k = cacheKey(text, font, whiteSpace);
   const cached = widthCache.get(k);
   if (cached !== undefined) return cached;
-  const w = measureMaxLineWidth(getSegments(text, font), Infinity);
+  const w = measureMaxLineWidth(getSegments(text, font, whiteSpace), Infinity);
   widthCache.set(k, w);
   return w;
 }
@@ -304,8 +398,9 @@ export function layoutTextBlock(
   font: string,
   maxWidth: number,
   lineHeight: number,
+  whiteSpace?: PrepareOptions["whiteSpace"],
 ): { text: string; width: number }[] {
-  const prepared = getSegments(text, font);
+  const prepared = getSegments(text, font, whiteSpace);
   const { lines } = layoutWithLines(prepared, maxWidth, lineHeight);
   return lines.map((l) => ({ text: l.text, width: l.width }));
 }
@@ -338,8 +433,9 @@ export function layoutJustifiedBlock(
   maxWidth: number,
   lineHeight: number,
   startX = 0,
+  whiteSpace?: PrepareOptions["whiteSpace"],
 ): JustifiedLine[] {
-  const lines = layoutTextBlock(text, font, maxWidth, lineHeight);
+  const lines = layoutTextBlock(text, font, maxWidth, lineHeight, whiteSpace);
   const result: JustifiedLine[] = [];
 
   const spaceWidth = measureLineWidth(" ", font);
@@ -446,8 +542,9 @@ export function layoutTextAroundObstacles(
   maxWidth: number,
   lineHeight: number,
   obstacles: { position: Position; obstacle: Obstacle }[],
+  whiteSpace?: PrepareOptions["whiteSpace"],
 ): RenderedLine[] {
-  const prepared = getSegments(text, font);
+  const prepared = getSegments(text, font, whiteSpace);
   const result: RenderedLine[] = [];
   let cursor: LayoutCursor = { segmentIndex: 0, graphemeIndex: 0 };
   let y = startY;

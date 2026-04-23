@@ -91,19 +91,22 @@ Positions are center-based — half-widths/heights extend in each direction.
 
 ### Mixed (Circle + Rect)
 
-For mixed collider types, circles are converted to equivalent rect colliders:
+For mixed collider types, a proper circle-rect intersection test is used:
 
 ```typescript
-function toRect(c: Collidable): Collidable {
-  if (c.collider.type === 'rect') return c
-  return {
-    position: c.position,
-    collider: { type: 'rect', width: c.collider.width, height: c.collider.width },
-  }
+function circleRect(circle: Collidable, rect: Collidable): boolean {
+  const cx = circle.position.x, cy = circle.position.y
+  const r = circle.collider.width / 2
+  const rx = rect.position.x, ry = rect.position.y
+  const rhw = rect.collider.width / 2, rhh = rect.collider.height / 2
+  const closestX = Math.max(rx - rhw, Math.min(cx, rx + rhw))
+  const closestY = Math.max(ry - rhh, Math.min(cy, ry + rhh))
+  const dx = cx - closestX, dy = cy - closestY
+  return dx * dx + dy * dy < r * r
 }
 ```
 
-This is an approximation — the circle becomes a square. Good enough for ASCII games where characters are roughly square anyway.
+This finds the closest point on the rect to the circle center and checks if it's within the circle's radius.
 
 ## overlapAll(entity, others): T[]
 

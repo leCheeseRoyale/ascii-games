@@ -42,6 +42,9 @@ Queries entities that have the `physics` component and applies forces in order:
 **Pass 3 — Velocity to Position**
 Queries all entities with `position` and `velocity`. Updates position by adding velocity scaled by delta-time.
 
+**Pass 3b — NaN Detection**
+Checks all entities with `position` and `velocity` for non-finite values (`NaN`, `Infinity`). If detected, resets the corrupt values to zero and logs a warning. This is a safety net against numerical instability from extreme forces or edge cases.
+
 **Pass 4 — World-Bounds Bounce**
 Queries entities with `physics` and `collider` components. When an entity crosses a world boundary, its position is clamped to the boundary edge and the relevant velocity axis is reversed and multiplied by the `bounce` restitution coefficient.
 

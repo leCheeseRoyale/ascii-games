@@ -5,8 +5,8 @@
  * Usage: bun run gen:api
  */
 
-import { readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { execSync } from "node:child_process";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = join(import.meta.dir, "..");
@@ -17,7 +17,7 @@ mkdirSync(TMP, { recursive: true });
 try {
   execSync(
     `bunx tsc --declaration --emitDeclarationOnly --outDir "${TMP}" --noEmit false --project "${join(ROOT, "tsconfig.json")}"`,
-    { cwd: ROOT, stdio: "pipe" }
+    { cwd: ROOT, stdio: "pipe" },
   );
 } catch {
   // tsc may warn but still emit — continue
@@ -29,7 +29,9 @@ let barrel: string;
 try {
   barrel = readFileSync(barrelPath, "utf-8");
 } catch {
-  console.error("Could not read generated declarations. Run `bun run check` first to ensure no type errors.");
+  console.error(
+    "Could not read generated declarations. Run `bun run check` first to ensure no type errors.",
+  );
   process.exit(1);
 }
 
@@ -52,7 +54,10 @@ for (const line of lines) {
 
   // Track section comments
   if (trimmed.startsWith("//")) {
-    currentSection = trimmed.replace(/^\/\/\s*/, "").replace(/\s*—.*/, "").trim();
+    currentSection = trimmed
+      .replace(/^\/\/\s*/, "")
+      .replace(/\s*—.*/, "")
+      .trim();
     continue;
   }
 
