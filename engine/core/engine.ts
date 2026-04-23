@@ -15,8 +15,11 @@ import { emitterSystem } from "../ecs/emitter-system";
 import { lifetimeSystem } from "../ecs/lifetime-system";
 import { measureSystem } from "../ecs/measure-system";
 import { meshRenderSystem } from "../ecs/mesh-render-system";
+import { type MeshShape, resolveShape } from "../ecs/mesh-shapes";
 import { parentSystem } from "../ecs/parent-system";
 import { screenBoundsSystem } from "../ecs/screen-bounds-system";
+import { createSoAMesh, SOA_THRESHOLD, type SoAMesh } from "../ecs/soa-mesh";
+import { soaMeshSystem } from "../ecs/soa-mesh-system";
 import { springSystem } from "../ecs/spring-system";
 import { stateMachineSystem } from "../ecs/state-machine-system";
 import { type System, SystemRunner } from "../ecs/systems";
@@ -40,6 +43,7 @@ import {
 } from "../render/measure-entity";
 import { createNullCanvas, createNullCtx } from "../render/null-ctx";
 import { ParticlePool } from "../render/particles";
+import { measureCharCell } from "../render/text-layout";
 import { ToastManager } from "../render/toast";
 import { Transition, type TransitionType } from "../render/transitions";
 import { Viewport } from "../render/viewport";
@@ -62,16 +66,21 @@ const BUILTIN_SYSTEMS = [
   screenBoundsSystem,
   trailSystem,
   meshRenderSystem,
+  soaMeshSystem,
 ];
 
 /** Options for `engine.spawnImageMesh()`. */
 export interface SpawnImageMeshOpts {
   /** URL string or preloaded HTMLImageElement */
   image: string | HTMLImageElement;
-  /** Number of columns in the mesh grid */
-  cols: number;
-  /** Number of rows in the mesh grid */
-  rows: number;
+  /** Number of columns in the mesh grid. Optional if density is provided. */
+  cols?: number;
+  /** Number of rows in the mesh grid. Optional if density is provided. */
+  rows?: number;
+  /** Density 0-1 (higher = more vertices). Auto-computes cols/rows from image dimensions + character cell size. */
+  density?: number;
+  /** Letter spacing in px, passed to Pretext measurement when using density. */
+  letterSpacing?: number;
   /** Top-left position of the mesh in world space */
   position: { x: number; y: number };
   /** Character to use for each cell (default: '█') */
@@ -90,6 +99,8 @@ export interface SpawnImageMeshOpts {
   tags?: string[];
   /** Render layer for the mesh cells */
   layer?: number;
+  /** Shape mask: "circle", "diamond", "triangle", or a custom MeshShapeFn */
+  shape?: MeshShape;
 }
 
 export class Engine {
@@ -114,6 +125,9 @@ export class Engine {
   readonly ui: CanvasUI;
   readonly dialog: DialogManager;
   readonly viewport: Viewport;
+
+  /** Active SoA meshes — used by the SoA fast path for image meshes with 500+ cells. */
+  readonly soaMeshes = new Map<string, SoAMesh>();
 
   get time(): GameTime {
     return {
@@ -614,7 +628,7 @@ export class Engine {
       img = opts.image;
     }
 
-    const { cols, rows, position: pos } = opts;
+    const pos = opts.position;
     const springStrength = opts.spring?.strength ?? 0.08;
     const springDamping = opts.spring?.damping ?? 0.93;
     const showLines = opts.showLines ?? false;
@@ -622,6 +636,26 @@ export class Engine {
     const lineWidth = opts.lineWidth ?? 1;
     const char = opts.char ?? "█"; // '█'
     const font = opts.font ?? "12px monospace";
+
+    // Resolve cols/rows: explicit, density-derived, or error
+    let cols: number;
+    let rows: number;
+
+    if (opts.cols != null && opts.rows != null) {
+      cols = opts.cols;
+      rows = opts.rows;
+    } else if (opts.density != null) {
+      const density = Math.max(0.05, Math.min(1, opts.density));
+      const maxSpacing = 20;
+      const ls = (1 - density) * maxSpacing;
+      const cell = measureCharCell(char, font, opts.letterSpacing ?? ls);
+      const imgWRaw = img.naturalWidth || img.width || 160;
+      const imgHRaw = img.naturalHeight || img.height || 120;
+      cols = Math.max(2, Math.round(imgWRaw / cell.width));
+      rows = Math.max(2, Math.round(imgHRaw / cell.height));
+    } else {
+      throw new Error("[spawnImageMesh] Provide cols+rows or density");
+    }
 
     // Cell spacing from image natural dimensions if available, else defaults.
     // naturalWidth/naturalHeight are 0 for unloaded images — fall back to reasonable defaults.
@@ -634,10 +668,41 @@ export class Engine {
     const srcW = imgW / cols;
     const srcH = imgH / rows;
 
+    const shapeFn = opts.shape ? resolveShape(opts.shape, cols) : null;
+
+    // Count active cells (accounting for shape)
+    let totalCells = 0;
+    if (shapeFn) {
+      for (let row = 0; row < rows; row++) {
+        const range = shapeFn(row, rows);
+        totalCells += Math.max(0, range.endCol - range.startCol);
+      }
+    } else {
+      totalCells = cols * rows;
+    }
+
+    // SoA fast path for large meshes
+    if (totalCells >= SOA_THRESHOLD) {
+      return this.spawnSoAMesh(
+        meshId,
+        img,
+        cols,
+        rows,
+        pos,
+        spacingX,
+        spacingY,
+        srcW,
+        srcH,
+        opts,
+        shapeFn,
+      );
+    }
+
     const entities: Partial<Entity>[] = [];
 
     for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
+      const range = shapeFn ? shapeFn(row, rows) : { startCol: 0, endCol: cols };
+      for (let col = range.startCol; col < range.endCol; col++) {
         const x = pos.x + col * spacingX;
         const y = pos.y + row * spacingY;
 
@@ -679,6 +744,43 @@ export class Engine {
     }
 
     return entities;
+  }
+
+  /** SoA fast path: store mesh data in typed arrays instead of ECS entities. */
+  private spawnSoAMesh(
+    meshId: string,
+    img: HTMLImageElement,
+    cols: number,
+    rows: number,
+    pos: { x: number; y: number },
+    spacingX: number,
+    spacingY: number,
+    srcW: number,
+    srcH: number,
+    opts: SpawnImageMeshOpts,
+    shapeFn: ((row: number, rows: number) => { startCol: number; endCol: number }) | null,
+  ): Partial<Entity>[] {
+    const mesh = createSoAMesh({
+      meshId,
+      image: img,
+      cols,
+      rows,
+      posX: pos.x,
+      posY: pos.y,
+      spacingX,
+      spacingY,
+      srcW,
+      srcH,
+      springStrength: opts.spring?.strength ?? 0.08,
+      springDamping: opts.spring?.damping ?? 0.88,
+      showLines: opts.showLines ?? false,
+      lineColor: opts.lineColor ?? "#333",
+      lineWidth: opts.lineWidth ?? 1,
+      shapeFn: shapeFn ?? undefined,
+    });
+    this.soaMeshes.set(meshId, mesh);
+    const proxy = this.spawn({ soaMeshProxy: { meshId, count: mesh.count } });
+    return [proxy];
   }
 
   // ── Tween helper ──────────────────────────────────────────────
@@ -900,6 +1002,7 @@ export class Engine {
     this.scenes.current?.cleanup?.(this);
     this.systems.clear(this);
     this.world.clear();
+    this.soaMeshes.clear();
     this.scheduler.clear();
     this.keyboard.destroy();
     this.mouse.destroy();
@@ -984,6 +1087,7 @@ export class Engine {
       this.particles,
       this._sceneTime,
       this.ui,
+      this.soaMeshes,
     );
 
     // Screen flash overlay (draws on top of game world, under transition)

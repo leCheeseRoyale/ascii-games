@@ -17,6 +17,7 @@
 
 import type { EngineConfig, Entity, Obstacle, Position } from "@shared/types";
 import { renderMeshCells } from "../ecs/mesh-render-system";
+import type { SoAMesh } from "../ecs/soa-mesh";
 import type { GameWorld } from "../ecs/world";
 import type { Camera } from "./camera";
 import type { CanvasUI } from "./canvas-ui";
@@ -76,6 +77,7 @@ export class AsciiRenderer {
     particles?: ParticlePool,
     sceneTime?: number,
     ui?: CanvasUI,
+    soaMeshes?: ReadonlyMap<string, SoAMesh>,
   ): void {
     this.sceneTime = sceneTime ?? 0;
     const { ctx } = this;
@@ -150,7 +152,7 @@ export class AsciiRenderer {
     }
 
     // 5b. Draw mesh cells (image slices + connecting lines)
-    renderMeshCells(ctx, world);
+    renderMeshCells(ctx, world, soaMeshes);
 
     // 6. Debug overlay (colliders, velocity arrows, position dots)
     if (config.debug) {

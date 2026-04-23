@@ -12,6 +12,7 @@
 
 import type { MeshCell, Position } from "@shared/types";
 import type { Engine } from "../core/engine";
+import { renderSoAMesh, type SoAMesh } from "./soa-mesh";
 import { type System, SystemPriority } from "./systems";
 import type { GameWorld } from "./world";
 
@@ -76,66 +77,78 @@ function buildGridCache(cells: Iterable<{ position: Position; meshCell: MeshCell
  * lines to right and bottom neighbors. Called by the renderer after regular
  * renderables and particles, while the camera transform is still active.
  */
-export function renderMeshCells(ctx: CanvasRenderingContext2D, world: GameWorld): void {
+export function renderMeshCells(
+  ctx: CanvasRenderingContext2D,
+  world: GameWorld,
+  soaMeshes?: ReadonlyMap<string, SoAMesh>,
+): void {
   const cells = world.with("meshCell", "position");
 
-  // Fast bail-out — avoid building the cache when there are no mesh cells.
   // Materialize into an array so we can iterate twice (cache build + draw).
   const cellArray: { position: Position; meshCell: MeshCell }[] = [];
   for (const c of cells) {
     cellArray.push(c);
   }
-  if (cellArray.length === 0) return;
 
-  const cache = buildGridCache(cellArray);
+  // --- ECS mesh cells ---
+  if (cellArray.length > 0) {
+    const cache = buildGridCache(cellArray);
 
-  // --- Pass 1: draw lines (behind the image slices) ---
-  for (const entry of cellArray) {
-    const mc = entry.meshCell;
-    if (!mc.showLines) continue;
+    // --- Pass 1: draw lines (behind the image slices) ---
+    for (const entry of cellArray) {
+      const mc = entry.meshCell;
+      if (!mc.showLines) continue;
 
-    const pos = entry.position;
-    const grid = cache.get(mc.meshId);
-    if (!grid) continue;
+      const pos = entry.position;
+      const grid = cache.get(mc.meshId);
+      if (!grid) continue;
 
-    const lineColor = mc.lineColor ?? "#333";
-    const lineWidth = mc.lineWidth ?? 1;
+      const lineColor = mc.lineColor ?? "#333";
+      const lineWidth = mc.lineWidth ?? 1;
 
-    // Right neighbor
-    if (mc.col + 1 < mc.cols) {
-      const right = grid.get(cellKey(mc.col + 1, mc.row));
-      if (right) {
-        drawMeshLine(ctx, pos, right.position, lineColor, lineWidth);
+      // Right neighbor
+      if (mc.col + 1 < mc.cols) {
+        const right = grid.get(cellKey(mc.col + 1, mc.row));
+        if (right) {
+          drawMeshLine(ctx, pos, right.position, lineColor, lineWidth);
+        }
+      }
+
+      // Bottom neighbor
+      if (mc.row + 1 < mc.rows) {
+        const below = grid.get(cellKey(mc.col, mc.row + 1));
+        if (below) {
+          drawMeshLine(ctx, pos, below.position, lineColor, lineWidth);
+        }
       }
     }
 
-    // Bottom neighbor
-    if (mc.row + 1 < mc.rows) {
-      const below = grid.get(cellKey(mc.col, mc.row + 1));
-      if (below) {
-        drawMeshLine(ctx, pos, below.position, lineColor, lineWidth);
-      }
+    // --- Pass 2: draw image slices (on top of lines) ---
+    for (const entry of cellArray) {
+      const mc = entry.meshCell;
+      const pos = entry.position;
+
+      ctx.drawImage(
+        mc.image,
+        // Source rect
+        mc.srcX,
+        mc.srcY,
+        mc.srcW,
+        mc.srcH,
+        // Destination rect (centered on entity position)
+        pos.x - mc.srcW / 2,
+        pos.y - mc.srcH / 2,
+        mc.srcW,
+        mc.srcH,
+      );
     }
   }
 
-  // --- Pass 2: draw image slices (on top of lines) ---
-  for (const entry of cellArray) {
-    const mc = entry.meshCell;
-    const pos = entry.position;
-
-    ctx.drawImage(
-      mc.image,
-      // Source rect
-      mc.srcX,
-      mc.srcY,
-      mc.srcW,
-      mc.srcH,
-      // Destination rect (centered on entity position)
-      pos.x - mc.srcW / 2,
-      pos.y - mc.srcH / 2,
-      mc.srcW,
-      mc.srcH,
-    );
+  // --- SoA meshes (fast path for 500+ cell meshes) ---
+  if (soaMeshes) {
+    for (const mesh of soaMeshes.values()) {
+      renderSoAMesh(ctx, mesh);
+    }
   }
 }
 

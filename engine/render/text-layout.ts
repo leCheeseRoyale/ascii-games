@@ -374,6 +374,27 @@ export function shrinkwrap(
 }
 
 /**
+ * Measure a single character cell's dimensions, accounting for letter spacing.
+ * Used by `spawnImageMesh` to auto-compute grid cols/rows from the density parameter.
+ */
+export function measureCharCell(
+  char: string,
+  font: string,
+  letterSpacing?: number,
+): { width: number; height: number } {
+  const prepared = getSegments(char, font);
+  // Use walkLineRanges to get the width without materializing strings
+  let width = 0;
+  walkLineRanges(prepared, Infinity, (line) => { width = line.width; });
+  // Parse font size for height
+  const sizeMatch = font.match(/(\d+(?:\.\d+)?)px/);
+  const fontSize = sizeMatch ? parseFloat(sizeMatch[1]) : 16;
+  // Apply letter spacing to width
+  const effectiveWidth = width + (letterSpacing ?? 0);
+  return { width: effectiveWidth || fontSize * 0.6, height: fontSize * 1.2 };
+}
+
+/**
  * Measure the width of a single line of text with no wrapping.
  * Returns the raw fractional pixel width (no rounding) for precise positioning.
  */

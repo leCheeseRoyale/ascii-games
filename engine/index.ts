@@ -37,6 +37,7 @@ export type {
   Position,
   ScreenClamp,
   ScreenWrap,
+  SoAMeshProxy,
   SpawnInput,
   Spring,
   Sprite,
@@ -281,6 +282,7 @@ export { lifetimeSystem } from "./ecs/lifetime-system";
 export { measureSystem } from "./ecs/measure-system";
 // Mesh render — image slices + connecting lines for meshCell entities
 export { meshRenderSystem, renderMeshCells } from "./ecs/mesh-render-system";
+export type { MeshShape, MeshShapeFn } from "./ecs/mesh-shapes";
 export { parentSystem } from "./ecs/parent-system";
 export {
   createEntityPool,
@@ -288,6 +290,14 @@ export {
   type PoolOptions,
 } from "./ecs/pool";
 export { screenBoundsSystem } from "./ecs/screen-bounds-system";
+// SoA mesh — fast path for image meshes with 500+ cells
+export {
+  applySoAMeshForce,
+  createSoAMesh,
+  destroySoAMeshCell,
+  type SoAMesh,
+} from "./ecs/soa-mesh";
+export { soaMeshSystem } from "./ecs/soa-mesh-system";
 export { springSystem } from "./ecs/spring-system";
 export { stateMachineSystem, transition } from "./ecs/state-machine-system";
 export { defineSystem, type System, SystemPriority } from "./ecs/systems";
@@ -457,6 +467,7 @@ export {
   layoutJustifiedBlock,
   layoutTextAroundObstacles,
   layoutTextBlock,
+  measureCharCell,
   measureHeight,
   measureLineWidth,
   parseStyledText,

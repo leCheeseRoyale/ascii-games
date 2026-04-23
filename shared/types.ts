@@ -198,6 +198,12 @@ export interface MeshCell {
   showLines?: boolean;
 }
 
+/** Proxy entity for SoA meshes — lightweight placeholder in the ECS world. */
+export interface SoAMeshProxy {
+  meshId: string;
+  count: number;
+}
+
 export interface AnimationFrame {
   /** For ascii entities: the character(s) to display */
   char?: string;
@@ -406,6 +412,7 @@ export interface Entity {
   trail: Trail;
   visualBounds: VisualBounds;
   spring: Spring;
+  soaMeshProxy: SoAMeshProxy;
 
   // biome-ignore lint/suspicious/noExplicitAny: open-ended index signature for game-specific custom components
   [key: string]: any;

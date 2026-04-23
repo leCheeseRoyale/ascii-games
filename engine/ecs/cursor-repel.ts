@@ -1,3 +1,4 @@
+import { applySoAMeshForce } from "./soa-mesh";
 import { defineSystem } from "./systems";
 
 export interface CursorRepelOpts {
@@ -34,6 +35,13 @@ export function createCursorRepelSystem(opts?: CursorRepelOpts) {
         const f = force * ((radius - dist) / radius);
         e.velocity.vx += (dx / dist) * f;
         e.velocity.vy += (dy / dist) * f;
+      }
+
+      // SoA mesh repulsion (fast path for 500+ cell meshes)
+      if (engine.soaMeshes.size > 0) {
+        for (const mesh of engine.soaMeshes.values()) {
+          applySoAMeshForce(mesh, mx, my, radius, force);
+        }
       }
     },
   });
