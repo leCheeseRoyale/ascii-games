@@ -27,6 +27,7 @@ export type {
   InputState,
   Interactive,
   Lifetime,
+  MeshCell,
   Obstacle,
   OffScreenDestroy,
   Parent,
@@ -240,7 +241,7 @@ export {
   type SetupContext,
   type TurnsConfig,
 } from "./core/define-game";
-export { Engine } from "./core/engine";
+export { Engine, type SpawnImageMeshOpts } from "./core/engine";
 export { defineScene, type Scene } from "./core/scene";
 export { defaultHashState, fnv1a32, stableStringify } from "./core/state-hash";
 export { type TurnConfig, TurnManager } from "./core/turn-manager";
@@ -278,6 +279,8 @@ export { gaugeSystem } from "./ecs/gauge-system";
 export { interactionSystem, makeInteractive } from "./ecs/interaction-system";
 export { lifetimeSystem } from "./ecs/lifetime-system";
 export { measureSystem } from "./ecs/measure-system";
+// Mesh render — image slices + connecting lines for meshCell entities
+export { meshRenderSystem, renderMeshCells } from "./ecs/mesh-render-system";
 export { parentSystem } from "./ecs/parent-system";
 export {
   createEntityPool,

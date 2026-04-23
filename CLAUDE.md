@@ -124,6 +124,7 @@ Two audiences, two locations:
 
 ## Where to Look for Depth
 
+- **`docs/IMAGE-MESH.md`** — Image Mesh system: text characters as deformable image vertices. Read this before implementing `spawnImageMesh()`, `MeshCell` component, or `_meshRender` system. Covers architecture, spawn helper API, render system, line physics, and usage examples.
 - `wiki/_index.md` — engine architecture and internals (45 pages).
 - `AGENTS.md` — terse API cheat sheet organized for agents.
 - `docs/API-generated.md` — auto-generated API reference (regenerate, don't edit).

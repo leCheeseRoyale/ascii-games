@@ -16,6 +16,7 @@
  */
 
 import type { EngineConfig, Entity, Obstacle, Position } from "@shared/types";
+import { renderMeshCells } from "../ecs/mesh-render-system";
 import type { GameWorld } from "../ecs/world";
 import type { Camera } from "./camera";
 import type { CanvasUI } from "./canvas-ui";
@@ -147,6 +148,9 @@ export class AsciiRenderer {
     if (particles) {
       particles.render(ctx);
     }
+
+    // 5b. Draw mesh cells (image slices + connecting lines)
+    renderMeshCells(ctx, world);
 
     // 6. Debug overlay (colliders, velocity arrows, position dots)
     if (config.debug) {

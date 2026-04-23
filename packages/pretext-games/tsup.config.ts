@@ -16,6 +16,7 @@ export default defineConfig({
   clean: true,
   target: "es2022",
   outDir: "dist",
+  noExternal: ["lz-string"],
   external: [
     "react",
     "react-dom",

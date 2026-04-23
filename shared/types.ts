@@ -169,6 +169,35 @@ export interface ImageComponent {
   tint?: string;
 }
 
+export interface MeshCell {
+  /** Shared image element (loaded once, referenced by all cells in the mesh) */
+  image: HTMLImageElement;
+  /** Source rectangle X in the image for this cell */
+  srcX: number;
+  /** Source rectangle Y in the image for this cell */
+  srcY: number;
+  /** Source rectangle width in the image for this cell */
+  srcW: number;
+  /** Source rectangle height in the image for this cell */
+  srcH: number;
+  /** Grid column index for adjacency lookups */
+  col: number;
+  /** Grid row index for adjacency lookups */
+  row: number;
+  /** Groups cells into one mesh (for multi-mesh scenes) */
+  meshId: string;
+  /** Total grid columns (for adjacency bounds checking) */
+  cols: number;
+  /** Total grid rows (for adjacency bounds checking) */
+  rows: number;
+  /** Color of lines drawn between adjacent cells */
+  lineColor?: string;
+  /** Width of lines drawn between adjacent cells in pixels */
+  lineWidth?: number;
+  /** Whether to draw lines between adjacent cells */
+  showLines?: boolean;
+}
+
 export interface AnimationFrame {
   /** For ascii entities: the character(s) to display */
   char?: string;
@@ -354,6 +383,7 @@ export interface Entity {
   collider: Collider;
   health: Health;
   lifetime: Lifetime;
+  meshCell: MeshCell;
   player: Player;
   obstacle: Obstacle;
   emitter: ParticleEmitter;

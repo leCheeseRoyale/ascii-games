@@ -14,6 +14,7 @@ import { createCollisionEventSystem } from "../ecs/collision-event-system";
 import { emitterSystem } from "../ecs/emitter-system";
 import { lifetimeSystem } from "../ecs/lifetime-system";
 import { measureSystem } from "../ecs/measure-system";
+import { meshRenderSystem } from "../ecs/mesh-render-system";
 import { parentSystem } from "../ecs/parent-system";
 import { screenBoundsSystem } from "../ecs/screen-bounds-system";
 import { springSystem } from "../ecs/spring-system";
@@ -60,7 +61,36 @@ const BUILTIN_SYSTEMS = [
   lifetimeSystem,
   screenBoundsSystem,
   trailSystem,
+  meshRenderSystem,
 ];
+
+/** Options for `engine.spawnImageMesh()`. */
+export interface SpawnImageMeshOpts {
+  /** URL string or preloaded HTMLImageElement */
+  image: string | HTMLImageElement;
+  /** Number of columns in the mesh grid */
+  cols: number;
+  /** Number of rows in the mesh grid */
+  rows: number;
+  /** Top-left position of the mesh in world space */
+  position: { x: number; y: number };
+  /** Character to use for each cell (default: '█') */
+  char?: string;
+  /** Font for character measurement (determines cell size). Default: '12px monospace' */
+  font?: string;
+  /** Spring preset for home-pull behavior */
+  spring?: { strength: number; damping: number };
+  /** Whether to draw lines between adjacent cells */
+  showLines?: boolean;
+  /** Color of the mesh lines (default: '#333') */
+  lineColor?: string;
+  /** Width of mesh lines in pixels (default: 1) */
+  lineWidth?: number;
+  /** Tags applied to every cell entity */
+  tags?: string[];
+  /** Render layer for the mesh cells */
+  layer?: number;
+}
 
 export class Engine {
   // ── Public API ────────────────────────────────────────────────
@@ -550,6 +580,104 @@ export class Engine {
       if (extraTags.length > 0) components.tags = { values: new Set(extraTags) };
       entities.push(this.spawn(components));
     }
+    return entities;
+  }
+
+  // ── Image mesh helper ────────────────────────────────────────
+
+  /**
+   * Spawn an image as a deformable mesh of character entities with spring physics.
+   * The image is subdivided into a cols × rows grid; each cell is an independent
+   * entity with position, velocity, spring-to-home, and a `meshCell` component
+   * that references its slice of the source image.
+   *
+   * All existing systems work automatically: `_spring` reforms the image,
+   * `createCursorRepelSystem` warps it, `engine.destroy(cell)` tears it, etc.
+   *
+   *   engine.spawnImageMesh({
+   *     image: 'assets/portrait.png',
+   *     cols: 10, rows: 12,
+   *     position: { x: 400, y: 300 },
+   *     spring: SpringPresets.bouncy,
+   *     showLines: false,
+   *   });
+   */
+  spawnImageMesh(opts: SpawnImageMeshOpts): Partial<Entity>[] {
+    const meshId = `mesh_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+    // Resolve image — string URL or preloaded HTMLImageElement
+    let img: HTMLImageElement;
+    if (typeof opts.image === "string") {
+      img = new Image();
+      img.src = opts.image;
+    } else {
+      img = opts.image;
+    }
+
+    const { cols, rows, position: pos } = opts;
+    const springStrength = opts.spring?.strength ?? 0.08;
+    const springDamping = opts.spring?.damping ?? 0.93;
+    const showLines = opts.showLines ?? false;
+    const lineColor = opts.lineColor ?? "#333";
+    const lineWidth = opts.lineWidth ?? 1;
+    const char = opts.char ?? "█"; // '█'
+    const font = opts.font ?? "12px monospace";
+
+    // Cell spacing from image natural dimensions if available, else defaults.
+    // naturalWidth/naturalHeight are 0 for unloaded images — fall back to reasonable defaults.
+    const imgW = img.naturalWidth || img.width || cols * 16;
+    const imgH = img.naturalHeight || img.height || rows * 16;
+    const spacingX = imgW / cols;
+    const spacingY = imgH / rows;
+
+    // Source rectangle dimensions for each cell
+    const srcW = imgW / cols;
+    const srcH = imgH / rows;
+
+    const entities: Partial<Entity>[] = [];
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const x = pos.x + col * spacingX;
+        const y = pos.y + row * spacingY;
+
+        const components: SpawnInput = {
+          position: { x, y },
+          velocity: { vx: 0, vy: 0 },
+          spring: { targetX: x, targetY: y, strength: springStrength, damping: springDamping },
+          ascii: { char, font, color: "transparent" },
+          collider: "auto" as const,
+          meshCell: {
+            image: img,
+            srcX: col * srcW,
+            srcY: row * srcH,
+            srcW,
+            srcH,
+            col,
+            row,
+            meshId,
+            cols,
+            rows,
+            showLines,
+            lineColor,
+            lineWidth,
+          },
+        };
+
+        if (opts.layer !== undefined) {
+          if (components.ascii) {
+            components.ascii.layer = opts.layer;
+          }
+        }
+
+        if (opts.tags && opts.tags.length > 0) {
+          components.tags = { values: new Set(opts.tags) };
+        }
+
+        entities.push(this.spawn(components));
+      }
+    }
+
     return entities;
   }
 

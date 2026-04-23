@@ -31,7 +31,7 @@
     "bench": "bun run engine/__bench__/run.ts"
   },
   "dependencies": {
-    "@chenglou/pretext": "^0.0.4",
+    "@chenglou/pretext": "0.0.6",
     "@zzfx-studio/zzfxm": "^0.1.2",
     "lz-string": "^1.5.0",
     "miniplex": "^2.0.0",
