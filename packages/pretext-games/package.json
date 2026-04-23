@@ -1,7 +1,7 @@
 {
-  "name": "ascii-game-engine",
-  "version": "0.2.0",
-  "description": "ASCII game engine — ECS, physics, rendering, input, audio, and declarative game API for building canvas-based ASCII games",
+  "name": "pretext-games",
+  "version": "0.2.1",
+  "description": "Game engine — ECS, physics, rendering, input, audio, and declarative game API for building canvas-based games with Pretext text layout",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

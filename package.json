@@ -1,5 +1,5 @@
 {
-  "name": "ascii-game-engine",
+  "name": "pretext-games",
   "version": "0.1.0",
   "type": "module",
   "private": true,
@@ -26,7 +26,7 @@
     "ai:juice": "bun run scripts/ai-juice.ts",
     "ai:game": "bun run scripts/ai-game.ts",
     "ai:scene": "bun run scripts/ai-scene.ts",
-    "build:pkg": "cd packages/ascii-game-engine && bunx tsup",
+    "build:pkg": "cd packages/pretext-games && bunx tsup",
     "test": "bun test",
     "bench": "bun run engine/__bench__/run.ts"
   },
