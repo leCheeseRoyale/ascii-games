@@ -1,69 +1,60 @@
-<div align="center">
-
 ```
- █████╗ ██████╗ ███████╗ ██████╗██╗██╗
-██╔══██╗██╔══██╗██╔════╝██╔════╝██║██║
-███████║██████╔╝█████╗  ██║     ██║██║
-██╔══██║██╔══██╗██╔══╝  ██║     ██║██║
-██║  ██║██║  ██║███████╗╚██████╗██║██║
-╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝╚═╝
-               G A M E   E N G I N E
+  ___  ___  ___ _____ _____  __  _____
+ | _ \| _ \| __|_   _| __\ \/ /_   _|
+ |  _/|   /| _|  | | | _| >  <  | |
+ |_|  |_|\_|___| |_| |___/_/\_\ |_|
+
+   ___   _   __  __ ___ ___
+  / __| /_\ |  \/  | __/ __|
+ | (_ |/ _ \| |\/| | _|\__ \
+  \___/_/ \_\_|  |_|___|___/
 ```
 
-### Build ASCII-art games in the browser. Board games, platformers, RPGs, shooters, roguelikes — all rendered as text on a canvas.
+Game engine built on [Pretext](https://github.com/chenglou/pretext) -- text as a first-class spatial primitive. ECS, physics, rendering, input, audio. Canvas 2D at 60fps, zero DOM in the frame loop.
 
-[![npm](https://img.shields.io/badge/npm-ascii--game--engine@0.2.0-red.svg)](https://www.npmjs.com/package/ascii-game-engine)
+[![npm](https://img.shields.io/npm/v/pretext-games.svg)](https://www.npmjs.com/package/pretext-games)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](https://www.typescriptlang.org/)
 [![Tests](https://img.shields.io/badge/tests-1249+-green.svg)](#)
 
-[Quick Start](#-quick-start) · [Declarative API](#-declarative-api-definegame) · [ECS API](#-ecs-api-definescene--definesystem) · [AI Authoring](#-ai-assisted-authoring) · [Multiplayer](#-multiplayer-in-one-line) · [Docs](#-learn-more)
-
-</div>
-
 ---
 
-## 📦 Install
+## Install
 
 ```bash
-npm install ascii-game-engine
+npm install pretext-games
 ```
 
-**Two entry points:**
+Two entry points:
 
-- `ascii-game-engine` — the full engine: `Engine`, `defineScene`, `defineSystem`, `defineGame`, ECS, physics, rendering, input, audio, behaviors, networking, tiles, and more.
-- `ascii-game-engine/store` — the [zustand](https://github.com/pmndrs/zustand) store bridge between the game loop and React UI: `useStore`, `extendStore`, `typedStore`.
-
-Everything renders to a `<canvas>` as monospaced text. Ships as a single HTML file if you need it. No backend required.
+```ts
+import { Engine, defineScene, defineSystem, defineGame } from 'pretext-games'
+import { useStore } from 'pretext-games/store'
+```
 
 ---
 
-## 🚀 Quick Start
+## Quick start
 
 ```bash
-npx create-ascii-game my-game --template blank
+npx create-ascii-game my-game
 cd my-game && bun dev
 ```
 
-`create-ascii-game` scaffolds a fresh project from one of 7 templates. First `bun dev` opens an interactive picker if you don't specify a template.
+8 templates: `blank`, `asteroid-field`, `platformer`, `roguelike`, `physics-text`, `tic-tac-toe`, `connect-four`, `mesh-demo`. First `bun dev` opens a picker if you don't specify one.
 
-For a step-by-step walkthrough, see [`docs/QUICKSTART.md`](docs/QUICKSTART.md) or [`docs/TUTORIAL.md`](docs/TUTORIAL.md).
+For a walkthrough, see [`docs/QUICKSTART.md`](docs/QUICKSTART.md) or [`docs/TUTORIAL.md`](docs/TUTORIAL.md).
 
 ---
 
-## 🎮 Two APIs for two kinds of games
+## Two game APIs
 
-### Declarative API — `defineGame`
-
-Boardgame.io-style declarative API for turn-based, board, puzzle, and card games. State, moves, turn order, phases, and game-over detection live in **one object**. The engine handles turn rotation, phase transitions, and win/loss detection.
+**`defineGame`** -- declarative, boardgame.io-style. Turn rotation, phase transitions, game-over detection handled by the engine. Best for turn-based, board, and puzzle games.
 
 ```ts
-import { defineGame, type Engine } from 'ascii-game-engine'
+import { defineGame } from 'pretext-games'
 
-type State = { board: ('X' | 'O' | null)[] }
-type Player = 'X' | 'O'
-
-export const ticTacToe = defineGame<State, Player>({
+const ticTacToe = defineGame({
   name: 'tic-tac-toe',
   players: { min: 2, max: 2, default: 2 },
   setup: () => ({ board: Array(9).fill(null) }),
@@ -74,34 +65,19 @@ export const ticTacToe = defineGame<State, Player>({
       ctx.state.board[idx] = ctx.currentPlayer
     },
   },
-  endIf(ctx) {
-    const w = checkWinner(ctx.state.board)
-    if (w) return { winner: w }
-    if (ctx.state.board.every((c) => c !== null)) return { draw: true }
-  },
-  render(ctx) {
-    // Called every frame. Draw with ctx.engine.ui.* and read input.
-    // Call ctx.moves.place(idx) on a click to play.
-  },
+  endIf: (ctx) => checkWinner(ctx.state.board),
+  render: (ctx) => { /* draw with ctx.engine.ui.* */ },
 })
-
-export function setupGame(engine: Engine) {
-  return { startScene: engine.runGame(ticTacToe) }
-}
 ```
 
-**Best for:** tic-tac-toe, connect-four, card games, Hearthstone-style games, puzzles, hotseat multiplayer.
-
-### ECS API — `defineScene` + `defineSystem`
-
-Full Entity-Component-System control for real-time, physics-heavy, or complex games. Entities are plain objects, systems run every frame, and scenes manage lifecycle.
+**`defineScene` + `defineSystem`** -- full ECS control for real-time, physics-heavy games (shooters, platformers, roguelikes).
 
 ```ts
-import { defineScene, defineSystem, type Engine } from 'ascii-game-engine'
+import { defineScene, defineSystem } from 'pretext-games'
 
-export const playScene = defineScene({
+const play = defineScene({
   name: 'play',
-  setup(engine: Engine) {
+  setup(engine) {
     engine.spawn({
       position: { x: engine.centerX, y: engine.centerY },
       ascii: { char: '@', font: '16px monospace', color: '#fff' },
@@ -109,170 +85,91 @@ export const playScene = defineScene({
       collider: { type: 'circle', width: 12, height: 12 },
       tags: { values: new Set(['player']) },
     })
-    engine.addSystem(playerInputSystem)
-    engine.addSystem(collisionSystem)
-  },
-  update(engine: Engine, dt: number) {
-    // Per-frame logic
-  },
-})
-
-export const playerInputSystem = defineSystem({
-  name: 'playerInput',
-  update(engine: Engine, dt: number) {
-    const speed = 200
-    for (const e of engine.world.with('position', 'velocity', 'tags')) {
-      if (!e.tags.values.has('player')) continue
-      e.velocity.vx = (engine.keyboard.held('KeyD') ? speed : 0)
-                    - (engine.keyboard.held('KeyA') ? speed : 0)
-      e.velocity.vy = (engine.keyboard.held('KeyS') ? speed : 0)
-                    - (engine.keyboard.held('KeyW') ? speed : 0)
-    }
+    engine.addSystem(inputSystem)
   },
 })
 ```
 
-**Best for:** shooters, platformers, roguelikes, RPGs, side-scrollers, physics sandboxes.
-
-Both APIs share the same engine: particles, camera, audio, tweens, transitions, canvas UI primitives, save/load, procedural generation, and networking all work regardless of which API you choose.
+Both APIs share the same engine: particles, camera, audio, tweens, canvas UI, save/load, and networking all work regardless of which you choose.
 
 ---
 
-## 🤖 AI-assisted authoring
+## Features
 
-Set `ANTHROPIC_API_KEY` once, then generate games, scenes, sprites, mechanics, and juice from a prompt:
-
-```bash
-bun run ai:game    "deck-building roguelike with 3 card types"
-bun run ai:scene   "space shooter with asteroid waves and power-ups"
-bun run ai:sprite  "space invader, 2 frames, green"
-bun run ai:mechanic "enemy patrols then chases player when close"
-bun run ai:juice   "player takes damage"
-```
-
-| Command | What it generates | Where it goes |
-|---------|-------------------|---------------|
-| `ai:game` | Complete `defineGame` module (turn-based / board) | `game/<slug>.ts` |
-| `ai:scene` | Complete `defineScene` game (real-time / ECS) | `game/<slug>.ts` |
-| `ai:sprite` | Entity factory with multi-frame ASCII art | `game/entities/` |
-| `ai:mechanic` | `defineSystem(...)` behavior module | `game/systems/` |
-| `ai:juice` | Particles + sfx + shake + floating text helper | `game/helpers/` |
-
-`ai:game` and `ai:scene` auto-wire `game/index.ts` — no manual setup needed.
-
-All commands support `--verify` (typecheck), `--smoke` (headless 60-frame test), `--model=opus|sonnet|haiku`, `--dry-run`, and `--force`. Full guide: [`docs/AI-WORKFLOWS.md`](docs/AI-WORKFLOWS.md).
+| Area | What you get |
+|:-----|:-------------|
+| **Two game APIs** | `defineGame` (turn-based/board) and `defineScene` + `defineSystem` (real-time/ECS) |
+| **Pretext text layout** | Browser-accurate text measurement without DOM, 500-1200x faster than DOM measurement |
+| **Image Mesh** | Map images onto deformable text-character grids with spring physics. Canvas 2D mesh deformation without WebGL |
+| **Physics** | Velocity integration, gravity, friction, drag, bounce, collision groups, spatial hashing |
+| **Interactive text** | Per-character spring physics, cursor repel, ambient drift -- text that scatters and reforms |
+| **ECS** | miniplex World, 13 built-in systems, system priorities, phase gating for turn-based |
+| **Input** | Keyboard, mouse, gamepad, touch/gestures, configurable bindings with `capture()` + AbortSignal |
+| **Audio** | Procedural SFX (ZzFX), background music |
+| **Canvas UI** | Immediate-mode panels, text, bars, menus, tooltips, tabs, text fields |
+| **Networking** | Multiplayer scaffolding with lockstep sync, desync detection |
+| **AI CLI** | Generate games from natural language (`ai:game`, `ai:scene`, `ai:sprite`, `ai:mechanic`, `ai:juice`) |
+| **Behaviors** | Inventory, equipment, stats, loot tables, quests, achievements, dialog trees, wave spawners, AI (patrol/chase/flee/wander) |
 
 ---
 
-## 🏗 Scaffolding
+## Image Mesh
 
-```bash
-# New project from a template (7 available)
-npx create-ascii-game my-game
-
-# Inside a project — scaffold individual pieces
-bun run new:scene  <name>   # Auto-wires into game/index.ts
-bun run new:system <name>
-bun run new:entity <name>
-```
-
-Available templates: `blank`, `tic-tac-toe`, `connect-four`, `asteroid-field`, `platformer`, `roguelike`, `physics-text`.
-
----
-
-## 🌐 Multiplayer in one line
+Map any image onto a grid of text-character vertices with spring physics. Each character is a normal ECS entity -- cursor repel warps the image, explosions tear it apart, and springs pull it back together. Canvas 2D mesh deformation without WebGL.
 
 ```ts
-import { createMultiplayerGame, Engine } from 'ascii-game-engine'
-
-const handle = await createMultiplayerGame(ticTacToe, {
-  transport: { kind: 'local', players: 2 },
-  engineFactory: () => new Engine(canvas),
-  onDesync: (e) => console.warn('desync', e),
+const mesh = engine.spawnImageMesh({
+  image: 'assets/portrait.png',
+  cols: 12, rows: 10,
+  position: { x: engine.centerX, y: engine.centerY },
+  spring: SpringPresets.bouncy,
+  shape: 'circle',
 })
-
-handle.runtime.dispatch('place', [4]) // player 1 plays center
+engine.addSystem(createCursorRepelSystem({ radius: 120 }))
 ```
 
-Wraps any `defineGame` definition with lockstep transport (local / WebSocket) and desync detection, built on `TurnSync`, `MockAdapter`, `SocketAdapter`, and `GameServer`. Full example: [`docs/cookbook/define-game.md`](docs/cookbook/define-game.md#multiplayer-games-in-one-line).
+Shape presets (`circle`, `diamond`, `triangle`) mask the grid into non-rectangular forms. For meshes with 500+ cells, a SoA typed-array fast path keeps updates at 60fps. Full details: [`docs/IMAGE-MESH.md`](docs/IMAGE-MESH.md).
 
 ---
 
-## 🧩 What's inside
+## Architecture
 
-| Layer | What you get |
-|:------|:-------------|
-| **Core engine** | Pretext text layout, miniplex ECS, physics, audio (ZzFX), input (keyboard / mouse / gamepad / touch), particles, tweens, camera, transitions, canvas UI primitives |
-| **Declarative layer** | `defineGame`, seeded RNG, phase-gated systems, auto turn rotation |
-| **Behaviors** | Opt-in helpers: inventory, equipment, currency, crafting, loot, quests, dialog trees, stats + modifiers, achievements, AI state machines |
-| **Networking** | `MockAdapter` / `SocketAdapter` / `GameServer` / `TurnSync` — desync detection & session resume |
-| **Tiles & dungeons** | Tilemaps, FOV, BSP/cave/walker dungeon generation, pathfinding |
-| **Scaffolding** | `create-ascii-game` CLI, `new:scene` / `new:system` / `new:entity` scripts, AI content generators |
-| **Dev loop** | Vite + hot reload, Biome lint, TypeScript type-check, 1249+ unit tests via `bun:test` |
-| **Static export** | `bun run export` → single-file `dist/game.html` |
+Four layers with enforced import boundaries (verified by `bun run check:bounds`):
 
-<sup>Full API reference: [`docs/PROJECT-GUIDE.md`](docs/PROJECT-GUIDE.md) · [`docs/API-generated.md`](docs/API-generated.md)</sup>
-
----
-
-## 🔧 Monorepo workflow (contributors & power users)
-
-If you're contributing to the engine or working from the monorepo directly:
-
-```bash
-bun dev              # Dev server (auto-runs template picker if game/ is missing)
-bun run init:game [blank|asteroid-field|platformer|roguelike|physics-text|tic-tac-toe|connect-four]
-bun run check:all    # TypeScript + boundary enforcement + lint
-bun test             # 1249 tests
-bun run build:pkg    # Build npm package to packages/ascii-game-engine/dist/
-bun run export       # Single-file dist/game.html
+```
+engine/   -- framework (published as pretext-games on npm)
+game/     -- your game code (gitignored, from templates)
+games/    -- source-of-truth templates (8 included)
+ui/       -- React overlay + zustand store bridge
+shared/   -- types, constants, events
 ```
 
-### Architecture
+---
 
-Four layers with enforced import boundaries:
+## Commands
 
-| Layer | Role | Published? |
-|:------|:-----|:-----------|
-| `engine/` | Framework — ECS, physics, rendering, audio, networking, behaviors | ✅ `ascii-game-engine` |
-| `shared/` | Types, constants, events | ✅ Bundled into the npm package |
-| `ui/` | React overlay + zustand store bridge | ✅ `ascii-game-engine/store` |
-| `game/` | Per-project game code (gitignored, copied from templates) | ❌ User land |
-| `games/` | Source-of-truth templates (7 included) | ❌ Template source |
-
-Path aliases used inside the monorepo: `@engine`, `@game`, `@ui`, `@shared`.
+| Command | Description |
+|:--------|:------------|
+| `bun dev` | Dev server (auto-runs template picker if `game/` is missing) |
+| `bun run check:all` | TypeScript + boundary enforcement + lint |
+| `bun test` | 1249+ tests via bun:test |
+| `bun run build` | Production build |
+| `bun run export` | Single-file `dist/game.html` |
+| `bun run build:pkg` | Build npm package |
+| `bun run init:game [template]` | Initialize game from a template |
+| `bun run new:scene` / `new:system` / `new:entity` | Scaffold and auto-wire |
+| `bun run ai:game "<pitch>"` | Generate a `defineGame` module from a prompt |
+| `bun run ai:scene "<pitch>"` | Generate a `defineScene` game from a prompt |
 
 ---
 
-## 📚 Learn more
+## Links
 
-| Doc | What it covers |
-|:----|:---------------|
-| [`docs/QUICKSTART.md`](docs/QUICKSTART.md) | 15-minute first game |
-| [`docs/TUTORIAL.md`](docs/TUTORIAL.md) | Full walkthrough |
-| [`docs/COOKBOOK.md`](docs/COOKBOOK.md) | Recipe index (split into `docs/cookbook/` topic files) |
-| [`docs/AI-WORKFLOWS.md`](docs/AI-WORKFLOWS.md) | AI CLI setup and guide |
-| [`docs/API-generated.md`](docs/API-generated.md) | Auto-generated API reference |
+- **npm:** [pretext-games](https://www.npmjs.com/package/pretext-games)
+- **Docs:** [`docs/`](docs/) -- quickstart, tutorial, cookbook, API reference
+- **Pretext:** [github.com/chenglou/pretext](https://github.com/chenglou/pretext)
+- **Repo:** [github.com/leCheeseRoyale/ascii-games](https://github.com/leCheeseRoyale/ascii-games)
 
 ---
 
-## 🛠 Tech stack
-
-| Library | Role |
-|:--------|:-----|
-| [Pretext](https://github.com/chenglou/pretext) | Font metrics & text layout on canvas |
-| [miniplex](https://github.com/hmans/miniplex) | Entity Component System |
-| [React](https://react.dev) | UI overlay (HUD, menus) — optional peer dependency |
-| [zustand](https://github.com/pmndrs/zustand) | State bridge between engine and React |
-| [Vite](https://vitejs.dev) | Build tool & dev server |
-| [Bun](https://bun.sh) | Runtime, package manager, script runner |
-
----
-
-<div align="center">
-
-**MIT License**
-
-*Think boardgame.io meets a lightweight ECS — but everything is ASCII.*
-
-</div>
+MIT License

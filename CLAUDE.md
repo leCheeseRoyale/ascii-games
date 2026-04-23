@@ -65,6 +65,91 @@ shared/   Types (shared/types.ts = Entity + every component shape), constants, e
 
 When `defineGame` games need canvas-only UI (no React), `setupGame` returns `{ startScene: engine.runGame(def), screens: { menu: Empty, playing: Empty, gameOver: Empty }, hud: [] }`.
 
+## Image Mesh System
+
+Text characters as deformable image vertices. Load an image, subdivide it across a grid of character entities with spring physics -- Canvas 2D mesh deformation at 60fps without WebGL. Each cell is a normal ECS entity (position, velocity, spring, collider) that renders its slice of the source image via `ctx.drawImage`. See `docs/IMAGE-MESH.md` for architecture deep-dive and usage examples.
+
+### Basic usage
+
+```ts
+const mesh = engine.spawnImageMesh({
+  image: imgElement,       // HTMLImageElement (preloaded)
+  cols: 8, rows: 6,
+  position: { x: 200, y: 200 },
+  spring: SpringPresets.bouncy,
+  showLines: true,
+  lineColor: '#444',
+});
+// mesh is Partial<Entity>[] — all spawned cell entities
+engine.addSystem(createCursorRepelSystem({ radius: 120 }));
+```
+
+### `SpawnImageMeshOpts` reference
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `image` | `string \| HTMLImageElement` | **required** | URL string or preloaded image element |
+| `cols` | `number` | — | Grid columns. Optional if `density` provided |
+| `rows` | `number` | — | Grid rows. Optional if `density` provided |
+| `density` | `number` (0–1) | — | Auto-computes cols/rows from image size + char cell size |
+| `letterSpacing` | `number` | auto from density | Px spacing passed to Pretext measurement (density mode) |
+| `position` | `{ x, y }` | **required** | Top-left of the mesh in world space |
+| `char` | `string` | `'█'` | Character per cell (invisible, used for measurement) |
+| `font` | `string` | `'12px monospace'` | Font for character cell measurement |
+| `spring` | `{ strength, damping }` | `{ 0.08, 0.93 }` | Spring preset for home-pull. Use `SpringPresets.*` |
+| `showLines` | `boolean` | `false` | Draw lines between adjacent cells |
+| `lineColor` | `string` | `'#333'` | Color of mesh lines |
+| `lineWidth` | `number` | `1` | Width of mesh lines in px |
+| `tags` | `string[]` | — | Tags on every cell entity |
+| `layer` | `number` | — | Render layer for the cells |
+| `shape` | `MeshShape` | — | Shape mask (see below) |
+
+### Shape parameter
+
+- **`shape: 'circle'`** — elliptical mask, cells outside the ellipse are not spawned
+- **`shape: 'diamond'`** — diamond/rhombus mask
+- **`shape: 'triangle'`** — triangle widening from top to bottom
+- **Custom:** `shape: (row, rows) => ({ startCol, endCol })` — return which columns are active per row
+
+Type: `MeshShape = 'circle' | 'diamond' | 'triangle' | MeshShapeFn`. Lines between cells stop at shape boundaries naturally (missing neighbors are skipped).
+
+### Density parameter
+
+- **`density: 0.5`** — auto-computes `cols`/`rows` from image natural dimensions + Pretext character cell measurement
+- Range 0–1: higher = more vertices = smoother deformation but heavier. Clamped to `[0.05, 1]`
+- Uses `(1 - density) * 20` as letter spacing under the hood
+- Provide **either** `cols`+`rows` **or** `density`, not both needed. Omitting all three throws
+
+### SoA fast path (500+ cells)
+
+Meshes with **500+ cells** (`SOA_THRESHOLD`) automatically use Float32Array typed arrays instead of individual ECS entities. This is transparent to callers:
+
+- **`spawnImageMesh()`** returns `Partial<Entity>[]` either way -- a single proxy entity with `soaMeshProxy: { meshId, count }` for SoA meshes
+- **SoA cells have no colliders** -- per-cell collision only works for sub-500 ECS meshes
+- **`createCursorRepelSystem`** automatically applies radial forces to SoA meshes via `applySoAMeshForce()`
+- **`destroySoAMeshCell(mesh, index)`** — mark individual cells as dead (skipped by spring, physics, render). Import from `@engine`
+- **`engine.soaMeshes`** — `Map<string, SoAMesh>` of active SoA meshes, keyed by meshId
+- Built-in **`_soaMesh`** system runs spring + physics in tight typed-array loops at `SystemPriority.spring`
+
+### Interactions with existing systems
+
+- **`_spring`** — pulls ECS mesh cells back to home positions (image reforms after deformation)
+- **`_soaMesh`** — runs spring + physics for SoA meshes in typed-array loops
+- **`_meshRender`** — draws image slices + lines for ECS cells; renders SoA meshes via `renderSoAMesh()`
+- **`createCursorRepelSystem`** — cursor warps both ECS and SoA meshes automatically
+- **`engine.destroy(cell)`** — cell's image slice disappears, neighbor lines skip it (ECS meshes only)
+- **`engine.particles.burst`** — particles at cell position for destruction effects
+- **`engine.onCollide`** — other entities collide with mesh cells (ECS meshes only, not SoA)
+- **`_lifetime`** / **`_tween`** — cells can auto-destroy or fade (ECS meshes only)
+
+### Gotchas
+
+- **Image must be loaded before spawning** when using `density` mode -- `naturalWidth`/`naturalHeight` are 0 for unloaded images. Pass a preloaded `HTMLImageElement`, not a URL string, if using density. URL strings work with explicit `cols`+`rows` (falls back to `cols*16` sizing)
+- **SoA meshes return a single proxy entity**, not individual cell entities -- don't iterate the return array expecting N entities
+- **`meshCell`** component is on individual cells (ECS path); **`soaMeshProxy`** is on the proxy entity (SoA path)
+- **Don't register `_meshRender` or `_soaMesh` manually** -- they are built-in systems (see list above)
+- **Component types:** `MeshCell` and `SoAMeshProxy` interfaces are in `shared/types.ts`. `SoAMesh` (the typed-array struct) and `MeshShape`/`MeshShapeFn` are exported from `@engine`
+
 ## ECS Rules
 
 - World: miniplex `World<Entity>` at `engine.world`. Entities are plain objects with optional component fields — **no classes, no decorators**. Component shapes live in `shared/types.ts`.
@@ -79,7 +164,7 @@ When `defineGame` games need canvas-only UI (no React), `setupGame` returns `{ s
 - **`collider: "auto"`** — auto-sizes the collider from Pretext text measurement at spawn time. Updated each frame by `_measure` if text changes.
 - **`engine.spawnText(opts)`** / **`engine.spawnSprite(opts)`** — decompose text into per-character entities with spring-to-home physics. Each character is a normal entity with position, velocity, collider, and spring. `spawnText` supports `align: "left" | "center" | "right"`.
 - **Spring presets:** `SpringPresets.stiff`, `.snappy`, `.bouncy`, `.smooth`, `.floaty`, `.gentle` — named spring configs for `engine.spawnText()` / `engine.spawnSprite()`.
-- **`engine.spawnImageMesh(opts)`** — maps an image onto a grid of character entities with spring physics. Each cell renders a slice of the source image; the image deforms as characters move. Supports `shape: 'circle' | 'diamond' | 'triangle' | fn` for non-rectangular meshes, `density: 0-1` for auto-computed grid resolution, and `showLines` for wireframe visualization. Meshes with 500+ cells auto-switch to an SoA typed-array fast path for 60fps at 2000+ vertices. See `docs/IMAGE-MESH.md`.
+- **`engine.spawnImageMesh(opts)`** — deformable image mesh. Full details in the **Image Mesh System** section above.
 - **`createCursorRepelSystem(opts?)`** / **`createAmbientDriftSystem(opts?)`** — one-line helpers for interactive text. Add via `engine.addSystem(createCursorRepelSystem({ radius: 120 }))`. Cursor repel also affects SoA meshes automatically.
 - **Collision groups:** `collider: { ..., group: 1, mask: 0b11 }` -- bitmask filtering. Default group=1, mask=all.
 - **`engine.onCollide(tagA, tagB, callback)`** -- fires callback on first overlap frame between tagged entities. Returns unsubscribe function. Lazy-creates `_collisionEvents` system on first call.
