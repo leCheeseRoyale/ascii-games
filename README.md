@@ -1,16 +1,20 @@
 ```
-  ___  ___  ___ _____ _____  __  _____
- | _ \| _ \| __|_   _| __\ \/ /_   _|
- |  _/|   /| _|  | | | _| >  <  | |
- |_|  |_|\_|___| |_| |___/_/\_\ |_|
+██████╗ ██████╗ ███████╗████████╗███████╗██╗  ██╗████████╗
+██╔══██╗██╔══██╗██╔════╝╚══██╔══╝██╔════╝╚██╗██╔╝╚══██╔══╝
+██████╔╝██████╔╝█████╗     ██║   █████╗   ╚███╔╝    ██║
+██╔═══╝ ██╔══██╗██╔══╝     ██║   ██╔══╝   ██╔██╗    ██║
+██║     ██║  ██║███████╗   ██║   ███████╗██╔╝ ██╗   ██║
+╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝   ╚═╝
 
-   ___   _   __  __ ___ ___
-  / __| /_\ |  \/  | __/ __|
- | (_ |/ _ \| |\/| | _|\__ \
-  \___/_/ \_\_|  |_|___|___/
+        ██████╗  █████╗ ███╗   ███╗███████╗███████╗
+       ██╔════╝ ██╔══██╗████╗ ████║██╔════╝██╔════╝
+       ██║  ███╗███████║██╔████╔██║█████╗  ███████╗
+       ██║   ██║██╔══██║██║╚██╔╝██║██╔══╝  ╚════██║
+       ╚██████╔╝██║  ██║██║ ╚═╝ ██║███████╗███████║
+        ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚══════╝
 ```
 
-Game engine built on [Pretext](https://github.com/chenglou/pretext) -- text as a first-class spatial primitive. ECS, physics, rendering, input, audio. Canvas 2D at 60fps, zero DOM in the frame loop.
+Game engine built on [Pretext](https://github.com/chenglou/pretext), where text is a first-class spatial primitive. ECS, physics, rendering, input, and audio. Canvas 2D at 60fps with zero DOM in the frame loop.
 
 [![npm](https://img.shields.io/npm/v/pretext-games.svg)](https://www.npmjs.com/package/pretext-games)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -41,7 +45,7 @@ npx create-ascii-game my-game
 cd my-game && bun dev
 ```
 
-8 templates: `blank`, `asteroid-field`, `platformer`, `roguelike`, `physics-text`, `tic-tac-toe`, `connect-four`, `mesh-demo`. First `bun dev` opens a picker if you don't specify one.
+Includes 8 templates: `blank`, `asteroid-field`, `platformer`, `roguelike`, `physics-text`, `tic-tac-toe`, `connect-four`, and `mesh-demo`. The first `bun dev` opens a picker if no template is specified.
 
 For a walkthrough, see [`docs/QUICKSTART.md`](docs/QUICKSTART.md) or [`docs/TUTORIAL.md`](docs/TUTORIAL.md).
 
@@ -49,7 +53,9 @@ For a walkthrough, see [`docs/QUICKSTART.md`](docs/QUICKSTART.md) or [`docs/TUTO
 
 ## Two game APIs
 
-**`defineGame`** -- declarative, boardgame.io-style. Turn rotation, phase transitions, game-over detection handled by the engine. Best for turn-based, board, and puzzle games.
+### `defineGame`
+
+Declarative, boardgame.io-style. Turn rotation, phase transitions, and game-over detection are handled by the engine. Best for turn-based, board, and puzzle games.
 
 ```ts
 import { defineGame } from 'pretext-games'
@@ -70,7 +76,9 @@ const ticTacToe = defineGame({
 })
 ```
 
-**`defineScene` + `defineSystem`** -- full ECS control for real-time, physics-heavy games (shooters, platformers, roguelikes).
+### `defineScene` + `defineSystem`
+
+Full ECS control for real-time, physics-heavy games: shooters, platformers, roguelikes, and more.
 
 ```ts
 import { defineScene, defineSystem } from 'pretext-games'
@@ -90,7 +98,7 @@ const play = defineScene({
 })
 ```
 
-Both APIs share the same engine: particles, camera, audio, tweens, canvas UI, save/load, and networking all work regardless of which you choose.
+Both APIs use the same engine. Particles, camera, audio, tweens, canvas UI, save/load, and networking work whichever API you choose.
 
 ---
 
@@ -98,24 +106,24 @@ Both APIs share the same engine: particles, camera, audio, tweens, canvas UI, sa
 
 | Area | What you get |
 |:-----|:-------------|
-| **Two game APIs** | `defineGame` (turn-based/board) and `defineScene` + `defineSystem` (real-time/ECS) |
+| **Two game APIs** | `defineGame` for turn-based and board games; `defineScene` + `defineSystem` for real-time ECS |
 | **Pretext text layout** | Browser-accurate text measurement without DOM, 500-1200x faster than DOM measurement |
 | **Image Mesh** | Map images onto deformable text-character grids with spring physics. Canvas 2D mesh deformation without WebGL |
-| **Physics** | Velocity integration, gravity, friction, drag, bounce, collision groups, spatial hashing |
-| **Interactive text** | Per-character spring physics, cursor repel, ambient drift -- text that scatters and reforms |
-| **ECS** | miniplex World, 13 built-in systems, system priorities, phase gating for turn-based |
-| **Input** | Keyboard, mouse, gamepad, touch/gestures, configurable bindings with `capture()` + AbortSignal |
-| **Audio** | Procedural SFX (ZzFX), background music |
-| **Canvas UI** | Immediate-mode panels, text, bars, menus, tooltips, tabs, text fields |
-| **Networking** | Multiplayer scaffolding with lockstep sync, desync detection |
-| **AI CLI** | Generate games from natural language (`ai:game`, `ai:scene`, `ai:sprite`, `ai:mechanic`, `ai:juice`) |
-| **Behaviors** | Inventory, equipment, stats, loot tables, quests, achievements, dialog trees, wave spawners, AI (patrol/chase/flee/wander) |
+| **Physics** | Velocity integration, gravity, friction, drag, bounce, collision groups, and spatial hashing |
+| **Interactive text** | Per-character spring physics, cursor repel, and ambient drift. Text scatters and reforms |
+| **ECS** | miniplex World, 13 built-in systems, system priorities, and phase gating for turn-based games |
+| **Input** | Keyboard, mouse, gamepad, touch/gestures, and configurable bindings with `capture()` + AbortSignal |
+| **Audio** | Procedural SFX with ZzFX and background music |
+| **Canvas UI** | Immediate-mode panels, text, bars, menus, tooltips, tabs, and text fields |
+| **Networking** | Multiplayer scaffolding with lockstep sync and desync detection |
+| **AI CLI** | Generate games from natural language with `ai:game`, `ai:scene`, `ai:sprite`, `ai:mechanic`, and `ai:juice` |
+| **Behaviors** | Inventory, equipment, stats, loot tables, quests, achievements, dialog trees, wave spawners, and AI behaviors: patrol, chase, flee, wander |
 
 ---
 
 ## Image Mesh
 
-Map any image onto a grid of text-character vertices with spring physics. Each character is a normal ECS entity -- cursor repel warps the image, explosions tear it apart, and springs pull it back together. Canvas 2D mesh deformation without WebGL.
+Map any image onto a grid of text-character vertices with spring physics. Each character is a normal ECS entity: cursor repel warps the image, explosions tear it apart, and springs pull it back together. Canvas 2D mesh deformation, no WebGL required.
 
 ```ts
 const mesh = engine.spawnImageMesh({
@@ -134,12 +142,12 @@ Shape presets (`circle`, `diamond`, `triangle`) mask the grid into non-rectangul
 
 ## Architecture
 
-Four layers with enforced import boundaries (verified by `bun run check:bounds`):
+Four layers with enforced import boundaries, verified by `bun run check:bounds`:
 
-```
-engine/   -- framework (published as pretext-games on npm)
-game/     -- your game code (gitignored, from templates)
-games/    -- source-of-truth templates (8 included)
+```text
+engine/   -- framework, published as pretext-games on npm
+game/     -- your game code, gitignored and generated from templates
+games/    -- source-of-truth templates, 8 included
 ui/       -- React overlay + zustand store bridge
 shared/   -- types, constants, events
 ```
@@ -150,13 +158,13 @@ shared/   -- types, constants, events
 
 | Command | Description |
 |:--------|:------------|
-| `bun dev` | Dev server (auto-runs template picker if `game/` is missing) |
+| `bun dev` | Dev server. Auto-runs the template picker if `game/` is missing |
 | `bun run check:all` | TypeScript + boundary enforcement + lint |
 | `bun test` | 1249+ tests via bun:test |
 | `bun run build` | Production build |
 | `bun run export` | Single-file `dist/game.html` |
 | `bun run build:pkg` | Build npm package |
-| `bun run init:game [template]` | Initialize game from a template |
+| `bun run init:game [template]` | Initialize a game from a template |
 | `bun run new:scene` / `new:system` / `new:entity` | Scaffold and auto-wire |
 | `bun run ai:game "<pitch>"` | Generate a `defineGame` module from a prompt |
 | `bun run ai:scene "<pitch>"` | Generate a `defineScene` game from a prompt |
