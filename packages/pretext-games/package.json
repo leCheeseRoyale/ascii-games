@@ -20,7 +20,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup"
+    "build": "bun run build.ts"
   },
   "dependencies": {
     "@chenglou/pretext": "^0.0.6",

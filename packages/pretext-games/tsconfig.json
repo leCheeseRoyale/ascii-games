@@ -5,6 +5,7 @@
     "outDir": "./dist",
     "declaration": true,
     "declarationDir": "./dist",
+    "noEmit": false,
     "skipLibCheck": true,
     "paths": {
       "@shared/*": ["../../shared/*"],
@@ -18,5 +19,9 @@
     "../../shared/**/*.ts",
     "../../ui/store.ts",
     "vendor.d.ts"
+  ],
+  "exclude": [
+    "../../engine/__tests__/**",
+    "../../engine/__bench__/**"
   ]
 }
