@@ -1,14 +1,18 @@
 #!/usr/bin/env bun
 /**
  * Scaffold a new scene.
- * Usage: bun run new:scene <name>
+ * Usage: bun run new:scene <name> [--no-wire]
  * Example: bun run new:scene boss-fight  →  game/scenes/boss-fight.ts
  */
 
-const name = process.argv[2];
+import { wireScene } from "./wire-utils";
+
+const args = process.argv.slice(2);
+const noWire = args.includes("--no-wire");
+const name = args.find((a) => !a.startsWith("--"));
 
 if (!name) {
-  console.error("Usage: bun run new:scene <name>");
+  console.error("Usage: bun run new:scene <name> [--no-wire]");
   console.error("Example: bun run new:scene boss-fight");
   process.exit(1);
 }
@@ -62,6 +66,11 @@ export const ${camel}Scene = defineScene({
 
 await Bun.write(path, template);
 console.log(`✓ Created scene: ${path}`);
-console.log(`  1. Import in game/index.ts:  import { ${camel}Scene } from './scenes/${kebab}'`);
-console.log(`  2. Register:                 engine.registerScene(${camel}Scene)`);
-console.log(`  3. Load from another scene:  engine.loadScene('${kebab}')`);
+
+if (!noWire && (await wireScene(kebab, camel))) {
+  console.log(`✓ Wired into game/index.ts (import + registerScene)`);
+} else if (!noWire) {
+  console.log(`  1. Import in game/index.ts:  import { ${camel}Scene } from './scenes/${kebab}'`);
+  console.log(`  2. Register:                 engine.registerScene(${camel}Scene)`);
+}
+console.log(`  Load from another scene:     engine.loadScene('${kebab}')`);

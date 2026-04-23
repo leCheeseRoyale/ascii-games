@@ -22,6 +22,7 @@ import {
   slugify,
   writeFileSafe,
 } from "./ai-shared";
+import { wireEntryPoint } from "./wire-utils";
 
 function printHelp(): void {
   console.error(
@@ -263,6 +264,14 @@ async function main(): Promise<void> {
 
   console.log(`Wrote ${outPath}`);
 
+  // Auto-wire game/index.ts to re-export setupGame from the generated module.
+  if (outPath.startsWith("game/") && outPath.endsWith(".ts")) {
+    const moduleSlug = outPath.slice("game/".length, -".ts".length);
+    if (await wireEntryPoint(moduleSlug)) {
+      console.log("✓ Wired game/index.ts → re-exports setupGame from generated module");
+    }
+  }
+
   if (flags.verify) {
     console.log("\nRunning typecheck...");
     const proc = Bun.spawn(["bun", "run", "check"], { stdout: "inherit", stderr: "inherit" });
@@ -274,11 +283,7 @@ async function main(): Promise<void> {
     console.log("Typecheck passed.");
   }
 
-  console.log("\nNext steps:");
-  console.log("Wire it as your starting scene in game/index.ts:");
-  console.log(`  import { setupGame as ${camel} } from './${slug}'`);
-  console.log(`  export const setupGame = ${camel}`);
-  console.log("Then: bun dev");
+  console.log("\nRun: bun dev");
 }
 
 main().catch((err: unknown) => {

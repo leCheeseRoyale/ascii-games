@@ -35,12 +35,33 @@ export function GameCanvas({ children }: { children?: React.ReactNode }) {
     engineRef.current = engine;
 
     // Register scenes and get starting scene name
-    const result = setupGame(engine) as string | GameSetupResult;
+    let result: string | GameSetupResult;
+    try {
+      result = setupGame(engine) as string | GameSetupResult;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[GameCanvas] setupGame() threw:", msg);
+      showCanvasError(canvas, `setupGame() threw:\n${msg}`);
+      return;
+    }
+
+    if (result == null || (typeof result !== "string" && typeof result !== "object")) {
+      const msg = `setupGame() returned ${String(result)} — expected a scene name string or { startScene, ... } object`;
+      console.error(`[GameCanvas] ${msg}`);
+      showCanvasError(canvas, msg);
+      return;
+    }
 
     let firstScene: string;
     if (typeof result === "string") {
       firstScene = result;
     } else {
+      if (!result.startScene) {
+        const msg = "setupGame() returned an object without startScene";
+        console.error(`[GameCanvas] ${msg}`);
+        showCanvasError(canvas, msg);
+        return;
+      }
       firstScene = result.startScene;
       // Register custom screens if provided
       if (result.screens) {
@@ -113,4 +134,25 @@ export function GameCanvas({ children }: { children?: React.ReactNode }) {
       {children}
     </EngineContext.Provider>
   );
+}
+
+function showCanvasError(canvas: HTMLCanvasElement, message: string): void {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  ctx.fillStyle = "#1a1a2e";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#ff6b6b";
+  ctx.font = "bold 20px monospace";
+  ctx.fillText("Game failed to start", 40, 60);
+  ctx.fillStyle = "#e0e0e0";
+  ctx.font = "14px monospace";
+  const lines = message.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    ctx.fillText(lines[i], 40, 100 + i * 22);
+  }
+  ctx.fillStyle = "#888";
+  ctx.font = "13px monospace";
+  ctx.fillText("Check the browser console for details.", 40, 120 + lines.length * 22);
 }
