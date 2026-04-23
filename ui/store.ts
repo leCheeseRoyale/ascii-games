@@ -90,7 +90,6 @@ export const useStore = create<GameStore>((set, get) => ({
 // ── Store extension API ────────────────────────────────────────
 
 let _extensionInitialState: Record<string, unknown> = {};
-let _actionsRegistered = false;
 
 /**
  * Merge game-specific state and actions into the store.
@@ -100,36 +99,24 @@ let _actionsRegistered = false;
  * A different slice fully re-applies both state and actions.
  */
 export function extendStore<T extends Record<string, unknown>>(slice: StoreSlice<T>): void {
-  // Same slice being re-applied (e.g. HMR) — skip
-  if (
-    _extensionInitialState &&
-    JSON.stringify(slice.initialState) === JSON.stringify(_extensionInitialState)
-  ) {
-    return;
-  }
+  if (JSON.stringify(slice.initialState) === JSON.stringify(_extensionInitialState)) return;
 
   _extensionInitialState = { ...slice.initialState };
-  _actionsRegistered = false;
   useStore.setState(slice.initialState as Partial<GameStore>);
 
-  // Only register actions once (or when a different slice replaces the previous one)
-  if (!_actionsRegistered) {
-    _actionsRegistered = true;
-    if (slice.actions) {
-      const actions = slice.actions(
-        // biome-ignore lint/suspicious/noExplicitAny: zustand typing limitation — setState generic doesn't narrow to extended slice type
-        useStore.setState as any,
-        useStore.getState as () => GameStore & T,
-      );
-      useStore.setState(actions as Partial<GameStore>);
-    }
+  if (slice.actions) {
+    const actions = slice.actions(
+      // biome-ignore lint/suspicious/noExplicitAny: zustand typing limitation — setState generic doesn't narrow to extended slice type
+      useStore.setState as any,
+      useStore.getState as () => GameStore & T,
+    );
+    useStore.setState(actions as Partial<GameStore>);
   }
 }
 
 /** @internal Reset extension state — for tests only. */
 export function _resetExtension(): void {
   _extensionInitialState = {};
-  _actionsRegistered = false;
   useStore.setState(initialState);
 }
 

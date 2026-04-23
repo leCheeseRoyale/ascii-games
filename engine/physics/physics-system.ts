@@ -83,19 +83,12 @@ export const physicsSystem: System = {
     }
 
     // ── Pass 4: bounce off world bounds (entities with physics.bounce and collider) ──
-    const bounceable = engine.world.with("position", "velocity", "physics", "collider");
-
-    // Reset grounded for bouncing entities each frame
-    for (const e of bounceable) {
-      if ((e.physics.bounce ?? 0) > 0) {
-        e.physics.grounded = false;
-      }
-    }
-
-    for (const e of bounceable) {
+    for (const e of engine.world.with("position", "velocity", "physics", "collider")) {
       const p = e.physics;
       const bounce = p.bounce ?? 0;
       if (bounce <= 0) continue;
+
+      p.grounded = false;
 
       const hw = e.collider.width / 2;
       const hh = e.collider.height / 2;

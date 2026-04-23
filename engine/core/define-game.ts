@@ -341,15 +341,13 @@ export class GameRuntime<TState, TPlayer extends string | number = string | numb
       }
     }
 
-    // Snapshot turn state so we can restore it if game-over fires.
-    // A move with autoEnd:false may call ctx.endTurn() explicitly, advancing
-    // the player index before dispatch() gets to evaluate endIf. If endIf
-    // then triggers game-over, we roll back so the final state reflects the
-    // player/turn at the time of the winning move, not one step past it.
-    const prevPlayerIndex = this._playerIndex;
-    const prevTurn = this._turn;
-
+    // Defer turn ops called inside the move — only apply them if no game-over.
+    const pending: (() => void)[] = [];
     const ctx = this.buildCtx();
+    ctx.endTurn = () => pending.push(() => this.endTurn());
+    ctx.endPhase = () => pending.push(() => this.endPhase());
+    ctx.goToPhase = (p: string) => pending.push(() => this.goToPhase(p));
+
     const res = moveFn(ctx, ...args);
     if (res === "invalid") return "invalid";
 
@@ -360,15 +358,15 @@ export class GameRuntime<TState, TPlayer extends string | number = string | numb
       if (next) this.switchPhase(next);
     }
 
-    // Check top-level endIf — game over?
+    // Check top-level endIf — game over? Discard pending turn ops.
     const gameResult = this.def.endIf?.(this.buildCtx());
     if (gameResult) {
       this._result = gameResult as GameResult;
-      // Roll back any turn advancement that happened inside the move.
-      this._playerIndex = prevPlayerIndex;
-      this._turn = prevTurn;
       return undefined;
     }
+
+    // Apply deferred turn ops from inside the move.
+    for (const op of pending) op();
 
     // Auto-rotate turn.
     if (this.def.turns?.autoEnd !== false) {
