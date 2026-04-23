@@ -1,0 +1,50 @@
+{
+  "name": "ascii-game-engine",
+  "version": "0.2.0",
+  "description": "ASCII game engine — ECS, physics, rendering, input, audio, and declarative game API for building canvas-based ASCII games",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./store": {
+      "import": "./dist/store.js",
+      "types": "./dist/store.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup"
+  },
+  "dependencies": {
+    "@chenglou/pretext": "^0.0.4",
+    "@zzfx-studio/zzfxm": "^0.1.2",
+    "lz-string": "^1.5.0",
+    "miniplex": "^2.0.0",
+    "mitt": "^3.0.1",
+    "simplex-noise": "^4.0.3",
+    "zod": "^3.24.0",
+    "zustand": "^5.0.12",
+    "zzfx": "^1.3.2"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "keywords": ["ascii", "game-engine", "ecs", "canvas", "miniplex", "turn-based", "realtime"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/leCheeseRoyale/ascii-games"
+  }
+}

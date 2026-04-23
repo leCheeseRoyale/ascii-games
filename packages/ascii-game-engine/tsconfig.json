@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "outDir": "./dist",
+    "declaration": true,
+    "declarationDir": "./dist",
+    "skipLibCheck": true,
+    "paths": {
+      "@shared/*": ["../../shared/*"],
+      "@shared": ["../../shared/index.ts"],
+      "@engine/*": ["../../engine/*"],
+      "@engine": ["../../engine/index.ts"]
+    }
+  },
+  "include": [
+    "../../engine/**/*.ts",
+    "../../shared/**/*.ts",
+    "../../ui/store.ts",
+    "vendor.d.ts"
+  ]
+}

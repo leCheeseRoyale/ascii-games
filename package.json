@@ -26,6 +26,7 @@
     "ai:juice": "bun run scripts/ai-juice.ts",
     "ai:game": "bun run scripts/ai-game.ts",
     "ai:scene": "bun run scripts/ai-scene.ts",
+    "build:pkg": "cd packages/ascii-game-engine && bunx tsup",
     "test": "bun test",
     "bench": "bun run engine/__bench__/run.ts"
   },
@@ -50,6 +51,7 @@
     "@vitejs/plugin-react": "^4.5.2",
     "bun-types": "^1.3.12",
     "knip": "^6.3.0",
+    "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "vite": "^6.3.1"
   }
