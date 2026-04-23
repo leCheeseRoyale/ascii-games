@@ -385,7 +385,9 @@ export function measureCharCell(
   const prepared = getSegments(char, font);
   // Use walkLineRanges to get the width without materializing strings
   let width = 0;
-  walkLineRanges(prepared, Infinity, (line) => { width = line.width; });
+  walkLineRanges(prepared, Infinity, (line) => {
+    width = line.width;
+  });
   // Parse font size for height
   const sizeMatch = font.match(/(\d+(?:\.\d+)?)px/);
   const fontSize = sizeMatch ? parseFloat(sizeMatch[1]) : 16;

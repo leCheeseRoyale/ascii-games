@@ -159,13 +159,13 @@ async function main(): Promise<void> {
   });
 
   const code = extractCode(response, "ts");
-  if (!code || !code.includes("export function")) {
+  if (!code?.includes("export function")) {
     console.error("Claude response did not contain an exported helper function. Raw response:");
     console.error(response);
     process.exit(1);
   }
 
-  const result = await writeFileSafe({ path: outPath, content: code + "\n", force: flags.force });
+  const result = await writeFileSafe({ path: outPath, content: `${code}\n`, force: flags.force });
   if (!result.written) {
     console.error(`Refused to write: ${result.reason}`);
     process.exit(1);

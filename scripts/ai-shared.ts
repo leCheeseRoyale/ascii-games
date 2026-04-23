@@ -212,7 +212,7 @@ export async function callClaude(opts: CallClaudeOptions): Promise<string> {
  * falls back to the whole text. Whitespace is trimmed.
  */
 export function extractCode(text: string, lang = "ts"): string {
-  const langRe = new RegExp("```" + lang + "\\s*\\n([\\s\\S]*?)```", "i");
+  const langRe = new RegExp(`\`\`\`${lang}\\s*\\n([\\s\\S]*?)\`\`\``, "i");
   const langMatch = text.match(langRe);
   if (langMatch) return langMatch[1].trim();
 

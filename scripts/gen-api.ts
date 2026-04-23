@@ -67,7 +67,7 @@ for (const line of lines) {
   // Collect export lines
   if (trimmed.startsWith("export")) {
     if (!sections.has(currentSection)) sections.set(currentSection, []);
-    sections.get(currentSection)!.push(trimmed);
+    sections.get(currentSection)?.push(trimmed);
   }
 }
 

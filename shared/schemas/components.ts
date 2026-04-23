@@ -33,7 +33,6 @@ export type TileLegendEntry = z.infer<typeof TileLegendEntrySchema>;
 export type TilemapComponent = z.infer<typeof TilemapComponentSchema>;
 export type EngineConfig = z.infer<typeof EngineConfigSchema>;
 
-
 export const PositionSchema = z.object({
   x: z.number(),
   y: z.number(),
@@ -238,11 +237,13 @@ export const InteractiveSchema = z.object({
   autoMove: z.boolean().optional(),
 });
 
-export const TileLegendEntrySchema = z.object({
-  color: z.string().optional(),
-  bg: z.string().optional(),
-  solid: z.boolean().optional(),
-}).catchall(z.unknown());
+export const TileLegendEntrySchema = z
+  .object({
+    color: z.string().optional(),
+    bg: z.string().optional(),
+    solid: z.boolean().optional(),
+  })
+  .catchall(z.unknown());
 
 export const TilemapComponentSchema = z.object({
   data: z.array(z.string()),

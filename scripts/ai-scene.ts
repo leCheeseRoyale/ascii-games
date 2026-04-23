@@ -14,14 +14,7 @@
  *   bun run ai:scene "snake game with growing tail and wrapping edges"
  */
 
-import {
-  callClaude,
-  extractCode,
-  loadEnv,
-  loadSkill,
-  parseArgs,
-  slugify,
-} from "./ai-shared";
+import { callClaude, extractCode, loadEnv, loadSkill, parseArgs, slugify } from "./ai-shared";
 import { smokeTest } from "./smoke-test";
 
 function printHelp(): void {
@@ -260,7 +253,7 @@ async function main(): Promise<void> {
   });
 
   const code = extractCode(response, "ts");
-  if (!code || !code.includes("defineScene") || !code.includes("setupGame")) {
+  if (!code?.includes("defineScene") || !code.includes("setupGame")) {
     console.error(
       "Claude response did not contain both defineScene(...) and setupGame(...). Raw response:",
     );

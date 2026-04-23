@@ -7,7 +7,7 @@
  *   bun run init:game <template>   — use a specific template
  */
 import { mkdir, readdir } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { join } from "node:path";
 import { createInterface } from "node:readline";
 
 const GAMES_DIR = "games";
@@ -108,7 +108,7 @@ if (!templateName) {
   const answer = await prompt("  Enter number: ");
   const index = parseInt(answer, 10) - 1;
 
-  if (isNaN(index) || index < 0 || index >= templates.length) {
+  if (Number.isNaN(index) || index < 0 || index >= templates.length) {
     console.error("\n  Invalid selection.\n");
     process.exit(1);
   }

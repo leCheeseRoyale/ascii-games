@@ -250,7 +250,7 @@ async function main(): Promise<void> {
   });
 
   const code = extractCode(response, "ts");
-  if (!code || !code.includes("defineGame") || !code.includes("setupGame")) {
+  if (!code?.includes("defineGame") || !code.includes("setupGame")) {
     console.error(
       "Claude response did not contain both defineGame(...) and setupGame(...). Raw response:",
     );
@@ -258,7 +258,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const result = await writeFileSafe({ path: outPath, content: code + "\n", force: flags.force });
+  const result = await writeFileSafe({ path: outPath, content: `${code}\n`, force: flags.force });
   if (!result.written) {
     console.error(`Refused to write: ${result.reason}`);
     process.exit(1);

@@ -13,7 +13,7 @@
  */
 
 import { readdir, readFile, stat } from "node:fs/promises";
-import { join, relative, sep } from "node:path";
+import { join, relative } from "node:path";
 
 // ── Config ──────────────────────────────────────────────────────
 
@@ -80,7 +80,7 @@ interface Violation {
 }
 
 async function* walkTsFiles(dir: string): AsyncGenerator<string> {
-  let entries;
+  let entries: string[];
   try {
     entries = await readdir(dir);
   } catch {
@@ -101,7 +101,7 @@ async function* walkTsFiles(dir: string): AsyncGenerator<string> {
 function matchRule(filePath: string): Rule | null {
   const rel = relative(ROOT, filePath).replace(/\\/g, "/");
   for (const rule of RULES) {
-    if (rel.startsWith(rule.dir + "/")) return rule;
+    if (rel.startsWith(`${rule.dir}/`)) return rule;
   }
   return null;
 }
@@ -138,7 +138,7 @@ async function checkFile(filePath: string): Promise<Violation[]> {
       // Entries ending with '/' are prefix matches; others are exact matches.
       const denied = rule.denied.find((d) => {
         if (d.endsWith("/")) return importPath.startsWith(d);
-        return importPath === d || importPath.startsWith(d + "/");
+        return importPath === d || importPath.startsWith(`${d}/`);
       });
       if (denied) {
         // Special case: @ui/store is allowed from game/ even though @ui/ is denied
@@ -166,7 +166,7 @@ async function checkFile(filePath: string): Promise<Violation[]> {
       if (rule.allowed.length > 0) {
         const allowed = rule.allowed.some((a) => {
           // Exact match entries (like @game/index, @ui/store)
-          if (!a.endsWith("/")) return importPath === a || importPath.startsWith(a + "/");
+          if (!a.endsWith("/")) return importPath === a || importPath.startsWith(`${a}/`);
           return importPath.startsWith(a);
         });
         if (!allowed) {

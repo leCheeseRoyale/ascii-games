@@ -10,8 +10,12 @@ export async function smokeTest(): Promise<void> {
   const g = globalThis as Record<string, unknown>;
   if (!g.AudioContext) {
     g.AudioContext = class {
-      createGain() { return { connect() {}, gain: { value: 0 } }; }
-      get destination() { return {}; }
+      createGain() {
+        return { connect() {}, gain: { value: 0 } };
+      }
+      get destination() {
+        return {};
+      }
     };
   }
   if (!g.document) {
@@ -92,7 +96,8 @@ export async function smokeTest(): Promise<void> {
 
   try {
     const result = setupGameFn(engine);
-    const sceneName = typeof result === "string" ? result : (result as { startScene: string })?.startScene;
+    const sceneName =
+      typeof result === "string" ? result : (result as { startScene: string })?.startScene;
     if (!sceneName) {
       console.error("Smoke test failed — setupGame() did not return a scene name");
       process.exit(1);
