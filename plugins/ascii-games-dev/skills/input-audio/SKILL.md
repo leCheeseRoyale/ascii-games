@@ -80,6 +80,11 @@ input.findConflicts()        // → [{ input: "key:Space", actions: ["action-a",
 ```typescript
 const result = await input.capture('action-a', 10)  // wait up to 10s for next input
 // result: BindingEntry { keys: ["KeyZ"] } or null (timeout/cancelled via Escape)
+
+// Cancel externally with AbortSignal:
+const ac = new AbortController()
+const result = await input.capture('action-a', 10, ac.signal)
+ac.abort()  // resolves with null, cleans up polling interval
 ```
 
 **How capture works:**
@@ -87,7 +92,8 @@ const result = await input.capture('action-a', 10)  // wait up to 10s for next i
 2. Checks keyboard (`justPressed` set), gamepad (buttons 0-16), mouse (`justDown`)
 3. Escape cancels (returns null)
 4. Timeout after `timeoutSec` (default 10s, returns null)
-5. On detection: assigns the input to the action, returns the new binding
+5. Optional `AbortSignal` cancels externally (returns null)
+6. On detection: assigns the input to the action, returns the new binding
 
 **Settings screen pattern:**
 ```typescript

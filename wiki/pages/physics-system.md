@@ -1,7 +1,7 @@
 ---
 title: Physics System
 created: 2026-04-07
-updated: 2026-04-07
+updated: 2026-04-23
 type: system
 tags: [physics, engine, system, velocity]
 sources: [engine/physics/physics-system.ts, shared/types.ts]
@@ -50,7 +50,7 @@ Queries entities with `physics` and `collider` components. When an entity crosse
 
 ## Grounded Detection
 
-The system automatically sets `physics.grounded = true` when an entity's bottom edge touches the bottom boundary of the world. This flag is used by Pass 2 to determine whether ground friction should apply.
+For entities with `bounce > 0`, `grounded` is reset to `false` at the start of each frame's bounce pass, then set back to `true` only if the entity's bottom edge touches the world's bottom boundary. This means `grounded` accurately reflects current contact — it clears automatically when the entity leaves the ground. Pass 2 reads this flag to determine whether ground friction should apply.
 
 ## Execution Order
 

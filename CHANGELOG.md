@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **AI CLI** — `ai:game` generates a complete `defineGame<TState>({...})` module from a natural-language pitch. Fourth command in the AI suite.
 - **`MoveInputCtx<TState, TPlayer>`** — convenience type alias exported from `@engine` for render/input helpers; `Pick<GameContext, 'engine' | 'moves' | 'state' | 'result' | 'currentPlayer'>`.
 
+### Fixed
+
+- **`defineGame` turn ops after game-over** — `endTurn()`, `endPhase()`, `goToPhase()` called inside a move are now deferred until after `endIf`; discarded if the game ends. Post-game-over calls are no-ops.
+- **Physics grounded reset** — `grounded` now resets each frame for bouncing entities, clearing correctly when the entity leaves the ground.
+- **Input bindings `capture()` cancellation** — accepts an optional `AbortSignal` for external cancellation; cleans up the polling interval on abort or completion.
+- **Store `extendStore()` HMR** — a different slice now correctly re-registers its actions after hot-module replacement.
+
 ### Changed
 
 - **`defineGame` type inference** — infers `TPlayer` from `turns.order` via `const` type parameter, narrowing `ctx.currentPlayer` to the literal player ids (e.g., `'X' | 'O'` instead of `string | number`). Removes 3 casts from both the tic-tac-toe and connect-four templates. No breaking changes: callers without `turns` or with explicit `<State>` generic retain today's wider types.

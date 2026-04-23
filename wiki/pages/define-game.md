@@ -1,7 +1,7 @@
 ---
 title: defineGame API
 created: 2026-04-21
-updated: 2026-04-21
+updated: 2026-04-23
 type: architecture
 tags: [engine, game-loop, lifecycle, declarative]
 sources: [engine/core/define-game.ts]
@@ -55,6 +55,8 @@ Moves dispatched after game-over return `'game-over'`.
 ## Turns and Phases
 
 By default, turns auto-advance after each successful move. `turns.order` defines player rotation; `currentPlayer` cycles through it. Set `autoEnd: false` for multi-action turns where moves call `ctx.endTurn()` explicitly.
+
+Turn operations (`endTurn`, `endPhase`, `goToPhase`) called inside a move are deferred until after `endIf` is evaluated. If `endIf` triggers game-over, the deferred ops are discarded — the final state reflects the player and turn at the time of the winning move. After game-over, all turn operations are no-ops.
 
 ```ts
 turns: { order: ['X', 'O'], autoEnd: true }
