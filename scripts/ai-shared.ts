@@ -16,6 +16,7 @@ export interface ParsedFlags {
   force?: boolean;
   dryRun?: boolean;
   verify?: boolean;
+  smoke?: boolean;
   frames?: number;
   physics?: boolean;
 }
@@ -51,6 +52,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
     }
     if (arg === "--physics") {
       flags.physics = true;
+      continue;
+    }
+    if (arg === "--smoke") {
+      flags.smoke = true;
       continue;
     }
     if (arg === "--help" || arg === "-h") {

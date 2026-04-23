@@ -25,7 +25,7 @@ bun dev   # or: npx vite
 First run auto-detects no `game/` folder and shows the template picker. You can also pick one any time:
 
 ```bash
-bun run init:game <blank|asteroid-field|platformer|roguelike>
+bun run init:game <template>
 ```
 
 ## Templates
@@ -36,6 +36,9 @@ bun run init:game <blank|asteroid-field|platformer|roguelike>
 | `asteroid-field`  | Classic arcade shooter — physics, wrap, particle explosions    |
 | `platformer`      | Side-scrolling jump-and-run — gravity, collisions, camera      |
 | `roguelike`       | Turn-based grid crawler — tilemap, pathfinding, fog of war     |
+| `physics-text`    | Physics-driven ASCII art that reacts to your cursor            |
+| `tic-tac-toe`     | Two-player local tic-tac-toe (defineGame API)                  |
+| `connect-four`    | Two-player local Connect Four (defineGame API)                 |
 
 ## Requirements
 

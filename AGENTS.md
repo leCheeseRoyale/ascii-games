@@ -28,12 +28,13 @@
 
 | Command | Creates |
 |---|---|
-| `bun run ai:game "<pitch>"` | `game/<slug>.ts` — complete `defineGame` module |
+| `bun run ai:game "<pitch>"` | `game/<slug>.ts` — complete `defineGame` module (turn-based/board) |
+| `bun run ai:scene "<pitch>"` | `game/<slug>.ts` — complete `defineScene` game (real-time/ECS) |
 | `bun run ai:sprite "<prompt>"` | `game/entities/<slug>.ts` — sprite factory |
 | `bun run ai:mechanic "<desc>"` | `game/systems/<slug>.ts` — behavior system |
 | `bun run ai:juice "<event>"` | `game/helpers/<slug>.ts` — particles+sfx+shake |
 
-Flags: `--model=opus|sonnet|haiku`, `--out=<path>`, `--force`, `--dry-run`, `--verify` (runs `bun run check` after generation), `--help`
+Flags: `--model=opus|sonnet|haiku`, `--out=<path>`, `--force`, `--dry-run`, `--verify` (typecheck), `--smoke` (headless 60-frame test), `--help`
 
 ## Architecture
 

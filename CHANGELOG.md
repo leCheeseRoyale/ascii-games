@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **One-line multiplayer** — `createMultiplayerGame(def, { transport, engineFactory, ... })` wraps any `defineGame` definition with lockstep sync + desync detection via `TurnSync`. Transports: `local` (N `MockAdapter` peers for dev) and `socket` (`SocketAdapter` against `GameServer`). See [`docs/cookbook/define-game.md`](docs/cookbook/define-game.md#multiplayer-games-in-one-line).
 - **AI CLI scripts** — `bun run ai:sprite`, `ai:mechanic`, `ai:juice` generate entity factories, systems, and juice helpers via Claude. Setup in [`docs/AI-WORKFLOWS.md`](docs/AI-WORKFLOWS.md).
 - **AI CLI** — `ai:game` generates a complete `defineGame<TState>({...})` module from a natural-language pitch. Fourth command in the AI suite.
+- **AI CLI** — `ai:scene` generates a complete `defineScene`-based ECS game (real-time, physics, shooters) from a pitch. Fifth command in the AI suite.
+- **`--smoke` flag** — all `ai:*` scripts support `--smoke` for headless validation: instantiates the engine without a canvas, ticks 60 frames, and checks for runtime errors.
+- **Auto-wiring** — `new:scene` auto-adds import + `registerScene` to `game/index.ts`. `ai:game`/`ai:scene` auto-rewrite `game/index.ts` to re-export `setupGame`. No manual wiring needed.
+- **GameCanvas validation** — `setupGame()` errors are now caught and shown visually on the canvas instead of a silent blank screen.
+- **Game-builder agent** — orchestrating agent that takes a pitch, classifies it, generates or scaffolds, wires, validates, and reports.
 - **`MoveInputCtx<TState, TPlayer>`** — convenience type alias exported from `@engine` for render/input helpers; `Pick<GameContext, 'engine' | 'moves' | 'state' | 'result' | 'currentPlayer'>`.
 
 ### Fixed

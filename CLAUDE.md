@@ -26,11 +26,12 @@ bun run bench           # engine/__bench__/run.ts
 bun run gen:api         # Regenerate docs/API-generated.md
 bun run new:scene|new:system|new:entity <name>    # Scaffold
 bun run init:game [blank|asteroid-field|platformer|roguelike|physics-text|tic-tac-toe|connect-four]
-bun run ai:game "<pitch>"      # AI-generated defineGame module (needs ANTHROPIC_API_KEY)
+bun run ai:game "<pitch>"      # AI-generated defineGame module (turn-based/board)
+bun run ai:scene "<pitch>"     # AI-generated defineScene game (real-time/ECS)
 bun run ai:sprite "<prompt>"   # AI-generated sprite factory
 bun run ai:mechanic "<desc>"   # AI-generated behavior system
 bun run ai:juice "<event>"     # AI-generated juice/feedback helper
-# All ai:* scripts support --help, --dry-run, --verify (typecheck after generation)
+# All ai:* scripts support --help, --dry-run, --verify, --smoke (headless 60-frame test)
 ```
 
 **Verification loop** before declaring work done: `bun run check:all` → `bun test` (or targeted `bun test <path>`). This runs typecheck + boundary enforcement + lint. Type-check + tests are the mechanical contract. UI/render correctness is **not** verifiable headlessly — state that limitation explicitly instead of claiming success.

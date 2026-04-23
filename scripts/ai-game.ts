@@ -22,6 +22,7 @@ import {
   slugify,
   writeFileSafe,
 } from "./ai-shared";
+import { smokeTest } from "./smoke-test";
 import { wireEntryPoint } from "./wire-utils";
 
 function printHelp(): void {
@@ -37,6 +38,7 @@ function printHelp(): void {
       "  --force                Overwrite existing file",
       "  --dry-run              Print the prompts that would be sent; don't call API",
       "  --verify               Run bun run check after generation",
+      "  --smoke                Headless smoke test (tick 60 frames, check for errors)",
       "",
       "Examples:",
       '  bun run ai:game "2-player strategy where you place walls to maze a runner"',
@@ -281,6 +283,10 @@ async function main(): Promise<void> {
       process.exit(1);
     }
     console.log("Typecheck passed.");
+  }
+
+  if (flags.smoke) {
+    await smokeTest();
   }
 
   console.log("\nRun: bun dev");
