@@ -280,9 +280,28 @@ export { gaugeSystem } from "./ecs/gauge-system";
 export { interactionSystem, makeInteractive } from "./ecs/interaction-system";
 export { lifetimeSystem } from "./ecs/lifetime-system";
 export { measureSystem } from "./ecs/measure-system";
+// Mesh interaction systems — grab, input forces, tear, pin
+export {
+  createMeshGrabSystem,
+  type MeshGrabOpts,
+} from "./ecs/mesh-grab";
+export {
+  createMeshInputForceSystem,
+  type MeshInputForceOpts,
+} from "./ecs/mesh-input-force";
+export {
+  createMeshPinSystem,
+  type MeshPinFn,
+  type MeshPinOpts,
+  type MeshPinSelector,
+} from "./ecs/mesh-pin";
 // Mesh render — image slices + connecting lines for meshCell entities
 export { meshRenderSystem, renderMeshCells } from "./ecs/mesh-render-system";
 export type { MeshShape, MeshShapeFn } from "./ecs/mesh-shapes";
+export {
+  createMeshTearSystem,
+  type MeshTearOpts,
+} from "./ecs/mesh-tear";
 export { parentSystem } from "./ecs/parent-system";
 export {
   createEntityPool,

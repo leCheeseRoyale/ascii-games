@@ -137,6 +137,10 @@ Meshes with **500+ cells** (`SOA_THRESHOLD`) automatically use Float32Array type
 - **`_soaMesh`** — runs spring + physics for SoA meshes in typed-array loops
 - **`_meshRender`** — draws image slices + lines for ECS cells; renders SoA meshes via `renderSoAMesh()`
 - **`createCursorRepelSystem`** — cursor warps both ECS and SoA meshes automatically
+- **`createMeshGrabSystem`** — click/touch drag cells, pull toward cursor, push neighbors
+- **`createMeshInputForceSystem`** — WASD/gamepad directional forces on mesh cells
+- **`createMeshTearSystem`** — auto-destroy overstretched cells with particle effects
+- **`createMeshPinSystem`** — anchor cells to home positions (cloth/flag simulation)
 - **`engine.destroy(cell)`** — cell's image slice disappears, neighbor lines skip it (ECS meshes only)
 - **`engine.particles.burst`** — particles at cell position for destruction effects
 - **`engine.onCollide`** — other entities collide with mesh cells (ECS meshes only, not SoA)
@@ -166,6 +170,10 @@ Meshes with **500+ cells** (`SOA_THRESHOLD`) automatically use Float32Array type
 - **Spring presets:** `SpringPresets.stiff`, `.snappy`, `.bouncy`, `.smooth`, `.floaty`, `.gentle` — named spring configs for `engine.spawnText()` / `engine.spawnSprite()`.
 - **`engine.spawnImageMesh(opts)`** — deformable image mesh. Full details in the **Image Mesh System** section above.
 - **`createCursorRepelSystem(opts?)`** / **`createAmbientDriftSystem(opts?)`** — one-line helpers for interactive text. Add via `engine.addSystem(createCursorRepelSystem({ radius: 120 }))`. Cursor repel also affects SoA meshes automatically.
+- **`createMeshGrabSystem(opts?)`** — click/touch to grab the nearest mesh cell and drag it. Options: `grabRadius` (40), `pullForce` (600), `neighborForce` (150), `neighborRadius` (80), `button` (0=left), `tag`. Works with both ECS and SoA meshes.
+- **`createMeshInputForceSystem(opts?)`** — WASD/arrow keys + gamepad left stick apply directional force to spring entities. Options: `force` (400), `radius` (120), `origin` ('cursor'|'center'), `tag`. Affects both ECS and SoA meshes.
+- **`createMeshTearSystem(opts?)`** — auto-destroys cells when displacement from home exceeds threshold. Options: `threshold` (80px), `particles` (true), `particleCount` (3), `particleColor` ('#fff'), `tag`. Works with both ECS and SoA meshes.
+- **`createMeshPinSystem(opts?)`** — pins cells to their home positions (velocity zeroed, position reset each frame). Options: `pin` ('top'|'bottom'|'left'|'right'|'corners'|custom fn), `tag`. Pin fn signature: `(col, row, cols, rows) => boolean`.
 - **Collision groups:** `collider: { ..., group: 1, mask: 0b11 }` -- bitmask filtering. Default group=1, mask=all.
 - **`engine.onCollide(tagA, tagB, callback)`** -- fires callback on first overlap frame between tagged entities. Returns unsubscribe function. Lazy-creates `_collisionEvents` system on first call.
 - **`engine.flash(color?, duration?)`** -- full-screen flash for damage/powerup feedback.

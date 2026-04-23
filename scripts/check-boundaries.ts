@@ -121,6 +121,7 @@ async function checkFile(filePath: string): Promise<Violation[]> {
     // Reset regex lastIndex for each line
     IMPORT_RE.lastIndex = 0;
     let match: RegExpExecArray | null;
+    // biome-ignore lint/suspicious/noAssignInExpressions: regex exec loop
     while ((match = IMPORT_RE.exec(line))) {
       const importPath = match[1];
       if (!importPath.startsWith("@")) continue;

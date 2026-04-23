@@ -26,6 +26,10 @@ Inventory, equipment, currency, crafting, loot tables, quests, achievements, dam
 
 Auto-colliders, spring presets, `spawnText` / `spawnSprite`, cursor repulsion, ambient drift, text measurement helpers. Complete interactive title screen recipe.
 
+## [Mesh Interactions](cookbook/mesh-interactions.md)
+
+Grab-and-drag, WASD/gamepad push, tearable images, cloth simulation (pinned rows + gravity), combining systems, connecting destruction to game events. Performance notes for SoA threshold and density.
+
 ## [UI & Infrastructure](cookbook/ui-and-infrastructure.md)
 
 Dialog, choice, menus, scroll panels, grids, tooltips, tabs, canvas UI. Mobile touch, viewport. Multiplayer adapters, TurnSync. Persistence, save slots, compression, leaderboards. Scene transitions, pause menu.

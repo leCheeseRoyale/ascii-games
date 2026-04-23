@@ -223,6 +223,50 @@ const wireframe = engine.spawnImageMesh({
 // Now you have a physics-driven wireframe. Cursor repel creates organic deformations.
 ```
 
+## Mesh interaction systems
+
+Four optional systems for controlling mesh behavior via input and physics. Add with `engine.addSystem(...)`.
+
+### Grab-and-drag
+```ts
+import { createMeshGrabSystem } from '@engine';
+engine.addSystem(createMeshGrabSystem({ grabRadius: 50, pullForce: 800 }));
+```
+Click/touch grabs the nearest cell, dragging it toward the cursor. Neighbors push away from the grabbed point. Works with both ECS and SoA meshes.
+
+### Keyboard/gamepad forces
+```ts
+import { createMeshInputForceSystem } from '@engine';
+engine.addSystem(createMeshInputForceSystem({ force: 500, origin: 'center' }));
+```
+WASD/arrows + left gamepad stick apply directional forces. `origin: 'cursor'` affects cells near the mouse; `origin: 'center'` affects cells near screen center.
+
+### Stress-based tearing
+```ts
+import { createMeshTearSystem } from '@engine';
+engine.addSystem(createMeshTearSystem({ threshold: 60, particleColor: '#ff4400' }));
+```
+Cells that stretch more than `threshold` pixels from home are destroyed with particle burst. Combine with grab or cursor repel for destructible meshes.
+
+### Cell pinning
+```ts
+import { createMeshPinSystem } from '@engine';
+engine.addSystem(createMeshPinSystem({ pin: 'top' }));
+```
+Pins cells to their home positions. Presets: `'top'`, `'bottom'`, `'left'`, `'right'`, `'corners'`. Custom: `pin: (col, row, cols, rows) => row === 0 || col === 0`.
+
+### Combining systems: cloth simulation
+```ts
+engine.addSystem(createMeshPinSystem({ pin: 'top' }));
+engine.addSystem(createCursorRepelSystem({ radius: 100 }));
+engine.addSystem(createMeshGrabSystem());
+engine.addSystem(createMeshTearSystem({ threshold: 120 }));
+// Add gravity to each cell's physics component:
+for (const cell of meshCells) {
+  cell.physics = { gravity: 200, drag: 0.02 };
+}
+```
+
 ## Implementation files
 
 | File | Changes |
